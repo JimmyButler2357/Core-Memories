@@ -1,6 +1,6 @@
-# LittleLegacy — High-Level Summary
+# Project Summary
 
-**LittleLegacy** is a **voice-first memory journal app for parents of young children**. Parents tap a button, speak for up to 60 seconds about their child's day, and the app auto-transcribes, tags, and organizes that entry into a searchable archive — preserving both the text and the original audio recording forever.
+A **voice-first memory journal app for parents of young children**. Parents tap a button, speak for up to 60 seconds about their child's day, and the app auto-transcribes, tags, and organizes that entry into a searchable archive — preserving both the text and the original audio recording forever.
 
 **Core value prop:** "You'll never forget the little things." It eliminates the friction of traditional journaling by making capture as easy as a voice memo, while keeping everything organized, searchable, and permanent.
 
