@@ -16,7 +16,7 @@ A **voice-first memory journal app for parents of young children**. Parents tap 
 - High lifetime value — once recordings accumulate, switching costs are enormous (you can't replicate your child's "firsts" elsewhere)
 - Strong word-of-mouth networks (parenting groups, mom influencers)
 
-**Monetization:** Subscription — $3/month or $30/year after a free trial, with future revenue from keepsake print books.
+**Monetization:** Subscription — $4.99/month or $39.99/year after a free trial (launch pricing; A/B test $3.99 and $5.99 variants via RevenueCat Experiments once there's enough traffic), with future revenue from keepsake print books.
 
 **Key differentiator:** No competitor leads with voice. The preserved audio becomes irreplaceable over time — imagine a grandchild hearing their grandparent describe their parent's first steps.
 

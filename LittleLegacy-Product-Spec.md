@@ -155,7 +155,8 @@ Expected output: [{"tag": "humor", "confidence": 0.95}, {"tag": "milestone", "co
 
 ### 5.1 Subscription Model
 - **Free trial:** 7-14 days, full access to all features
-- **After trial:** $3/month or $30/year (annual = 2 months free)
+- **After trial:** $4.99/month or $39.99/year (launch pricing — ~3 months free on annual)
+- **Price testing:** Use RevenueCat Experiments to A/B test $3.99 and $5.99 monthly variants once there's enough traffic. You can always lower a price; raising it after launch is much harder.
 - **Paywall behavior:** Entries recorded during trial become visible but locked (see dates, child names, first few words — but cannot play audio or read full text). This creates loss aversion and is the highest-converting approach for emotional data.
 - **Win-back email:** "You recorded [X] memories about [child name] during your trial. They're waiting for you."
 
@@ -220,6 +221,7 @@ Expected output: [{"tag": "humor", "confidence": 0.95}, {"tag": "milestone", "co
 - [ ] Weekly catch-up prompt for inactive users
 - [ ] LLM-powered auto-tagging upgrade (Claude Haiku — see Section 3.3)
 - [ ] Share individual entries — tap share to generate a read-only link with entry text, child name, date, and audio playback; shareable via native share sheet
+- [ ] In-app feedback — "Contact Us" in Settings opens email compose with device info + app version auto-attached
 
 ### V2 (Month 6-12) — Growth & Expansion
 - [ ] Partner sharing (two parents, one account)
@@ -230,6 +232,7 @@ Expected output: [{"tag": "humor", "confidence": 0.95}, {"tag": "milestone", "co
 - [ ] Extended family sharing via invite links
 - [ ] Shared entry management — view all shared entries, revoke links from settings
 - [ ] Shared entry web page includes subtle LittleLegacy branding + "Capture your family's memories" CTA (organic acquisition loop)
+- [ ] Referral program — invite a parent friend, both get a free month; built into Settings
 
 ### V3+ (Year 2) — Platform
 - [ ] "Interview Mode" — guided Q&A to record the child's own answers
@@ -332,6 +335,18 @@ These are the performance, security, and quality targets that apply at MVP. More
 - The entire stack is TypeScript end-to-end (app, Edge Functions, database types) — one language to think in
 - Supabase + Expo + RevenueCat is the most common indie-dev stack for subscription mobile apps right now
 
+### 10.1 Architectural Decisions (Bake In During Development)
+
+Zero-effort decisions during development that prevent expensive rework at scale. These cost nothing extra to implement now but save significant refactoring later.
+
+1. **Separate dev/prod Supabase projects from day one** — create `littlelegacy-dev` and `littlelegacy-prod`. Never test against production data.
+2. **Use environment variables for all service URLs/keys** — never hardcode Supabase URL, PostHog key, RevenueCat API key, etc. Use Expo's `.env` support.
+3. **Abstract storage calls behind a service layer** — if you ever move from Supabase Storage to raw S3, you change one file, not fifty.
+4. **Add database indexes on frequently queried columns** — `user_id`, `child_id`, `created_at`, full-text search column, and compound index on `(user_id, created_at)` for timeline queries.
+5. **Use Supabase Row Level Security (RLS) from the start** — trivial to set up during table creation, painful to retrofit. Every table should have RLS policies before the first row is inserted.
+6. **Version database schema with migrations** — use Supabase CLI migrations. Don't make schema changes by clicking in the dashboard.
+7. **Log PostHog analytics events as you build each feature** — don't plan an "add analytics" sprint later. Drop the event call in as you write the feature code.
+
 ---
 
 ## 11. Competitive Positioning
@@ -409,7 +424,7 @@ Key risks from the standard PRD worth revisiting before launch. Not fully specce
 | Users don't sustain journaling habit past week 1 | High | High | Prompts reduce blank-page friction; notifications are gentle; wrap-ups reward sustained use |
 | Voice transcription quality is poor (accents, background noise) | Medium | Medium | Allow text editing of all transcriptions; save original audio as fallback; evaluate cloud STT for V2 |
 | COPPA / child privacy compliance issues | High | Medium | Legal review before launch; parent is data subject (not child); no child-identifiable data sent to LLM |
-| Subscription fatigue — users won't pay $3/mo | High | Medium | Visible-but-locked paywall creates FOMO; pricing is below most family apps; test $2.99 vs $3.99 in early cohorts |
+| Subscription fatigue — users won't pay $4.99/mo | High | Medium | Visible-but-locked paywall creates FOMO; pricing is competitive with family apps; A/B test $3.99 and $5.99 via RevenueCat Experiments |
 | Third-party API dependency (Whisper, Claude) | Medium | Low | Abstract transcription and tagging behind service interfaces; can swap providers without app changes |
 | Contributor link abuse or spam (V2) | Low | Low | Links are scoped, labeled, and revocable; rate limiting on submissions |
 
