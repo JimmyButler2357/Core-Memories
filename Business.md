@@ -132,14 +132,17 @@ For every 100 downloads, expect 10-20 paying subscribers.
 | Milestone | Paying Subs | Monthly Net Revenue | Annual Net Revenue | Enough to... |
 |-----------|-------------|--------------------|--------------------|---------------|
 | Break even | 13 | $55 | $660 | Cover infrastructure |
-| Ramen profitable | 120 | $510 | $6,120 | Buy groceries |
-| Side income | 300 | $1,270 | $15,240 | Meaningful side income |
-| **Part-time viable** | **600** | **$2,545** | **$30,540** | Reduce day job hours |
-| **Full-time threshold** | **1,200** | **$5,090** | **$61,080** | Replace modest salary |
-| Comfortable | 3,000 | $12,720 | $152,640 | Hire help, invest in growth |
-| Real business | 6,000 | $25,440 | $305,280 | Small team, serious growth |
+| Ramen profitable | 120 | $510 | $6,120 | Side money |
+| Side income | 500 | $2,120 | $25,440 | Meaningful side income |
+| Validation | 1,000 | $4,240 | $50,880 | Strong signal — this is real |
+| Halfway there | 2,000 | $8,480 | $101,760 | Could reduce day job hours |
+| **Full-time threshold** | **3,000** | **$12,720** | **$152,640** | **~$150K pre-tax salary** |
+| Comfortable + hiring | 5,000 | $21,200 | $254,400 | Hire help, invest in growth |
+| Real business | 8,000 | $33,920 | $407,040 | Small team, serious growth |
 
-**Key insight:** At $4.99/mo, you need ~1,200 paying subscribers to go full-time at a modest salary — fewer than at the old $3/mo price point. At 15% download-to-paid conversion, that's ~8,000 total downloads needed. Over 12 months = ~670 downloads/month — very achievable with strong ASO + organic channels.
+**Your number: ~3,000 paying subscribers to go full-time at $150K pre-tax.** At 15% download-to-paid conversion, that's ~20,000 total downloads. Over 18 months = ~1,100 downloads/month — ambitious but realistic with strong ASO + organic channels + modest paid acquisition.
+
+Note: the $152,640 figure is net revenue after Apple's 15% cut but before income tax and self-employment tax (~15.3% SE + your bracket). To truly take home $150K after SE tax, you'd want closer to 3,500 subs — but at that point the growth curve is working for you.
 
 ### Hidden Costs to Budget For
 
@@ -158,11 +161,11 @@ For every 100 downloads, expect 10-20 paying subscribers.
 
 ### The "Go Full-Time" Decision Framework
 
-Don't quit your day job at 1,000 subscribers. Safer framework:
-1. **Revenue covers costs + has been growing for 3 consecutive months** — proves it's not a fluke
-2. **You have 6 months of personal expenses saved** — safety net
-3. **Monthly churn is below 5%** — proves retention, not just acquisition
-4. **You can clearly see the path from current revenue to salary replacement** — the growth curve, not just the current number
+Don't quit your day job at 1,000 subscribers. At $150K target salary, here's the framework:
+1. **Net revenue has hit $10K+/mo AND has been growing for 3 consecutive months** — proves the trajectory points to $150K, not just that you hit a plateau
+2. **You have 6 months of personal expenses saved** (~$75K if burn is ~$12.5K/mo) — safety net while growth continues
+3. **Monthly churn is below 5%** — proves retention, not just acquisition. At 5% churn you lose 150 subs/month at 3,000 — you need growth to outpace that.
+4. **You can clearly see the path from current revenue to $12.5K/mo** — the growth curve, not just the current number. If you're at 2,000 subs growing 10%/month, you'll hit 3,000 in ~4 months.
 
 ### Taxes
 
@@ -305,7 +308,7 @@ When your time becomes the bottleneck:
 3. **Marketing contractor** — someone who understands ASO and social media for consumer apps. Could be informal (sister-in-law) or formal.
 
 ### Real Team (50K → 100K+ users)
-At ~$305K/year revenue, you can afford to hire. Prioritize in this order:
+At ~$250-400K/year net revenue you can afford to hire beyond yourself. At this point you're already well past your $150K salary target, so the surplus funds growth. Prioritize in this order:
 
 1. **Backend / Growth Engineer** (first hire)
    - Handles: infrastructure scaling, Android port, performance optimization, growth features (referral system, sharing, notifications V2)
