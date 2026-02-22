@@ -8,7 +8,7 @@ Step-by-step marketing playbook for a bootstrapped consumer app launch. Organize
 
 Before tactics, acknowledge what you have that most indie devs don't:
 
-1. **Sister-in-law with EA marketing agency experience** — even casual conversations about positioning, messaging, and channels are worth more than any blog post. Key question to ask her: "If you were launching a $3/mo subscription app to moms of toddlers, where would you spend your first $0? Your first $500?"
+1. **Sister-in-law with EA marketing agency experience** — even casual conversations about positioning, messaging, and channels are worth more than any blog post. Key question to ask her: "If you were launching a $4.99/mo subscription app to moms of toddlers, where would you spend your first $0? Your first $500?"
 
 2. **Wife and sister in the target demographic** — they ARE your user research panel. Have them use the app from TestFlight day one. Watch them onboard (don't help). Listen to what confuses them, what delights them, what they'd tell a friend. Their honest reactions are worth more than 1,000 survey responses.
 
@@ -33,7 +33,7 @@ Still zero ad spend. Getting real humans using the real app.
 
 - [ ] Invite 15-25 real parents to TestFlight — prioritize: wife, sister, their mom friends, your parent friends, and anyone from the waitlist email
 - [ ] Watch 3-5 of them onboard — screen share or sit next to them. Don't help. Note every hesitation. This is the most valuable 30 minutes you'll spend.
-- [ ] Ask each beta tester: "Would you pay $3/month for this?" and "Who would you tell about this?" — their answers tell you if you have product-market fit.
+- [ ] Ask each beta tester: "Would you pay $4.99/month for this?" and "Who would you tell about this?" — their answers tell you if you have product-market fit.
 - [ ] Fix the top 3 friction points before public launch.
 
 ---
@@ -132,7 +132,7 @@ These take months to rank in Google but compound over time. Low priority vs. ASO
 ### Apple Search Ads
 - Start with $5-10/day targeting "baby journal", "memory app" keywords.
 - Apple Search Ads have the best ROI for subscription apps because the user is already in the App Store looking for something.
-- **Key metric:** Cost Per Acquisition (CPA). If CPA < $5 and a subscriber pays $30/year net, payback is under 2 months.
+- **Key metric:** Cost Per Acquisition (CPA). If CPA < $8 and a subscriber pays $34/year net, payback is under 3 months.
 - Start with "Search Match" (Apple auto-matches to relevant searches) to discover which terms convert, then shift budget to exact match on top performers.
 
 ### Instagram / Facebook Ads
@@ -144,7 +144,7 @@ These take months to rank in Google but compound over time. Low priority vs. ASO
 ### Referral Program (Built Into App — See PRD V2 Roadmap)
 - "Invite a parent friend, you both get a free month."
 - Built into Settings. User taps "Invite a Friend" → generates a share link → friend downloads and subscribes → both get credited.
-- Cost per referral: ~$2.55 of lost revenue — far cheaper than paid acquisition.
+- Cost per referral: ~$4.24 of lost revenue — still far cheaper than paid acquisition.
 
 ---
 

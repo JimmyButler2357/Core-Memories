@@ -114,9 +114,10 @@ Key question: **at what point can this replace a salary?**
 **Apple's cut:**
 - Apple takes 30% of all in-app purchases by default
 - **Apple Small Business Program:** If you earn < $1M/year (you will for a long time), you qualify for the **15% rate**. You must apply — it's not automatic. Do this before your first sale.
-- **Net per $3/mo subscriber:** $2.55/mo (at 15% Apple cut)
-- **Net per $30/yr subscriber:** $25.50/yr = $2.125/mo (at 15% Apple cut)
+- **Net per $4.99/mo subscriber:** $4.24/mo (at 15% Apple cut)
+- **Net per $39.99/yr subscriber:** $33.99/yr = $2.83/mo (at 15% Apple cut)
 - Annual subscribers give you less per month but much lower churn. Most successful apps see 60-70% of revenue from annual plans.
+- **Price testing:** Launch at $4.99/$39.99, then use RevenueCat Experiments to A/B test $3.99 and $5.99 monthly variants once there's enough traffic. You can always lower a price; raising it after launch is much harder.
 
 **Conversion funnel reality:**
 Industry benchmarks for subscription apps:
@@ -130,15 +131,15 @@ For every 100 downloads, expect 10-20 paying subscribers.
 
 | Milestone | Paying Subs | Monthly Net Revenue | Annual Net Revenue | Enough to... |
 |-----------|-------------|--------------------|--------------------|---------------|
-| Break even | 22 | $55 | $660 | Cover infrastructure |
-| Ramen profitable | 200 | $510 | $6,120 | Buy groceries |
-| Side income | 500 | $1,275 | $15,300 | Meaningful side income |
-| **Part-time viable** | **1,000** | **$2,550** | **$30,600** | Reduce day job hours |
-| **Full-time threshold** | **2,000** | **$5,100** | **$61,200** | Replace modest salary |
-| Comfortable | 5,000 | $12,750 | $153,000 | Hire help, invest in growth |
-| Real business | 10,000 | $25,500 | $306,000 | Small team, serious growth |
+| Break even | 13 | $55 | $660 | Cover infrastructure |
+| Ramen profitable | 120 | $510 | $6,120 | Buy groceries |
+| Side income | 300 | $1,270 | $15,240 | Meaningful side income |
+| **Part-time viable** | **600** | **$2,545** | **$30,540** | Reduce day job hours |
+| **Full-time threshold** | **1,200** | **$5,090** | **$61,080** | Replace modest salary |
+| Comfortable | 3,000 | $12,720 | $152,640 | Hire help, invest in growth |
+| Real business | 6,000 | $25,440 | $305,280 | Small team, serious growth |
 
-**Key insight:** ~2,000 paying subscribers to go full-time at a modest salary. At 15% download-to-paid conversion, that's ~13,000 total downloads needed. Over 12 months = ~1,100 downloads/month — achievable with strong ASO + organic channels + modest ad spend.
+**Key insight:** At $4.99/mo, you need ~1,200 paying subscribers to go full-time at a modest salary — fewer than at the old $3/mo price point. At 15% download-to-paid conversion, that's ~8,000 total downloads needed. Over 12 months = ~670 downloads/month — very achievable with strong ASO + organic channels.
 
 ### Hidden Costs to Budget For
 
@@ -173,7 +174,7 @@ Don't quit your day job at 1,000 subscribers. Safer framework:
 
 ### Apple Small Business Program — Don't Forget
 
-Apply before your first sale. Reduces Apple's cut from 30% to 15% for developers earning under $1M/year. That's an extra $0.45 per subscriber per month. Simple application in App Store Connect.
+Apply before your first sale. Reduces Apple's cut from 30% to 15% for developers earning under $1M/year. That's an extra $0.75 per subscriber per month at $4.99. Simple application in App Store Connect.
 
 ---
 
@@ -304,7 +305,7 @@ When your time becomes the bottleneck:
 3. **Marketing contractor** — someone who understands ASO and social media for consumer apps. Could be informal (sister-in-law) or formal.
 
 ### Real Team (50K → 100K+ users)
-At ~$300K/year revenue, you can afford to hire. Prioritize in this order:
+At ~$305K/year revenue, you can afford to hire. Prioritize in this order:
 
 1. **Backend / Growth Engineer** (first hire)
    - Handles: infrastructure scaling, Android port, performance optimization, growth features (referral system, sharing, notifications V2)

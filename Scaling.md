@@ -33,7 +33,7 @@ This is all you need. No custom servers, no Docker, no CI/CD pipelines, no DevOp
 | 100,000 | $300+ | ~$250/mo | $4,000 | $99 | **~$4,650** |
 
 **Key takeaways:**
-- At 1K paying users you're earning ~$2,550/mo against ~$65/mo in costs. Very healthy margins.
+- At 1K paying users you're earning ~$4,240/mo against ~$65/mo in costs. Very healthy margins.
 - Claude API tagging (V2) is the biggest scaling cost, but it's optional — MVP keyword matching costs $0.
 - Storage grows linearly and never shrinks (audio accumulates), but the costs are modest even at scale.
 - You don't hit real infrastructure pain points until 50K+, and by then you're earning $100K+/year.

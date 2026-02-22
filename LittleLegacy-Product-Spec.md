@@ -155,7 +155,8 @@ Expected output: [{"tag": "humor", "confidence": 0.95}, {"tag": "milestone", "co
 
 ### 5.1 Subscription Model
 - **Free trial:** 7-14 days, full access to all features
-- **After trial:** $3/month or $30/year (annual = 2 months free)
+- **After trial:** $4.99/month or $39.99/year (launch pricing — ~3 months free on annual)
+- **Price testing:** Use RevenueCat Experiments to A/B test $3.99 and $5.99 monthly variants once there's enough traffic. You can always lower a price; raising it after launch is much harder.
 - **Paywall behavior:** Entries recorded during trial become visible but locked (see dates, child names, first few words — but cannot play audio or read full text). This creates loss aversion and is the highest-converting approach for emotional data.
 - **Win-back email:** "You recorded [X] memories about [child name] during your trial. They're waiting for you."
 
@@ -423,7 +424,7 @@ Key risks from the standard PRD worth revisiting before launch. Not fully specce
 | Users don't sustain journaling habit past week 1 | High | High | Prompts reduce blank-page friction; notifications are gentle; wrap-ups reward sustained use |
 | Voice transcription quality is poor (accents, background noise) | Medium | Medium | Allow text editing of all transcriptions; save original audio as fallback; evaluate cloud STT for V2 |
 | COPPA / child privacy compliance issues | High | Medium | Legal review before launch; parent is data subject (not child); no child-identifiable data sent to LLM |
-| Subscription fatigue — users won't pay $3/mo | High | Medium | Visible-but-locked paywall creates FOMO; pricing is below most family apps; test $2.99 vs $3.99 in early cohorts |
+| Subscription fatigue — users won't pay $4.99/mo | High | Medium | Visible-but-locked paywall creates FOMO; pricing is competitive with family apps; A/B test $3.99 and $5.99 via RevenueCat Experiments |
 | Third-party API dependency (Whisper, Claude) | Medium | Low | Abstract transcription and tagging behind service interfaces; can swap providers without app changes |
 | Contributor link abuse or spam (V2) | Low | Low | Links are scoped, labeled, and revocable; rate limiting on submissions |
 
