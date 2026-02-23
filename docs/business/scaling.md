@@ -1,4 +1,4 @@
-# LittleLegacy — Infrastructure & Scaling Guide
+# Core-Memories — Infrastructure & Scaling Guide
 
 How the technical infrastructure needs to evolve as the app grows from 0 to 100K+ users. Reference this alongside the Product Spec (Section 10: Technical Stack) when making architecture decisions during development.
 
@@ -125,7 +125,7 @@ Supabase can realistically carry you to 50K-100K users. The economics are good (
 
 These are zero-effort decisions during development that prevent expensive rework at scale. See also: Product Spec Section 10.1.
 
-1. **Separate dev/prod Supabase projects from day one** — never test against production data. Create two Supabase projects: `littlelegacy-dev` and `littlelegacy-prod`.
+1. **Separate dev/prod Supabase projects from day one** — never test against production data. Create two Supabase projects: `core-memories-dev` and `core-memories-prod`.
 2. **Use environment variables for all service URLs/keys** — never hardcode Supabase URL, PostHog key, RevenueCat API key, etc. Use Expo's `.env` support.
 3. **Abstract storage calls behind a service layer** — if you ever move from Supabase Storage to raw S3, you change one file, not fifty.
 4. **Add database indexes on columns you query frequently** — user_id, child_id, created_at, full-text search column. Cheap to add now, painful to discover you need at 10K users.

@@ -1,4 +1,4 @@
-# LittleLegacy — Full Product Specification
+# Core-Memories — Full Product Specification
 ## Voice-First Memory Journal for Parents
 
 ---
@@ -16,6 +16,8 @@
 ---
 
 ## 2. Core User Experience
+
+> **Detailed screen-by-screen specifications:** See [`app-workflow.md`](../design/app-workflow.md) for the complete App Workflow (v3) — 7 screens + push notification with full layout descriptions, interaction details, and open design questions.
 
 ### 2.1 Capture Flow — Two Paths
 
@@ -72,7 +74,16 @@
 - Child tag(s) — tap to add/change
 - Topic tags (auto-detected or manual): humor, milestone, first, school, sports, health, family, holiday, bedtime, sweet moment
 - Date & time recorded
+- Age stamp — auto-calculated from child's birthday (e.g., "Emma — 2 years, 4 months, 12 days")
 - Optional: mark as favorite/highlight
+
+### 2.5 Audio Consumption Strategy
+
+**Text-first, audio-second:** Daily browsing happens through transcriptions — faster to scan than listening to sequential recordings. The original audio is always one tap away for the emotional deep-dive. Parents won't sit and listen to 15 recordings back-to-back, but they will tap play on a specific entry that catches their eye in text form.
+
+**Family contributor recordings change the equation:** A parent's own voice narrating is reflective and valuable, but hearing grandma describe meeting the baby or uncle Dave's reaction to the first steps — that's content parents actively seek out and replay. The record request feature (V2) transforms the archive from "just me talking" into a chorus of family voices, which is far more compelling to consume and becomes irreplaceable over time.
+
+**Value compounds over time:** A mundane bath time entry today becomes a time capsule in three years when that routine no longer exists. The product's emotional value increases the longer someone uses it — this is both the core retention mechanism and the primary marketing hook. The message isn't "listen tonight" — it's "in five years, you'll be grateful these exist."
 
 ---
 
@@ -149,14 +160,22 @@ Expected output: [{"tag": "humor", "confidence": 0.95}, {"tag": "milestone", "co
 - No empty-day markers or guilt-inducing gaps in the timeline
 - Weekly catch-up prompt (optional): "Anything from this week worth capturing?"
 
+### Recap Emails (V1.5 / V2)
+
+**Weekly recap (V1.5):** Primarily text-based. Clean digest of the week's transcribed entries with attached photos and age stamps. Designed to be quick to scan and easy to forward to grandparents. Reinforces the journaling habit by showing the parent what they captured.
+
+**Monthly recap (V1.5):** Adds an audio highlight reel. Top 3-5 entries with embedded audio players alongside transcribed text and photos. Includes a "voices this month" section featuring recordings from family contributors (grandparents, spouse, etc.). This is where audio consumption starts to feel rewarding.
+
+**Yearly recap — "Year in Memories" (V2):** The big emotional event. Beautifully designed summary with curated audio clips from across the year, growth stats ("you recorded 247 memories this year"), month-by-month highlights, and a prompt to record a year-end "letter to [child]" reflection. Timed to arrive near subscription renewal as a powerful retention trigger.
+
 ---
 
 ## 5. Monetization
 
 ### 5.1 Subscription Model
 - **Free trial:** 7-14 days, full access to all features
-- **After trial:** $4.99/month or $39.99/year (launch pricing — ~3 months free on annual)
-- **Price testing:** Use RevenueCat Experiments to A/B test $3.99 and $5.99 monthly variants once there's enough traffic. You can always lower a price; raising it after launch is much harder.
+- **After trial:** $5.99/month or $49.99/year (launch pricing — ~3.5 months free on annual)
+- **Price testing:** Use RevenueCat Experiments to A/B test $4.99 and $6.99 monthly variants once there's enough traffic. You can always lower a price; raising it after launch is much harder.
 - **Paywall behavior:** Entries recorded during trial become visible but locked (see dates, child names, first few words — but cannot play audio or read full text). This creates loss aversion and is the highest-converting approach for emotional data.
 - **Win-back email:** "You recorded [X] memories about [child name] during your trial. They're waiting for you."
 
@@ -170,6 +189,7 @@ Expected output: [{"tag": "humor", "confidence": 0.95}, {"tag": "milestone", "co
 ### 5.3 Pricing Philosophy
 - Avoid over-complicating tiers — one subscription level, not multiple SKUs
 - Don't nickel-and-dime on features like audio storage or number of children
+- Partner/spouse access included in the base subscription — both parents journal on one plan. Directly undercuts competitors who gate partner sharing behind $96+/year premium tiers
 - The subscription unlocks everything; the book is an add-on purchase
 
 ---
@@ -185,12 +205,15 @@ Expected output: [{"tag": "humor", "confidence": 0.95}, {"tag": "milestone", "co
 - Both parents can add entries to any child's book
 - Entries show which parent recorded them
 - Partner must approve/accept invitation (no unilateral access)
+- Included in the base subscription — no premium tier upsell
+- Partner prompt feature: both parents get the same daily prompt → record independently → paired responses surfaced side by side at week's end. Creates a dual-perspective archive and doubles engagement per household
 
 ### Phase 3 — Extended Family
 - Share a link (one-time or ongoing) for grandparents, aunts, etc.
 - Contributors can add entries tagged to specific children
 - Owner (parent) approves contributions before they appear in the book
 - Potential: read-only sharing for family members who just want to browse
+- Seasonal/holiday invites: around major holidays, prompt the parent to send record request links to family with one tap — builds holiday-tagged collections that become annual traditions
 
 ---
 
@@ -201,6 +224,7 @@ Expected output: [{"tag": "humor", "confidence": 0.95}, {"tag": "milestone", "co
 - [ ] Text entry (type instead of speak)
 - [ ] Audio preservation (keep original recordings)
 - [ ] Child profiles (name, birthday, photo)
+- [ ] Age stamp on every entry — auto-calculated from child's birthday (e.g., "Emma — 2 years, 4 months, 12 days")
 - [ ] Per-child tab/book view with chat-row layout
 - [ ] Entry detail view (transcript, audio playback, edit)
 - [ ] Push notification at user-selected time
@@ -213,7 +237,7 @@ Expected output: [{"tag": "humor", "confidence": 0.95}, {"tag": "milestone", "co
 
 ### V1.5 (Month 4-6) — Retention & Polish
 - [ ] "On this day" memory resurfacing (1 year ago today)
-- [ ] Milestone celebrations (auto-detect firsts, birthdays)
+- [ ] Milestone celebrations — AI scans transcriptions for milestone language ("first steps," "said a new word," "slept through the night," "lost a tooth"); flags entry with a special badge in the timeline + celebration animation; auto-prompts parent to share via record request link ("Emma took her first steps! Invite grandma to record her reaction"). Turns milestones into social moments that drive family engagement without manual categorization
 - [ ] Developmental prompts by age (age-appropriate prompt suggestions)
 - [ ] Prompt rotation system (pre-generated, curated prompts)
 - [ ] Improved transcription (cloud fallback for low-confidence entries)
@@ -222,17 +246,25 @@ Expected output: [{"tag": "humor", "confidence": 0.95}, {"tag": "milestone", "co
 - [ ] LLM-powered auto-tagging upgrade (Claude Haiku — see Section 3.3)
 - [ ] Share individual entries — tap share to generate a read-only link with entry text, child name, date, and audio playback; shareable via native share sheet
 - [ ] In-app feedback — "Contact Us" in Settings opens email compose with device info + app version auto-attached
+- [ ] Family recap emails — weekly text digest + monthly audio highlight reel with "voices this month" section (see Section 4)
+- [ ] Quick-react mood/emotion tags — after recording, one-tap mood icon (laughing, crying, proud, exhausted, grateful); filterable later ("show me all the proud moments")
+- [ ] Quiet mode / whisper detection — auto gain adjustment for low-volume environments (nursing at night, sleeping baby nearby); ensures whispered entries transcribe clearly
 
 ### V2 (Month 6-12) — Growth & Expansion
-- [ ] Partner sharing (two parents, one account)
+- [ ] Partner sharing (two parents, one account) — included in base subscription, no premium tier
 - [ ] "Memory Sparks" — import photo from camera roll, app prompts "What was happening here?"
-- [ ] Natural language search ("When did Emma first ride a bike?")
-- [ ] Annual highlight reel (auto-compiled best entries)
+- [ ] AI semantic search — natural language queries ("When did Liam first talk about wanting a dog?") with synthesized answers linking to original audio; built on pgvector + RAG pattern; grows more powerful with usage
 - [ ] Keepsake book builder + print-on-demand integration
 - [ ] Extended family sharing via invite links
 - [ ] Shared entry management — view all shared entries, revoke links from settings
-- [ ] Shared entry web page includes subtle LittleLegacy branding + "Capture your family's memories" CTA (organic acquisition loop)
+- [ ] Shared entry web page includes subtle Core-Memories branding + "Capture your family's memories" CTA (organic acquisition loop)
 - [ ] Referral program — invite a parent friend, both get a free month; built into Settings
+- [ ] Yearly recap — "Year in Memories" email with curated audio, growth stats, month-by-month highlights, year-end letter prompt; timed near renewal (see Section 4)
+- [ ] Titled record requests via link — parent sends a named, themed recording link ("Record your memory from Emma's 3rd birthday") to any family member via email/text/WhatsApp; recipient records on a simple web page, no app/account needed; entry appears in child's journal attributed to their name
+- [ ] Photo attachment to voice entries — after recording, option to snap or select one photo; voice is the memory, photo is the visual anchor
+- [ ] Family tree / people tagging — set up family members once (grandma, uncle, babysitter), tag in entries; filter "every memory mentioning Grandma Carol"; enables relationship-specific gift compilations
+- [ ] Partner prompt / "question of the day" — once a spouse is added as contributor, both parents receive the same prompt each evening and record independently; at week's end, surface paired responses side by side ("Mom's answer" / "Dad's answer" to the same question about the same child). Creates a dual-perspective archive, doubles engagement per household, and makes the product stickier because both parents are invested
+- [ ] Seasonal & holiday memory prompts with family invites — around major holidays (Christmas, Thanksgiving, birthdays, first day of school, Mother's Day, Father's Day), send themed prompts to the parent + one-tap option to send record request links to extended family ("It's Thanksgiving — invite your family to each record one thing they're grateful for about [child's name]"). Drives record request adoption, generates holiday-tagged collections that become annual traditions families look forward to
 
 ### V3+ (Year 2) — Platform
 - [ ] "Interview Mode" — guided Q&A to record the child's own answers
@@ -261,8 +293,9 @@ Expected output: [{"tag": "humor", "confidence": 0.95}, {"tag": "milestone", "co
 - Tags as structured metadata on entries
 
 ### Data Portability
-- Full data export (text + audio) available to users at any time
-- This is a trust signal and should be prominently communicated
+- Full data export (text + audio + metadata) available at any time, even after canceling subscription
+- No paywall hostage dynamics — your memories remain accessible regardless of subscription status
+- Data ownership is a core promise and should be prominently communicated in marketing and onboarding
 
 ---
 
@@ -319,6 +352,11 @@ These are the performance, security, and quality targets that apply at MVP. More
 - **MVP:** Keyword matching + lightweight NLP for topic classification
 - **V2:** Anthropic Claude API (Haiku) for LLM-based classification (see Section 3.3)
 
+### Semantic Search (V2)
+- **pgvector** extension in Supabase PostgreSQL for vector embedding storage
+- **RAG pattern:** embed transcriptions on save → similarity search on query → synthesize answer with links to source entries
+- Gets more powerful the longer someone uses the app as the embedding library grows
+
 ### Development & Deployment
 - **IDE:** VS Code + Claude Code CLI
 - **Version control:** Git + GitHub
@@ -339,7 +377,7 @@ These are the performance, security, and quality targets that apply at MVP. More
 
 Zero-effort decisions during development that prevent expensive rework at scale. These cost nothing extra to implement now but save significant refactoring later.
 
-1. **Separate dev/prod Supabase projects from day one** — create `littlelegacy-dev` and `littlelegacy-prod`. Never test against production data.
+1. **Separate dev/prod Supabase projects from day one** — create `core-memories-dev` and `core-memories-prod`. Never test against production data.
 2. **Use environment variables for all service URLs/keys** — never hardcode Supabase URL, PostHog key, RevenueCat API key, etc. Use Expo's `.env` support.
 3. **Abstract storage calls behind a service layer** — if you ever move from Supabase Storage to raw S3, you change one file, not fifty.
 4. **Add database indexes on frequently queried columns** — `user_id`, `child_id`, `created_at`, full-text search column, and compound index on `(user_id, created_at)` for timeline queries.
@@ -357,7 +395,7 @@ Zero-effort decisions during development that prevent expensive rework at scale.
 - **Social media** (Instagram, Facebook): Memories buried in algorithmic feeds, mixed with non-family content, privacy concerns.
 - **Physical notebooks:** Effective but unsearchable, unshared, and can't preserve the parent's voice.
 
-### LittleLegacy's wedge
+### Core-Memories's wedge
 - Voice-first input is the primary differentiator — no competitor leads with voice
 - Child-linked, tagged entries create structure that generic journals lack
 - Audio preservation means grandchildren could someday hear their grandparent's voice describing the day they were born
@@ -367,6 +405,8 @@ Zero-effort decisions during development that prevent expensive rework at scale.
 - **Data lock-in:** After 1-2 years of daily/weekly memories, switching cost is enormous
 - **Brand/community:** Position as the trusted, privacy-respecting home for childhood memories
 - **Emotional lock-in:** The audio recordings create irreplaceable value — you can't export your voice to another app and get the same experience
+- **Compounding value:** The archive becomes more emotionally valuable over time — mundane entries from today become irreplaceable time capsules in 3-5 years. The longer someone uses the app, the harder it is to leave and the more powerful the renewal pitch becomes
+- **Multi-voice archive:** Family contributor recordings (V2) transform the archive from a solo journal into a chorus of family voices that no competitor can replicate
 
 ---
 
@@ -406,7 +446,7 @@ Zero-effort decisions during development that prevent expensive rework at scale.
 
 ## 14. Open Questions
 
-- [ ] **Name:** "LittleLegacy" is a working title — explore alternatives
+- [ ] **Name:** "Core-Memories" is a working title — explore alternatives
 - [ ] **Visual tone:** Somewhere between warm/nostalgic and elegant/timeless — needs design exploration and mood boards
 - [ ] **Free trial length:** 7 vs. 14 days — A/B test once live
 - [ ] **COPPA compliance:** Legal review needed for storing data about children
@@ -424,7 +464,7 @@ Key risks from the standard PRD worth revisiting before launch. Not fully specce
 | Users don't sustain journaling habit past week 1 | High | High | Prompts reduce blank-page friction; notifications are gentle; wrap-ups reward sustained use |
 | Voice transcription quality is poor (accents, background noise) | Medium | Medium | Allow text editing of all transcriptions; save original audio as fallback; evaluate cloud STT for V2 |
 | COPPA / child privacy compliance issues | High | Medium | Legal review before launch; parent is data subject (not child); no child-identifiable data sent to LLM |
-| Subscription fatigue — users won't pay $4.99/mo | High | Medium | Visible-but-locked paywall creates FOMO; pricing is competitive with family apps; A/B test $3.99 and $5.99 via RevenueCat Experiments |
+| Subscription fatigue — users won't pay $5.99/mo | High | Medium | Visible-but-locked paywall creates FOMO; pricing is competitive with family apps; A/B test $4.99 and $6.99 via RevenueCat Experiments |
 | Third-party API dependency (Whisper, Claude) | Medium | Low | Abstract transcription and tagging behind service interfaces; can swap providers without app changes |
 | Contributor link abuse or spam (V2) | Low | Low | Links are scoped, labeled, and revocable; rate limiting on submissions |
 
@@ -440,10 +480,8 @@ Features that came up in discovery but aren't prioritized yet:
 | Interview Mode | Guided Q&A to record the child's own voice/answers | Medium | Strong differentiator, adds child's perspective |
 | Memory Sparks | Import photo from camera roll, app prompts "What was happening here?" | High | Selected as V2 feature — bridges photo + voice |
 | Collaborative timeline | All family members see a shared timeline of entries | Medium | Requires family sharing infrastructure |
-| Annual highlight reel | Auto-compiled year-in-review with top entries | High | Selected as V2 feature — strong retention hook |
 | Developmental prompts | Age-specific prompt suggestions | High | Selected as V1.5 feature |
 | Gratitude/reflection mode | Weekly prompt for grateful parenting moments | Low | Nice but not core |
 | Sibling comparison | Side-by-side view of Child A at age 3 vs. Child B at age 3 | Low | Fun but niche |
-| Mood/emotion tagging | Tag entries with child's mood that day | Low | User chose to treat all entries equally |
-| Photo of the day | Optional daily photo attachment | Medium | Deferred — keeping MVP to voice + text |
-| Letter to future child | Record a message for your child to hear someday | Medium | Overlaps with Time Capsule concept |
+| Letter to future child | Special recording mode — parent speaks directly to their child for them to hear someday; distinct UI (different icon/prompt: "What do you want [child] to know about today?"); creates a unique emotional category | Medium | Strong marketing content; distinct from Time Capsule (which locks until a date) |
+| Text-based printed journal | Clean paperback diary: dated transcriptions, age stamps, optional photos, QR codes linking to original audio. Cheaper than competitors' $200-300 photo books. QR-to-audio is a unique differentiator | Medium | Design data model to support now; implement V2+. Complements the glossy keepsake book option |

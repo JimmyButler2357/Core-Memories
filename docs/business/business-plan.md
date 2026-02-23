@@ -1,4 +1,4 @@
-# LittleLegacy — Business Operations & Legal Guide
+# Core-Memories — Business Operations & Legal Guide
 
 Everything outside of code and marketing that goes into running a consumer app as a business: legal compliance, business formation, financial planning, App Store presence, customer support, and team growth.
 
@@ -65,7 +65,7 @@ Everything outside of code and marketing that goes into running a consumer app a
 - Apple pays developer proceeds monthly, ~45 days after the end of each fiscal month.
 
 **Trademark**
-- Search USPTO (free, 10 minutes) for "LittleLegacy" before you get too attached. A conflict could force an expensive rebrand.
+- Search USPTO (free, 10 minutes) for "Core-Memories" before you get too attached. A conflict could force an expensive rebrand.
 - Filing costs $250-350 if you DIY through USPTO's TEAS system. Takes 8-12 months for approval.
 - **Do the search now (free). File when revenue supports it.**
 - Note: app name isn't finalized yet, so search your top candidates.
@@ -114,10 +114,10 @@ Key question: **at what point can this replace a salary?**
 **Apple's cut:**
 - Apple takes 30% of all in-app purchases by default
 - **Apple Small Business Program:** If you earn < $1M/year (you will for a long time), you qualify for the **15% rate**. You must apply — it's not automatic. Do this before your first sale.
-- **Net per $4.99/mo subscriber:** $4.24/mo (at 15% Apple cut)
-- **Net per $39.99/yr subscriber:** $33.99/yr = $2.83/mo (at 15% Apple cut)
+- **Net per $5.99/mo subscriber:** $5.09/mo (at 15% Apple cut)
+- **Net per $49.99/yr subscriber:** $42.49/yr = $3.54/mo (at 15% Apple cut)
 - Annual subscribers give you less per month but much lower churn. Most successful apps see 60-70% of revenue from annual plans.
-- **Price testing:** Launch at $4.99/$39.99, then use RevenueCat Experiments to A/B test $3.99 and $5.99 monthly variants once there's enough traffic. You can always lower a price; raising it after launch is much harder.
+- **Price testing:** Launch at $5.99/$49.99, then use RevenueCat Experiments to A/B test $4.99 and $6.99 monthly variants once there's enough traffic. You can always lower a price; raising it after launch is much harder.
 
 **Conversion funnel reality:**
 Industry benchmarks for subscription apps:
@@ -131,15 +131,15 @@ For every 100 downloads, expect 10-20 paying subscribers.
 
 | Milestone | Paying Subs | Monthly Net Revenue | Annual Net Revenue | Enough to... |
 |-----------|-------------|--------------------|--------------------|---------------|
-| Break even | 13 | $55 | $660 | Cover infrastructure |
-| Ramen profitable | 120 | $510 | $6,120 | Buy groceries |
-| Side income | 300 | $1,270 | $15,240 | Meaningful side income |
-| **Part-time viable** | **600** | **$2,545** | **$30,540** | Reduce day job hours |
-| **Full-time threshold** | **1,200** | **$5,090** | **$61,080** | Replace modest salary |
-| Comfortable | 3,000 | $12,720 | $152,640 | Hire help, invest in growth |
-| Real business | 6,000 | $25,440 | $305,280 | Small team, serious growth |
+| Break even | 13 | $66 | $795 | Cover infrastructure |
+| Ramen profitable | 120 | $611 | $7,330 | Buy groceries |
+| Side income | 300 | $1,527 | $18,330 | Meaningful side income |
+| **Part-time viable** | **600** | **$3,055** | **$36,660** | Reduce day job hours |
+| **Full-time threshold** | **1,000** | **$5,090** | **$61,080** | Replace modest salary |
+| Comfortable | 3,000 | $15,270 | $183,240 | Hire help, invest in growth |
+| Real business | 6,000 | $30,540 | $366,480 | Small team, serious growth |
 
-**Key insight:** At $4.99/mo, you need ~1,200 paying subscribers to go full-time at a modest salary — fewer than at the old $3/mo price point. At 15% download-to-paid conversion, that's ~8,000 total downloads needed. Over 12 months = ~670 downloads/month — very achievable with strong ASO + organic channels.
+**Key insight:** At $5.99/mo, you need ~1,000 paying subscribers to go full-time at a modest salary. At 15% download-to-paid conversion, that's ~6,700 total downloads needed. Over 12 months = ~560 downloads/month — very achievable with strong ASO + organic channels.
 
 ### Hidden Costs to Budget For
 
@@ -174,7 +174,7 @@ Don't quit your day job at 1,000 subscribers. Safer framework:
 
 ### Apple Small Business Program — Don't Forget
 
-Apply before your first sale. Reduces Apple's cut from 30% to 15% for developers earning under $1M/year. That's an extra $0.75 per subscriber per month at $4.99. Simple application in App Store Connect.
+Apply before your first sale. Reduces Apple's cut from 30% to 15% for developers earning under $1M/year. That's an extra $0.90 per subscriber per month at $5.99. Simple application in App Store Connect.
 
 ---
 

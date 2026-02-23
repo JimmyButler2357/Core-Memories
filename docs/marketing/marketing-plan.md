@@ -1,4 +1,4 @@
-# LittleLegacy — Marketing Plan
+# Core-Memories — Marketing Plan
 
 Step-by-step marketing playbook for a bootstrapped consumer app launch. Organized by phase, with tactics that cost $0 first and paid channels only when organic signals justify the spend.
 
@@ -8,7 +8,7 @@ Step-by-step marketing playbook for a bootstrapped consumer app launch. Organize
 
 Before tactics, acknowledge what you have that most indie devs don't:
 
-1. **Sister-in-law with EA marketing agency experience** — even casual conversations about positioning, messaging, and channels are worth more than any blog post. Key question to ask her: "If you were launching a $4.99/mo subscription app to moms of toddlers, where would you spend your first $0? Your first $500?"
+1. **Sister-in-law with EA marketing agency experience** — even casual conversations about positioning, messaging, and channels are worth more than any blog post. Key question to ask her: "If you were launching a $5.99/mo subscription app to moms of toddlers, where would you spend your first $0? Your first $500?"
 
 2. **Wife and sister in the target demographic** — they ARE your user research panel. Have them use the app from TestFlight day one. Watch them onboard (don't help). Listen to what confuses them, what delights them, what they'd tell a friend. Their honest reactions are worth more than 1,000 survey responses.
 
@@ -20,7 +20,7 @@ Before tactics, acknowledge what you have that most indie devs don't:
 
 Zero cost. Zero distraction from coding. Just planting seeds.
 
-- [ ] Create an Instagram account (@littlelegacy or similar) — post occasional behind-the-scenes: screenshot of your mockup, "building something for parents who don't want to forget the little things." Don't overthink it — 1 post every 1-2 weeks.
+- [ ] Create an Instagram account (@core-memories or similar) — post occasional behind-the-scenes: screenshot of your mockup, "building something for parents who don't want to forget the little things." Don't overthink it — 1 post every 1-2 weeks.
 - [ ] Put up a "coming soon" landing page — one paragraph, an email capture form ("Get notified when we launch"), your emotional tagline. Use Framer ($0 on free tier).
 - [ ] Ask your sister-in-law for a 30-minute marketing chat — show her the mockup, explain the concept, ask for her gut reactions on positioning and channels. Take notes.
 - [ ] Have wife + sister review the HTML mockup — ask "would you use this? what would you tell a friend about it?"
@@ -33,7 +33,7 @@ Still zero ad spend. Getting real humans using the real app.
 
 - [ ] Invite 15-25 real parents to TestFlight — prioritize: wife, sister, their mom friends, your parent friends, and anyone from the waitlist email
 - [ ] Watch 3-5 of them onboard — screen share or sit next to them. Don't help. Note every hesitation. This is the most valuable 30 minutes you'll spend.
-- [ ] Ask each beta tester: "Would you pay $4.99/month for this?" and "Who would you tell about this?" — their answers tell you if you have product-market fit.
+- [ ] Ask each beta tester: "Would you pay $5.99/month for this?" and "Who would you tell about this?" — their answers tell you if you have product-market fit.
 - [ ] Fix the top 3 friction points before public launch.
 
 ---
@@ -80,7 +80,7 @@ Minimal spend. Focus: get to 100-500 users and validate retention before spendin
 
 | Field | Length | Visibility | Purpose |
 |-------|--------|------------|---------|
-| **Title** | 30 chars | Shown in search results | App name. E.g., "LittleLegacy" |
+| **Title** | 30 chars | Shown in search results | App name. E.g., "Core-Memories" |
 | **Subtitle** | 30 chars | Shown below title in results | Your #1 keyword opportunity. E.g., "Voice Memory Journal for Parents" |
 | **Keyword field** | 100 chars | Hidden from users | Comma-separated search terms Apple uses for ranking |
 
@@ -90,7 +90,7 @@ Minimal spend. Focus: get to 100-500 users and validate retention before spendin
 3. Free tools: **AppFollow** (free tier), **App Store Connect analytics** (shows which search terms lead to your app page)
 4. Paid tools (when revenue justifies): **AppTweak**, **Sensor Tower** — show search volume for specific terms
 
-**Target keywords for LittleLegacy:**
+**Target keywords for Core-Memories:**
 - High intent: "baby journal", "memory book app", "baby memory"
 - Medium intent: "parenting journal", "voice journal", "baby milestones"
 - Long tail: "toddler memory book", "childhood journal app", "voice diary for parents"
@@ -159,7 +159,7 @@ By now you know which channels produce retained, paying users. Double down on th
 
 ## The Viral Loop Already in Your Roadmap
 
-Your V1.5 shared entry feature (share a memory via link → recipient sees LittleLegacy branding + "Capture your family's memories" CTA) is a built-in growth engine. Every shared memory is a free, highly-targeted ad to another parent. Consider prioritizing this feature if early users ask for sharing.
+Your V1.5 shared entry feature (share a memory via link → recipient sees Core-Memories branding + "Capture your family's memories" CTA) is a built-in growth engine. Every shared memory is a free, highly-targeted ad to another parent. Consider prioritizing this feature if early users ask for sharing.
 
 ---
 

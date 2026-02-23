@@ -16,10 +16,9 @@ A **voice-first memory journal app for parents of young children**. Parents tap 
 - High lifetime value — once recordings accumulate, switching costs are enormous (you can't replicate your child's "firsts" elsewhere)
 - Strong word-of-mouth networks (parenting groups, mom influencers)
 
-**Monetization:** Subscription — $4.99/month or $39.99/year after a free trial (launch pricing; A/B test $3.99 and $5.99 variants via RevenueCat Experiments once there's enough traffic), with future revenue from keepsake print books.
+**Monetization:** Subscription — $5.99/month or $49.99/year after a free trial (launch pricing; A/B test $4.99 and $6.99 variants via RevenueCat Experiments once there's enough traffic). Partner/spouse access included in base plan. Future revenue from keepsake print books.
 
-**Key differentiator:** No competitor leads with voice. The preserved audio becomes irreplaceable over time — imagine a grandchild hearing their grandparent describe their parent's first steps.
-
+**Key differentiator:** No competitor leads with voice. The preserved audio becomes irreplaceable over time — imagine a grandchild hearing their grandparent describe their parent's first steps. You're the only memory journal where the parent speaks instead of types, entries are organized by child and searchable by keyword, and your data is always yours to keep.
 ---
 
 ## Key Features (MVP)
@@ -29,6 +28,7 @@ A **voice-first memory journal app for parents of young children**. Parents tap 
 - **Per-child organization** — each child gets their own memory journal/tab
 - **Auto-tagging** — entries tagged by topic (humor, milestone, first, birthday, etc.)
 - **Auto-detection** — app identifies which child an entry is about from the transcript
+- **Age stamp** — every entry displays the child's exact age, auto-calculated from birthday
 - **Full-text search** across all transcripts with child/date/topic filters
 - **Push notifications** — gentle daily bedtime prompts with rotating text
 - **Two entry paths** — notification tap or open-app flow, voice or text
@@ -57,8 +57,8 @@ A **voice-first memory journal app for parents of young children**. Parents tap 
 ## Roadmap
 
 - **MVP (Month 1-3):** Voice capture, transcription, child profiles, search, notifications, trial + paywall
-- **V1.5 (Month 4-6):** "On this day" resurfacing, milestone celebrations, LLM tagging, entry sharing
-- **V2 (Month 6-12):** Partner sharing, photo-to-memory prompts, natural language search, keepsake book builder
+- **V1.5 (Month 4-6):** "On this day" resurfacing, milestone celebrations, LLM tagging, entry sharing, family recap emails, mood tags
+- **V2 (Month 6-12):** Partner sharing (included in base plan), photo attachment, AI semantic search, family record requests via link, keepsake book builder, people tagging
 - **V3+ (Year 2):** Interview mode (child's own voice), collaborative family timeline, export options
 
 ---

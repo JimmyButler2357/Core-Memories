@@ -1,4 +1,4 @@
-# LittleLegacy — Functional Requirements & Acceptance Criteria
+# Core-Memories — Functional Requirements & Acceptance Criteria
 
 Companion document to the Product Spec. This covers implementation-level requirements for MVP and acceptance criteria that define "done" for each feature.
 
@@ -157,7 +157,7 @@ These requirements apply to post-MVP features. Included here for completeness �
 ### Entry Sharing (V1.5)
 - **FR-V2-001:** User can tap a share button on any entry detail view to generate a unique shareable URL. The URL opens a read-only web page displaying: entry text, child first name, date, topic tags, and audio playback button (if voice entry). No account or app download required to view.
 - **FR-V2-002:** User can view all shared entries and revoke any shared link from Settings. Revoking makes the URL immediately inaccessible.
-- **FR-V2-003:** The shared entry web page includes LittleLegacy branding and a subtle CTA linking to the app store. No tracking cookies or account walls.
+- **FR-V2-003:** The shared entry web page includes Core-Memories branding and a subtle CTA linking to the app store. No tracking cookies or account walls.
 
 ### Family Sharing Links (V2)
 - **FR-V2-004:** Parent can generate a contributor link (URL) scoped to a specific child or open to any child. The recipient can record a voice memory via a mobile-friendly web page without creating an account.
