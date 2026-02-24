@@ -38,8 +38,10 @@
 
 **Key design decisions:**
 - Both voice and text input supported; voice is primary, text is always available
-- Transcription happens on-device using native speech APIs (MVP)
-- Cloud transcription (Whisper/Deepgram) as a V2 upgrade for accuracy
+- Transcription uses a hybrid on-device-first architecture (see Section 10 — Speech-to-Text):
+  - **MVP:** On-device transcription via `whisper.rn` (Whisper base.en model, 142 MB). Free, offline-capable, ~96% accuracy on clear speech, completes in 4-8s on modern iPhones.
+  - **Cloud fallback (MVP):** Groq Whisper API for re-transcription when users tap "Enhance" on low-confidence results. $0.0007/entry, sub-1-second response.
+  - **V1.5 quiet mode:** Cloud-mandatory path via OpenAI GPT-4o Mini Transcribe for whispered/quiet entries — on-device models perform poorly on whispered speech.
 - Original audio is always preserved alongside the transcript
 - Entries support voice + text only for MVP (no photos/video)
 
@@ -220,7 +222,7 @@ Expected output: [{"tag": "humor", "confidence": 0.95}, {"tag": "milestone", "co
 ## 7. Feature Roadmap
 
 ### MVP (Month 1-3) — Core Loop
-- [ ] Voice recording with on-device transcription
+- [ ] Voice recording with on-device transcription (`whisper.rn`, base.en model) + optional cloud re-transcription via Groq Whisper API
 - [ ] Text entry (type instead of speak)
 - [ ] Audio preservation (keep original recordings)
 - [ ] Child profiles (name, birthday, photo)
@@ -240,7 +242,7 @@ Expected output: [{"tag": "humor", "confidence": 0.95}, {"tag": "milestone", "co
 - [ ] Milestone celebrations — AI scans transcriptions for milestone language ("first steps," "said a new word," "slept through the night," "lost a tooth"); flags entry with a special badge in the timeline + celebration animation; auto-prompts parent to share via record request link ("Emma took her first steps! Invite grandma to record her reaction"). Turns milestones into social moments that drive family engagement without manual categorization
 - [ ] Developmental prompts by age (age-appropriate prompt suggestions)
 - [ ] Prompt rotation system (pre-generated, curated prompts)
-- [ ] Improved transcription (cloud fallback for low-confidence entries)
+- [ ] Improved transcription — cloud fallback via OpenAI GPT-4o Mini Transcribe ($0.003/min) for low-confidence entries; automatic for quiet mode entries
 - [ ] Entry favoriting / highlights
 - [ ] Weekly catch-up prompt for inactive users
 - [ ] LLM-powered auto-tagging upgrade (Claude Haiku — see Section 3.3)
@@ -248,7 +250,7 @@ Expected output: [{"tag": "humor", "confidence": 0.95}, {"tag": "milestone", "co
 - [ ] In-app feedback — "Contact Us" in Settings opens email compose with device info + app version auto-attached
 - [ ] Family recap emails — weekly text digest + monthly audio highlight reel with "voices this month" section (see Section 4)
 - [ ] Quick-react mood/emotion tags — after recording, one-tap mood icon (laughing, crying, proud, exhausted, grateful); filterable later ("show me all the proud moments")
-- [ ] Quiet mode / whisper detection — auto gain adjustment for low-volume environments (nursing at night, sleeping baby nearby); ensures whispered entries transcribe clearly
+- [ ] Quiet mode / whisper detection — detect low RMS amplitude during recording; auto gain adjustment for low-volume environments (nursing at night, sleeping baby nearby); routes audio directly to cloud transcription (OpenAI GPT-4o Mini Transcribe) since on-device models perform poorly on whispered speech; ensures whispered entries transcribe clearly
 
 ### V2 (Month 6-12) — Growth & Expansion
 - [ ] Partner sharing (two parents, one account) — included in base subscription, no premium tier
@@ -331,7 +333,127 @@ These are the performance, security, and quality targets that apply at MVP. More
 - **React Native + Expo (TypeScript)** — single codebase, familiar to React web devs, Expo handles builds/OTA updates/app store submission via EAS
 - **UI:** NativeWind (Tailwind CSS for React Native) — fastest path for a solo dev coming from web React
 - **State management:** Zustand — lightweight, minimal boilerplate, scales better than Context for multiple state domains (auth, entries, children, UI)
-- **Speech-to-text:** `@react-native-voice/voice` — wraps Apple Speech framework, real-time streaming transcription, zero cost, most battle-tested RN speech library
+- **Speech-to-text:** Hybrid on-device-first architecture (see full breakdown below)
+
+### Speech-to-Text Architecture
+
+#### Strategy: On-Device First, Cloud on Demand
+
+The app uses on-device transcription by default (free, offline-capable) and falls back to cloud APIs when higher accuracy is needed or when the user is recording in quiet/whispered mode. This keeps per-user costs near zero for the majority of entries while maintaining high accuracy where it matters.
+
+```
+User records entry (up to 60s)
+        │
+        ▼
+On-device: whisper.rn (base.en, 142 MB)
+  ~4-8s on iPhone, ~8-15s on Android
+  ~96% accuracy on clear speech
+  $0.00 per entry
+        │
+        ▼
+Display transcript immediately
+        │
+  User satisfied? ─── YES ──→ Save. $0 cost.
+        │
+        NO (tap "Enhance")
+        │
+        ▼
+Cloud re-transcription
+  MVP: Groq Whisper Turbo ($0.0007/entry)
+  V1.5: OpenAI GPT-4o Mini Transcribe ($0.003/entry)
+  <1 second response time
+```
+
+**Quiet mode (V1.5):** When low RMS amplitude is detected during recording, skip on-device transcription entirely and send directly to cloud (OpenAI GPT-4o Mini Transcribe). On-device models — including both `whisper.rn` and native platform speech APIs (Apple SFSpeechRecognizer, Android SpeechRecognizer) — perform poorly on whispered speech due to the lack of normal vocal fold vibration that acoustic models rely on.
+
+#### On-Device: `whisper.rn`
+
+| Detail | Value |
+|--------|-------|
+| Library | [`whisper.rn`](https://github.com/whisper-rn/whisper.rn) — React Native binding for whisper.cpp |
+| Model | `base.en` (English-only, 142 MB download) |
+| Accuracy | ~4.2% WER on clean speech (close to human-level ~4-6%) |
+| Latency | ~4-8s for 60s audio (iPhone 14+), ~8-15s (Pixel 7+) |
+| Cost | $0 — runs entirely on-device |
+| Offline | Yes — no network dependency |
+| Languages | English only at base.en; multilingual models available but larger |
+
+**Why not `@react-native-voice/voice` (Apple Speech / Android SpeechRecognizer)?** While `@react-native-voice/voice` wraps native platform speech APIs at zero cost, independent benchmarks show `whisper.rn` with the base.en model delivers meaningfully better accuracy (~96% vs ~85-88% on Android), better noise resilience, and consistent cross-platform behavior. Native platform APIs also have no optimization for whispered speech and vary by device manufacturer on Android.
+
+**Alternative considered:** Picovoice Leopard — the only STT with an official React Native SDK (`@picovoice/leopard-react-native`). 250 min/month free. However, limited to 8 languages and less community adoption than Whisper-based solutions.
+
+#### Cloud APIs: Provider Comparison (60-Second Entries)
+
+| Provider | Cost/entry | Batch latency | Streaming | Accuracy | Free tier |
+|----------|-----------|---------------|-----------|----------|-----------|
+| **Groq Whisper Turbo** | **$0.0007** | <1s | No | Same as Whisper (good) | 8 hrs/day |
+| Groq Whisper Large v3 | $0.0019 | <1s | No | Same as Whisper (best) | 8 hrs/day |
+| Fireworks AI Whisper | $0.0009-0.0015 | Fast | Yes ($0.0032/min) | Same as Whisper | — |
+| AssemblyAI Universal | $0.0025 | <1s | Yes | Very good (93% WAR) | $50 credit |
+| Rev.ai | $0.003 | Seconds | Yes | Good (human-verified training) | 5 hrs |
+| **OpenAI GPT-4o Mini Transcribe** | **$0.003** | ~10-15s | No | **Best for noisy/quiet audio** | — |
+| OpenAI GPT-4o Transcribe | $0.006 | ~10-15s | No | Best overall accuracy | — |
+| OpenAI Whisper (whisper-1) | $0.006 | ~10-15s | No | Very good | — |
+| Deepgram Nova-3 | $0.0077 | Seconds | Yes (<300ms) | Very good | $200 credit |
+| Gladia | $0.010 | Seconds | Yes | Whisper-level | 10 hrs/mo |
+| Google Cloud STT | $0.012-0.036 | Varies | Yes | Good | 60 min/mo |
+| Azure Speech (batch) | $0.006 | Varies | Batch only | Good | 5 hrs/mo |
+| Amazon Transcribe | $0.024 | Varies | Yes | Good | 60 min/mo (12 mo) |
+
+#### Selected Providers
+
+**MVP — Groq Whisper Turbo** ($0.0007/entry)
+- Cheapest managed Whisper API available (Whisper Large v3 Turbo on Groq LPU hardware)
+- Sub-1-second transcription of 60s audio — feels instant
+- 8 hrs/day free tier covers ~480 entries/day at zero cost (supports ~48 users at 10 entries/day for free)
+- Simple REST API — record audio, POST file, get transcript
+- No streaming, but irrelevant for record-then-transcribe workflow
+- Same Whisper model quality as OpenAI's hosted version
+
+**V1.5 quiet mode — OpenAI GPT-4o Mini Transcribe** ($0.003/entry)
+- 90% fewer hallucinations during silence/noise vs whisper-1 (Dec 2025 model update)
+- Specifically improved for "real-world background noise and audio with varying speaking intervals"
+- Best option for whispered entries near sleeping babies
+- 2.46% English WER — significantly better than legacy Whisper
+
+#### Cost Modeling by User Scenario
+
+Assumes hybrid architecture where **80% of entries use on-device** (free) and **20% fall back to cloud**.
+
+**Per-user costs (cloud portion only):**
+
+| Entries/day | Cloud entries/day (20%) | Groq Turbo/mo | OpenAI Mini/mo |
+|-------------|------------------------|---------------|----------------|
+| 5 | 1 | $0.02 | $0.09 |
+| 10 | 2 | $0.04 | $0.18 |
+| 30 | 6 | $0.13 | $0.54 |
+
+**At scale (1,000 active users, 10 entries/day avg, 80% on-device):**
+
+| Provider | Monthly cost | Yearly cost | Per-user/mo |
+|----------|-------------|-------------|-------------|
+| Groq Turbo | $42 | $504 | $0.04 |
+| OpenAI Mini | $180 | $2,160 | $0.18 |
+
+**At scale (10,000 active users, 10 entries/day avg, 80% on-device):**
+
+| Provider | Monthly cost | Yearly cost | Per-user/mo |
+|----------|-------------|-------------|-------------|
+| Groq Turbo | $420 | $5,040 | $0.04 |
+| OpenAI Mini | $1,800 | $21,600 | $0.18 |
+
+**Worst case (100% cloud, no on-device, 10,000 users, 10/day):**
+
+| Provider | Monthly cost | Per-user/mo |
+|----------|-------------|-------------|
+| Groq Turbo | $2,100 | $0.21 |
+| OpenAI Mini | $9,000 | $0.90 |
+
+At $5.99/mo subscription ($5.09 net after Apple's 15% cut), even worst-case Groq Turbo costs represent only ~4% of revenue per user. The hybrid architecture makes transcription costs effectively negligible.
+
+#### Note on Wispr Flow
+
+[Wispr Flow](https://wisprflow.ai/) is a consumer voice dictation app for Mac/Windows/iOS — not a developer API. It provides excellent desktop dictation UX but cannot be integrated into a mobile app. The app's on-device `whisper.rn` approach achieves comparable quality for the recording use case.
 
 ### Backend
 - **Supabase (direct client SDK)** — PostgreSQL + Auth + Storage + Row Level Security. App talks to Supabase directly; Edge Functions handle server-side logic (tagging pipeline, background processing). No custom API layer for MVP.
@@ -384,6 +506,7 @@ Zero-effort decisions during development that prevent expensive rework at scale.
 5. **Use Supabase Row Level Security (RLS) from the start** — trivial to set up during table creation, painful to retrofit. Every table should have RLS policies before the first row is inserted.
 6. **Version database schema with migrations** — use Supabase CLI migrations. Don't make schema changes by clicking in the dashboard.
 7. **Log PostHog analytics events as you build each feature** — don't plan an "add analytics" sprint later. Drop the event call in as you write the feature code.
+8. **Abstract transcription behind a service layer** — wrap all STT calls (on-device `whisper.rn` and cloud APIs) behind a single `TranscriptionService` interface. This lets you swap Groq for OpenAI (or any other provider) by changing one file, run A/B tests between providers, and add the V1.5 quiet-mode cloud path without touching UI code.
 
 ---
 
@@ -450,7 +573,8 @@ Zero-effort decisions during development that prevent expensive rework at scale.
 - [ ] **Visual tone:** Somewhere between warm/nostalgic and elegant/timeless — needs design exploration and mood boards
 - [ ] **Free trial length:** 7 vs. 14 days — A/B test once live
 - [ ] **COPPA compliance:** Legal review needed for storing data about children
-- [ ] **Audio storage costs:** Model the per-user storage cost at scale (1 entry/day x 60 seconds x 1,000 users)
+- [x] **Audio storage costs:** Modeled — ~$0.04/user/month at 5 entries/week. Negligible. See Scaling Guide Section 3.
+- [x] **Transcription API costs:** Modeled — hybrid on-device-first architecture keeps costs at ~$0.04/user/month (Groq Turbo, 80% on-device). Even worst-case all-cloud is ~$0.21/user/month (~4% of subscription revenue). See Section 10, Speech-to-Text Architecture.
 - [ ] **Platform:** Launch iOS-only or iOS + Android simultaneously?
 
 ---
@@ -462,10 +586,10 @@ Key risks from the standard PRD worth revisiting before launch. Not fully specce
 | Risk | Severity | Likelihood | Potential Mitigation |
 |------|----------|------------|---------------------|
 | Users don't sustain journaling habit past week 1 | High | High | Prompts reduce blank-page friction; notifications are gentle; wrap-ups reward sustained use |
-| Voice transcription quality is poor (accents, background noise) | Medium | Medium | Allow text editing of all transcriptions; save original audio as fallback; evaluate cloud STT for V2 |
+| Voice transcription quality is poor (accents, background noise, whispered speech) | Medium | Medium | Hybrid architecture: on-device `whisper.rn` (base.en) handles ~96% of clear speech; cloud fallback (Groq/OpenAI) for low-confidence results; V1.5 quiet mode routes whispered audio directly to OpenAI GPT-4o Mini Transcribe; all transcriptions are editable; original audio always preserved |
 | COPPA / child privacy compliance issues | High | Medium | Legal review before launch; parent is data subject (not child); no child-identifiable data sent to LLM |
 | Subscription fatigue — users won't pay $5.99/mo | High | Medium | Visible-but-locked paywall creates FOMO; pricing is competitive with family apps; A/B test $4.99 and $6.99 via RevenueCat Experiments |
-| Third-party API dependency (Whisper, Claude) | Medium | Low | Abstract transcription and tagging behind service interfaces; can swap providers without app changes |
+| Third-party API dependency (Groq, OpenAI, Claude) | Medium | Low | On-device transcription works offline with zero API dependency; cloud APIs abstracted behind `TranscriptionService` interface — can swap Groq ↔ OpenAI ↔ AssemblyAI without app changes; tagging similarly abstracted |
 | Contributor link abuse or spam (V2) | Low | Low | Links are scoped, labeled, and revocable; rate limiting on submissions |
 
 ---

@@ -23,18 +23,28 @@ This is all you need. No custom servers, no Docker, no CI/CD pipelines, no DevOp
 
 ## 2. Infrastructure Cost Model by User Count
 
-| Users | Supabase | Audio Storage | Claude API (V2) | EAS Build | Total Infra/mo |
-|-------|----------|---------------|------------------|-----------|----------------|
-| 100 | $25 | included | $0 (MVP keyword) | $0 | **~$25** |
-| 1,000 | $25 | included (< 50GB) | $40 | $0 | **~$65** |
-| 5,000 | $25-75 | ~$5 overage | $200 | $0-33 | **~$115-315** |
-| 10,000 | $75 | ~$15/mo | $400 | $33 | **~$525** |
-| 50,000 | $150+ | ~$100/mo | $2,000 | $33 | **~$2,285** |
-| 100,000 | $300+ | ~$250/mo | $4,000 | $99 | **~$4,650** |
+Assumes 10 entries/day per active user, hybrid transcription (80% on-device / 20% cloud via Groq Whisper Turbo at $0.0007/entry).
+
+| Users | Supabase | Audio Storage | Transcription (Cloud) | Claude API (V2) | EAS Build | Total Infra/mo |
+|-------|----------|---------------|-----------------------|------------------|-----------|----------------|
+| 100 | $25 | included | $4 | $0 (MVP keyword) | $0 | **~$29** |
+| 1,000 | $25 | included (< 50GB) | $42 | $40 | $0 | **~$107** |
+| 5,000 | $25-75 | ~$5 overage | $210 | $200 | $0-33 | **~$440-525** |
+| 10,000 | $75 | ~$15/mo | $420 | $400 | $33 | **~$943** |
+| 50,000 | $150+ | ~$100/mo | $2,100 | $2,000 | $33 | **~$4,383** |
+| 100,000 | $300+ | ~$250/mo | $4,200 | $4,000 | $99 | **~$8,849** |
+
+**Transcription cost assumptions:**
+- On-device `whisper.rn` (base.en) handles 80% of entries at $0.
+- Cloud fallback (Groq Whisper Turbo) handles remaining 20% at $0.0007/entry.
+- Per-user cloud transcription cost: ~$0.04/month (10 entries/day, 20% cloud).
+- Groq's free tier (8 hrs/day = 480 entries/day) covers the first ~48 users at zero cost.
+- If V1.5 quiet mode increases cloud usage, switching to OpenAI GPT-4o Mini Transcribe ($0.003/entry) raises the per-user cloud cost to ~$0.18/month — still <4% of subscription revenue.
 
 **Key takeaways:**
-- At 1K paying users you're earning ~$4,240/mo against ~$65/mo in costs. Very healthy margins.
-- Claude API tagging (V2) is the biggest scaling cost, but it's optional — MVP keyword matching costs $0.
+- At 1K paying users you're earning ~$4,240/mo against ~$107/mo in costs. Very healthy margins.
+- Transcription costs are modest thanks to the on-device-first hybrid architecture — even at 100K users, cloud transcription is ~$4,200/mo.
+- Claude API tagging (V2) is the biggest scaling cost alongside transcription, but both are optional — MVP keyword matching + on-device transcription costs $0.
 - Storage grows linearly and never shrinks (audio accumulates), but the costs are modest even at scale.
 - You don't hit real infrastructure pain points until 50K+, and by then you're earning $100K+/year.
 
