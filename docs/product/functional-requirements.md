@@ -24,7 +24,8 @@ Requirements are grouped by feature area. Each links back to a product goal:
 
 ## 2. Voice Entry & Transcription
 
-**FR-004 [G-1]:** Given an authenticated user on the home screen, the system provides a prominent record button. Tapping it begins voice capture with a visible waveform and elapsed time. Recording supports entries from 1 second to 10 minutes.
+**FR-004 [G-1]:** Given an authenticated user on the home screen, the system provides a prominent record button. Tapping it begins voice capture with a visible waveform and elapsed time. Recording auto-stops at 60 seconds. At the 60-second mark, a "Keep Going" button appears that extends recording up to a 3-minute hard cap. Entries can be 1 second to 3 minutes.
+- *UX rationale:* "Just 60 seconds" is the core marketing message. The auto-stop keeps perceived commitment minimal and maximizes nightly habit formation. "Keep Going" accommodates moments that need more time without changing the default framing.
 - *Edge cases:* Microphone permission denied → prompt to enable in system settings. Background noise → transcription proceeds with best effort. Accidental tap → discard with confirmation if recording is <3 seconds.
 
 **FR-005 [G-1, G-2]:** Given a completed voice recording, the system transcribes the audio to text using on-device speech APIs and displays the transcription within 5 seconds for entries under 60 seconds. The transcription is editable as plain text.

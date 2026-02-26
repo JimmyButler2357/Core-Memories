@@ -4,7 +4,8 @@
       "WebFetch(domain:www.littlelogcabin.org)",
       "mcp__Claude_Preview__preview_start",
       "Bash(npx:*)",
-      "Bash(where:*)"
+      "Bash(where:*)",
+      "WebSearch"
     ]
   }
 }
