@@ -6,69 +6,76 @@ import {
   ScrollView,
   Animated,
   StyleSheet,
+  Linking,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { ExpoSpeechRecognitionModule } from 'expo-speech-recognition';
 import {
   colors,
   typography,
   spacing,
   radii,
   shadows,
-  screenColors,
   hitSlop,
   minTouchTarget,
 } from '@/constants/theme';
 import { useChildrenStore } from '@/stores/childrenStore';
 import { useEntriesStore } from '@/stores/entriesStore';
+import { useAuthStore } from '@/stores/authStore';
+import { entriesService } from '@/services/entries.service';
+import { storageService } from '@/services/storage.service';
+import { promptsService } from '@/services/prompts.service';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
+import { ageInMonths, formatDuration } from '@/lib/dateUtils';
 import { useLocation } from '@/hooks/useLocation';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import ErrorState from '@/components/ErrorState';
 import PaperTexture from '@/components/PaperTexture';
+import WarmGlow from '@/components/WarmGlow';
 
-// ─── Prompt Bank ──────────────────────────────────────────
+// ─── Fallback Prompts ─────────────────────────────────────
+//
+// Used when we can't reach Supabase (offline, first launch,
+// loading delay). Once real prompts load, these are replaced.
 
-const PROMPTS = [
+const FALLBACK_PROMPTS = [
   "What's something they said today that made you smile?",
-  "Any new words or phrases lately?",
   "What made them laugh the hardest today?",
-  "What were they really focused on today?",
-  "Did they do anything that surprised you?",
-  "What's their current favorite thing?",
-  "How did bedtime go tonight?",
-  "What did they pretend to be today?",
-  "Any new friendships or interactions?",
-  "What question did they ask that stumped you?",
   "What's something small you don't want to forget?",
-  "How did they show kindness today?",
-  "What new skill are they working on?",
-  "What was the funniest moment of the day?",
-  "What did they eat that they actually liked?",
 ];
-
-// Show 3 random prompts each time
-function pickPrompts(count: number): string[] {
-  const shuffled = [...PROMPTS].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, count);
-}
 
 // ─── Recording Screen ─────────────────────────────────────
 
 export default function RecordingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const children = useChildrenStore((s) => s.children);
-  const addEntry = useEntriesStore((s) => s.addEntry);
+  const { reRecordEntryId } = useLocalSearchParams<{ reRecordEntryId?: string }>();
+  const isReRecord = !!reRecordEntryId;
 
-  // Mic permission — defaults to 'granted' for prototype.
-  // Phase 3 will replace this with a real Audio.getPermissionsAsync() check.
-  const [micPermission, setMicPermission] = useState<'granted' | 'denied' | 'checking'>('granted');
+  const children = useChildrenStore((s) => s.children);
+  const updateEntryLocal = useEntriesStore((s) => s.updateEntryLocal);
+  const profile = useAuthStore((s) => s.profile);
+
+  // Real speech recognition — captures audio + live transcript
+  const speech = useSpeechRecognition();
+
+  // Check mic permission on mount so we can show the denied
+  // screen immediately instead of waiting for them to tap record.
+  const [micPermission, setMicPermission] = useState<'granted' | 'denied' | 'checking'>('checking');
 
   const [state, setState] = useState<'prompts' | 'recording'>('prompts');
   const [seconds, setSeconds] = useState(0);
-  const [prompts] = useState(() => pickPrompts(3));
+  const [prompts, setPrompts] = useState<string[]>(FALLBACK_PROMPTS);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Tracks when we've called stop() but speech hasn't finalized yet.
+  // Once isRecording goes false, the transcript is ready to use.
+  const [isStopping, setIsStopping] = useState(false);
+
+  // Shows a brief "too short" message when user stops immediately
+  const [tooShortMessage, setTooShortMessage] = useState(false);
 
   // Breathing circle animation (built-in Animated, not Reanimated)
   const breatheAnim = useRef(new Animated.Value(1)).current;
@@ -77,8 +84,113 @@ export default function RecordingScreen() {
   const promptOpacity = useRef(new Animated.Value(1)).current;
 
   const { locationText } = useLocation();
+
+  // Refs for the navigate-after-stop effect — keep them after
+  // the hooks above so the initial values are defined.
+  const secondsRef = useRef(seconds);
+  secondsRef.current = seconds;
+  const speechRef = useRef(speech);
+  speechRef.current = speech;
+  const locationTextRef = useRef(locationText);
+  locationTextRef.current = locationText;
   const firstName = children.length > 0 ? children[0].name : 'your child';
   const reduceMotion = useReduceMotion();
+
+  // ─── Permission Check ──────────────────────────────────
+  //
+  // On mount, ask the OS whether mic access was already
+  // granted or permanently denied. If "canAskAgain" is true,
+  // we let the hook request permission when they tap record.
+
+  useEffect(() => {
+    ExpoSpeechRecognitionModule.getPermissionsAsync()
+      .then((result) => {
+        if (result.granted) {
+          setMicPermission('granted');
+        } else if (!result.canAskAgain) {
+          // Permanently denied — show the "open settings" screen
+          setMicPermission('denied');
+        } else {
+          // Not yet decided — the hook will prompt when they tap record
+          setMicPermission('granted');
+        }
+      })
+      .catch(() => {
+        // Can't check? Assume ok — hook will handle errors
+        setMicPermission('granted');
+      });
+  }, []);
+
+  // ─── Fetch Prompts from Supabase ────────────────────────
+  //
+  // On mount, fetch 3 prompts from the database. Each prompt
+  // is age-appropriate (filtered by the youngest child's age)
+  // and avoids recently shown ones (tracked in prompt_history).
+  //
+  // We fetch 3 separately so each one is unique. If any fetch
+  // fails, the fallback prompts stay visible — no blank cards.
+
+  useEffect(() => {
+    if (!profile?.id) return;
+
+    let cancelled = false;
+    const childAge = children.length > 0
+      ? ageInMonths(children[0].birthday)
+      : undefined;
+
+    (async () => {
+      try {
+        const fetched: string[] = [];
+        const shownIds: string[] = [];
+
+        for (let i = 0; i < 3; i++) {
+          const prompt = await promptsService.getNextPrompt(profile.id, childAge);
+          if (cancelled) return;
+          if (prompt && !shownIds.includes(prompt.id)) {
+            fetched.push(prompt.text);
+            shownIds.push(prompt.id);
+
+            // Record that we showed this prompt (non-blocking)
+            promptsService.recordPromptShown(
+              profile.id,
+              prompt.id,
+              'recording_screen',
+            ).catch(() => {});
+          }
+        }
+
+        if (!cancelled && fetched.length > 0) {
+          setPrompts(fetched);
+        }
+      } catch {
+        // Keep fallback prompts on error
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [profile?.id]);
+
+  // ─── Sync UI State with Speech Hook ────────────────────
+  //
+  // Instead of manually tracking isRecording ourselves, we
+  // watch the hook's isRecording flag. When the speech engine
+  // fires its "start" event, we switch to recording mode.
+
+  useEffect(() => {
+    if (speech.isRecording && state !== 'recording') {
+      setState('recording');
+    }
+  }, [speech.isRecording]);
+
+  // If the hook reports a permission error, show the denied screen
+  useEffect(() => {
+    if (speech.error) {
+      setState('prompts');
+      if (speech.error.toLowerCase().includes('permission')) {
+        setMicPermission('denied');
+      }
+    }
+  }, [speech.error]);
 
   // Start breathing animation
   useEffect(() => {
@@ -149,33 +261,102 @@ export default function RecordingScreen() {
     }
   }, [seconds]);
 
-  const handleStart = () => {
-    setState('recording');
+  // ─── Navigate After Speech Finishes ────────────────────
+  //
+  // When the user taps stop, we set isStopping=true and call
+  // speech.stop(). The speech engine takes a moment to
+  // finalize the transcript + save the audio file. Once
+  // speech.isRecording flips to false, everything is ready —
+  // we create the entry and navigate.
+
+  useEffect(() => {
+    if (!isStopping || speech.isRecording) return;
+
+    // Read latest values from refs to avoid stale closures.
+    // The effect only depends on [isStopping, speech.isRecording]
+    // so it fires at the right time, but reads fresh data via refs.
+    const s = speechRef.current;
+    const secs = secondsRef.current;
+    const loc = locationTextRef.current;
+
+    // ── Edge case: Empty recording ──
+    //
+    // If the user tapped record then immediately stopped (less
+    // than 2 seconds), there's nothing useful to save. Show a
+    // brief message instead of creating a blank entry.
+    if (secs < 2 && !s.transcript) {
+      setIsStopping(false);
+      setState('prompts');
+      setSeconds(0);
+      setTooShortMessage(true);
+      setTimeout(() => setTooShortMessage(false), 3000);
+      return;
+    }
+
+    if (isReRecord && reRecordEntryId) {
+      // Re-record: update existing entry's audio + transcript
+      // via Supabase, then go back to the entry detail screen.
+      (async () => {
+        try {
+          // Upload the new audio file (upsert overwrites the old one)
+          if (s.audioUri) {
+            await storageService.uploadAudio(reRecordEntryId, s.audioUri);
+          }
+          // Update the transcript in the database
+          await entriesService.update(reRecordEntryId, {
+            transcript: s.transcript || '',
+          });
+          // Update local cache too
+          updateEntryLocal(reRecordEntryId, {
+            text: s.transcript || '',
+            hasAudio: true,
+          });
+        } catch (err) {
+          console.warn('Re-record save failed:', err);
+        }
+        router.back();
+      })();
+    } else {
+      // Normal: navigate to entry-detail with the transcript
+      // and audioUri. Entry-detail will create the Supabase
+      // entry and upload the audio itself.
+      router.push({
+        pathname: '/(main)/entry-detail',
+        params: {
+          transcript: s.transcript,
+          audioUri: s.audioUri ?? '',
+          locationText: loc ?? '',
+        },
+      });
+    }
+
+    setIsStopping(false);
+  }, [isStopping, speech.isRecording]);
+
+  // ─── Start / Stop Handlers ─────────────────────────────
+
+  const handleStart = useCallback(async () => {
     setSeconds(0);
-  };
+    speech.reset(); // Clear any previous error or transcript
+    await speech.start();
+    // The hook fires a 'start' event → speech.isRecording = true
+    // → our useEffect above switches state to 'recording'.
+    // If permission is denied, speech.error gets set instead.
+  }, [speech]);
 
   const handleStop = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
+    speech.stop();
+    setIsStopping(true);
+  }, [speech]);
 
-    // Create mock entry from "recording"
-    addEntry({
-      text: `${firstName} did something amazing today. I was watching and couldn't help but smile. These little moments are everything.`,
-      date: new Date().toISOString(),
-      childIds: children.length > 0 ? [children[0].id] : [],
-      tags: [],
-      isFavorited: false,
-      hasAudio: true,
-      locationText: locationText ?? undefined,
-    });
+  // Clean up if the user navigates away mid-recording
+  useEffect(() => {
+    return () => {
+      speech.stop();
+    };
+  }, []);
 
-    router.push('/(main)/entry-detail');
-  }, [children, firstName, locationText]);
-
-  const formatTimer = (s: number) => {
-    const mins = Math.floor(s / 60);
-    const secs = s % 60;
-    return `${mins}:${String(secs).padStart(2, '0')}`;
-  };
 
   // Mic permission denied — show friendly error
   if (micPermission === 'denied') {
@@ -193,11 +374,9 @@ export default function RecordingScreen() {
         <ErrorState
           icon="mic-off-outline"
           title="Microphone access needed"
-          body="Core Memories needs mic access to record your voice. You can enable it in your device settings."
+          body="Forever Fireflies needs mic access to record your voice. You can enable it in your device settings."
           actionLabel="Open Settings"
-          onAction={() => {
-            // Phase 3 will use Linking.openSettings()
-          }}
+          onAction={() => Linking.openSettings()}
         />
       </View>
     );
@@ -206,7 +385,7 @@ export default function RecordingScreen() {
   return (
     <View style={styles.container}>
       {/* Warm radial gradient backdrop */}
-      <View style={styles.gradientBackdrop} />
+      <WarmGlow />
 
       {/* Top bar: just an X */}
       <View style={[styles.topBar, { paddingTop: insets.top + spacing(3) }]}>
@@ -225,17 +404,27 @@ export default function RecordingScreen() {
       {/* Prompt cards — fade out during recording */}
       <Animated.View style={[styles.promptArea, { opacity: promptOpacity }]}>
         {state === 'prompts' && (
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.promptScroll}
-          >
-            {prompts.map((prompt, i) => (
-              <View key={i} style={styles.promptCard}>
+          isReRecord ? (
+            <View style={styles.promptScroll}>
+              <View style={styles.promptCard}>
                 <PaperTexture radius={radii.card} />
-                <Text style={styles.promptText}>{prompt}</Text>
+                <Ionicons name="refresh-outline" size={20} color={colors.accent} style={{ marginBottom: spacing(2) }} />
+                <Text style={styles.promptText}>Take your time and re-record this memory</Text>
               </View>
-            ))}
-          </ScrollView>
+            </View>
+          ) : (
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.promptScroll}
+            >
+              {prompts.map((prompt, i) => (
+                <View key={i} style={styles.promptCard}>
+                  <PaperTexture radius={radii.card} />
+                  <Text style={styles.promptText}>{prompt}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          )
         )}
       </Animated.View>
 
@@ -244,10 +433,21 @@ export default function RecordingScreen() {
         {state === 'recording' && (
           <>
             {/* Timer */}
-            <Text style={styles.timer}>{formatTimer(seconds)}</Text>
+            <Text style={styles.timer}>{formatDuration(seconds)}</Text>
             <Text style={styles.timerHint}>
               {seconds < 5 ? 'Recording...' : `${60 - seconds}s remaining`}
             </Text>
+
+            {/* Live transcript — updates in real-time as you speak */}
+            <ScrollView
+              style={styles.transcriptScroll}
+              contentContainerStyle={styles.transcriptContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={speech.transcript ? styles.liveTranscript : styles.transcriptPlaceholder}>
+                {speech.transcript || 'Start speaking...'}
+              </Text>
+            </ScrollView>
           </>
         )}
 
@@ -299,8 +499,14 @@ export default function RecordingScreen() {
           )}
         </View>
 
-        {state === 'prompts' && (
+        {state === 'prompts' && !tooShortMessage && !speech.error && (
           <Text style={styles.micHint}>Tap to start recording</Text>
+        )}
+        {tooShortMessage && (
+          <Text style={styles.errorHint}>Recording too short — try again</Text>
+        )}
+        {speech.error && !speech.error.toLowerCase().includes('permission') && (
+          <Text style={styles.errorHint}>Something went wrong — try again</Text>
         )}
       </View>
     </View>
@@ -311,11 +517,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
-  },
-  gradientBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: screenColors.recordingBackdrop,
-    opacity: 0.5,
   },
   // ─── Top Bar ────────────────────────
   topBar: {
@@ -427,5 +628,33 @@ const styles = StyleSheet.create({
   micHint: {
     ...typography.caption,
     color: colors.textMuted,
+  },
+  errorHint: {
+    ...typography.caption,
+    color: colors.accent,
+    fontWeight: '500',
+  },
+  // ─── Live Transcript ──────────────────
+  transcriptScroll: {
+    maxHeight: 120,
+    width: '100%',
+    paddingHorizontal: spacing(5),
+  },
+  transcriptContent: {
+    paddingVertical: spacing(2),
+  },
+  liveTranscript: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: colors.text,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  transcriptPlaceholder: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: colors.textMuted,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });

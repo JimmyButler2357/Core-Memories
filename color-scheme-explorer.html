@@ -1,0 +1,1806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Forever Fireflies — Color Scheme Explorer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
+  <style>
+    /* ═══ Reset ═══ */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      /* Locked-in base palette */
+      --bg: #FAF8F5;
+      --card: #FEFCF9;
+      --border: #EDE8E3;
+      --tag: #F3EDE8;
+      --card-pressed: #F7F4F1;
+      --heart-empty: #D9D2CB;
+      --text: #2C2420;
+      --text-soft: #8C7E74;
+      --text-muted: #B5AAA0;
+
+      /* Accent — Coral */
+      --accent: #E8724A;
+      --accent-soft: rgba(232,114,74,0.08);
+      --accent-pressed: #CC6441;
+      --accent-glow: rgba(232,114,74,0.12);
+      --accent-shadow: rgba(232,114,74,0.35);
+      --heart-filled: #E8724A;
+
+      /* Glow colors (Option B) — hidden by default */
+      --glow: #F2C94C;
+      --glow-soft: #FDF6E3;
+      --glow-active: 0;
+
+      /* Dusk colors (Option C) — hidden by default */
+      --dusk: #2C3E50;
+      --dusk-soft: #EDE8F0;
+      --dusk-active: 0;
+
+      /* Typography */
+      --serif: 'Merriweather', serif;
+      --voice-style: normal;
+      --preview-size: 12px;
+
+      /* Surface */
+      --border-style: solid;
+      --border-width: 1px;
+
+      /* Shape — Standard scale */
+      --radius-card: 14px;
+      --radius-input: 12px;
+      --radius-tab: 20px;
+      --radius-tag: 8px;
+      --radius-mic: 30px;
+
+      /* Shadows — Whisper */
+      --shadow-card: 0 1px 2px rgba(44,36,32,0.03);
+      --shadow-prompt: 0 1px 4px rgba(44,36,32,0.03);
+
+      /* Spacing — Standard */
+      --card-pad-v: 12px;
+      --card-pad-h: 14px;
+      --card-gap: 10px;
+      --tab-pad-v: 5px;
+      --tab-pad-h: 12px;
+      --tab-gap: 6px;
+      --tag-pad-v: 2px;
+      --tag-pad-h: 7px;
+      --transcript-pad: 14px;
+      --prompt-pad-v: 14px;
+      --prompt-pad-h: 16px;
+      --screen-pad: 16px;
+      --section-gap: 10px;
+
+      /* Recording backdrop */
+      --recording-backdrop: rgba(244,226,214,0.45);
+
+      /* Firefly Jar gradient */
+      --jar-bg-top: #F9F2EB;
+    }
+
+    /* ═══ Layout ═══ */
+    html, body { height: 100%; overflow: hidden; }
+
+    body {
+      background: #F0EDE8;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 24px;
+      flex-shrink: 0;
+      border-bottom: 1px solid #E5E0DA;
+    }
+
+    .header h1 { font-size: 16px; font-weight: 800; }
+    .header h1 span { color: #B5AAA0; font-weight: 400; }
+
+    .tuner-layout {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .mockups-area {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 16px;
+      padding: 16px;
+      overflow: auto;
+      min-width: 0;
+    }
+
+    .controls-panel {
+      width: 370px;
+      flex-shrink: 0;
+      background: white;
+      border-left: 1px solid #E5E0DA;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .controls-panel::-webkit-scrollbar { width: 5px; }
+    .controls-panel::-webkit-scrollbar-track { background: transparent; }
+    .controls-panel::-webkit-scrollbar-thumb { background: #D9D2CB; border-radius: 3px; }
+
+    /* ═══ Phone Frame ═══ */
+    .mockup-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .mockup-label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: #B5AAA0;
+    }
+
+    .phone {
+      width: 280px;
+      height: 560px;
+      background: var(--bg);
+      border-radius: 32px;
+      border: 1px solid #D6D0CA;
+      box-shadow: 0 8px 32px rgba(44,36,32,0.08), 0 2px 8px rgba(44,36,32,0.04);
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ═══ Shared Mockup Styles ═══ */
+    .mock-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 16px 10px;
+    }
+
+    .mock-topbar-left { display: flex; align-items: center; gap: 8px; flex: 1; }
+    .mock-topbar-right { display: flex; align-items: center; gap: 14px; }
+    .mock-icon { font-size: 16px; color: var(--text); cursor: default; line-height: 1; }
+
+    /* Icon button — glass style (locked in) */
+    .mock-icon-btn {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      cursor: default;
+      flex-shrink: 0;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.35);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.5);
+      box-shadow: 0 2px 8px rgba(44,36,32,0.06);
+    }
+
+    .mock-icon-btn svg {
+      width: 16px;
+      height: 16px;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+
+    /* ═══ Cards ═══ */
+    .mock-card,
+    .detail-transcript,
+    .detail-audio,
+    .mock-prompt-card {
+      border-width: var(--border-width);
+      border-style: var(--border-style);
+      border-color: var(--border);
+    }
+
+    .mock-card {
+      background: var(--card);
+      border-radius: var(--radius-card);
+      padding: var(--card-pad-v) var(--card-pad-h);
+      box-shadow: var(--shadow-card);
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    /* Card accent — left bar (locked in) */
+    .mock-card::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 12px;
+      bottom: 12px;
+      width: 3px;
+      border-radius: 0 2px 2px 0;
+      background: var(--child-color, #7BAFD4);
+      z-index: 2;
+    }
+
+    .card-header { display: flex; align-items: center; gap: 5px; margin-bottom: 5px; }
+    .card-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .card-child-name { font-size: 11px; font-weight: 700; }
+    .card-meta-text { font-size: 10px; font-weight: 600; color: var(--text-muted); }
+    .card-heart { margin-left: auto; font-size: 13px; color: var(--accent); }
+
+    /* Card title — serif style (locked in) */
+    .card-title {
+      font-family: var(--serif);
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.3;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+
+    .card-preview {
+      font-family: var(--serif);
+      font-style: var(--voice-style);
+      font-size: var(--preview-size);
+      font-weight: 400;
+      line-height: 1.55;
+      color: var(--text);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      margin-bottom: 6px;
+    }
+
+    .card-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+
+    /* Tag pills — outlined style (locked in) */
+    .mock-tag {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-soft);
+      padding: 1px 6px;
+      border-radius: var(--radius-tag);
+      background: transparent;
+      border: 1.5px solid var(--border);
+    }
+
+    .mock-tag-add { font-size: 10px; font-weight: 500; color: var(--accent); cursor: default; }
+
+    /* ═══ Home Screen ═══ */
+    .home-title {
+      font-family: var(--serif);
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      color: var(--text);
+    }
+
+    .home-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 var(--screen-pad);
+      padding-bottom: 80px;
+      display: flex;
+      flex-direction: column;
+      gap: var(--card-gap);
+    }
+    .home-scroll::-webkit-scrollbar { width: 0; }
+
+    .home-bottom {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-bottom: 20px;
+      gap: 6px;
+    }
+
+    .home-bottom-fade {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 70px;
+      background: linear-gradient(transparent, var(--bg));
+      pointer-events: none;
+    }
+
+    /* Mic button — soft style (locked in) */
+    .mock-mic-btn {
+      width: 60px;
+      height: 60px;
+      border-radius: var(--radius-mic);
+      background: var(--accent-soft);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 2px 8px rgba(44,36,32,0.06);
+      position: relative;
+      z-index: 2;
+      border: none;
+    }
+
+    .mock-mic-btn svg { stroke: var(--accent); }
+
+    .home-write-link {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-soft);
+      position: relative;
+      z-index: 2;
+    }
+
+    /* ═══ Child Tabs — segmented style (locked in) ═══ */
+    .mock-tabs {
+      display: flex;
+      gap: 2px;
+      padding: 0 var(--screen-pad) 10px;
+      background: var(--tag);
+      border-radius: var(--radius-tab);
+      padding: 3px;
+      margin: 0 var(--screen-pad) 10px;
+    }
+
+    .mock-tab {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: var(--tab-pad-v) var(--tab-pad-h);
+      border-radius: calc(var(--radius-tab) - 2px);
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      flex: 1;
+      border: none;
+      box-shadow: none;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .mock-tab.active {
+      background: var(--card);
+      box-shadow: 0 1px 3px rgba(44,36,32,0.08);
+    }
+    .mock-tab.inactive {
+      background: transparent;
+      color: var(--text-muted);
+    }
+
+    /* Tab tinting — ringed (locked in) */
+    .mock-tab.active {
+      border: 2px solid transparent;
+    }
+
+    /* Top gradient overlay (locked in, 25% opacity) */
+    .top-gradient-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 120px;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.25;
+      background: linear-gradient(180deg, var(--accent-soft) 0%, var(--accent-soft) 15%, transparent 70%);
+      border-radius: 32px 32px 0 0;
+    }
+
+    /* ═══ Entry Detail ═══ */
+    .detail-content {
+      flex: 1;
+      overflow: hidden;
+      padding: 0 var(--screen-pad);
+      display: flex;
+      flex-direction: column;
+      gap: var(--section-gap);
+    }
+
+    .detail-date-row { display: flex; align-items: baseline; gap: 6px; }
+    .detail-date { font-size: 13px; font-weight: 700; color: var(--text); }
+    .detail-time { font-size: 10px; font-weight: 600; color: var(--text-muted); }
+
+    .detail-child-row { display: flex; align-items: center; gap: 8px; }
+
+    .detail-child-pill {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 10px;
+      border-radius: var(--radius-tab);
+      border: 2px solid;
+    }
+    .detail-child-pill .card-dot { width: 7px; height: 7px; }
+    .detail-child-name { font-size: 12px; font-weight: 700; }
+    .detail-age { font-size: 12px; font-weight: 500; color: var(--text-muted); }
+
+    .detail-tags-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+
+    .detail-transcript {
+      background: var(--card);
+      border-radius: var(--radius-card);
+      padding: var(--transcript-pad);
+      box-shadow: var(--shadow-card);
+      position: relative;
+      overflow: hidden;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .detail-transcript-text {
+      font-family: var(--serif);
+      font-style: var(--voice-style);
+      font-size: calc(var(--preview-size) + 0.5px);
+      font-weight: 400;
+      line-height: 1.65;
+      color: var(--text);
+    }
+
+    .detail-saved {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-align: right;
+      margin-top: 10px;
+    }
+
+    .detail-audio {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--card);
+      border-radius: var(--radius-input);
+      padding: 8px 12px;
+      box-shadow: var(--shadow-card);
+    }
+
+    .audio-play {
+      width: 32px;
+      height: 32px;
+      border-radius: 16px;
+      background: var(--accent-soft);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .audio-play-icon {
+      width: 0;
+      height: 0;
+      border-style: solid;
+      border-width: 5px 0 5px 9px;
+      border-color: transparent transparent transparent var(--accent);
+      margin-left: 2px;
+    }
+
+    .audio-track {
+      flex: 1;
+      height: 3px;
+      background: #EDE8E3;
+      border-radius: 2px;
+      position: relative;
+    }
+    .audio-progress {
+      position: absolute;
+      left: 0; top: 0;
+      height: 100%;
+      width: 35%;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+    .audio-duration {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    /* ═══ Firefly Jar Screen ═══ */
+    .jar-gradient {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 160px;
+      border-radius: 32px 32px 0 0;
+      pointer-events: none;
+      z-index: 0;
+      transition: background 0.4s ease;
+    }
+
+    .jar-title {
+      font-family: var(--serif);
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      color: var(--text);
+    }
+
+    .jar-count {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 var(--screen-pad);
+      margin-bottom: 4px;
+    }
+
+    .jar-count-heart { font-size: 14px; color: var(--accent); }
+    .jar-count-text { font-size: 12px; font-weight: 500; color: var(--text-soft); }
+
+    .jar-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 var(--screen-pad);
+      padding-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: var(--card-gap);
+    }
+    .jar-scroll::-webkit-scrollbar { width: 0; }
+
+    /* Firefly dot on favorited cards */
+    .firefly-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      margin-left: auto;
+      flex-shrink: 0;
+      transition: all 0.4s ease;
+    }
+
+    /* Floating fireflies */
+    .firefly-particle {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 1;
+      transition: opacity 0.4s ease;
+    }
+
+    /* Glow halo on recording mic */
+    .recording-glow-ring {
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      pointer-events: none;
+      transition: all 0.4s ease;
+    }
+
+    /* ═══ Recording Screen ═══ */
+    .recording-backdrop {
+      position: absolute;
+      inset: 0;
+      background: var(--recording-backdrop);
+      pointer-events: none;
+    }
+
+    .recording-content {
+      position: relative;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 0 var(--screen-pad);
+      gap: var(--section-gap);
+      overflow: hidden;
+    }
+
+    .recording-close {
+      font-size: 18px;
+      color: var(--text);
+      padding: 20px 16px 10px;
+      cursor: default;
+      position: relative;
+    }
+
+    .mock-prompt-card {
+      background: var(--card);
+      border-radius: var(--radius-input);
+      padding: var(--prompt-pad-v) var(--prompt-pad-h);
+      box-shadow: var(--shadow-prompt);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .prompt-text {
+      font-family: var(--serif);
+      font-size: 16px;
+      font-weight: 400;
+      line-height: 1.5;
+      color: var(--text-soft);
+    }
+
+    .recording-bottom {
+      margin-top: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-bottom: 28px;
+      gap: 10px;
+    }
+
+    .recording-hint {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    .mock-mic-btn-large {
+      width: 84px;
+      height: 84px;
+      border-radius: var(--radius-mic);
+      background: var(--accent-soft);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      box-shadow: 0 2px 8px rgba(44,36,32,0.06);
+      border: none;
+      position: relative;
+    }
+
+    .mock-mic-btn-large svg { stroke: var(--accent); }
+
+    /* ═══ Controls Panel ═══ */
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: #B5AAA0;
+      margin-bottom: 14px;
+    }
+
+    .section-divider {
+      height: 1px;
+      background: #EDE8E3;
+      margin: 18px 0;
+    }
+
+    .control-group { margin-bottom: 14px; }
+
+    .control-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-soft);
+      margin-bottom: 6px;
+    }
+
+    .control-desc {
+      font-size: 10px;
+      color: #B5AAA0;
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
+
+    /* ── Scheme Cards ── */
+    .scheme-card {
+      border: 2px solid #EDE8E3;
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      position: relative;
+    }
+
+    .scheme-card:hover {
+      border-color: #D9D2CB;
+    }
+
+    .scheme-card.selected {
+      border-color: var(--accent);
+      background: rgba(232,114,74,0.04);
+    }
+
+    .scheme-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .scheme-card-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .scheme-card-badge {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      background: var(--accent);
+      color: white;
+      display: none;
+    }
+
+    .scheme-card.selected .scheme-card-badge { display: inline-block; }
+
+    .scheme-card-desc {
+      font-size: 11px;
+      color: var(--text-soft);
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
+
+    .scheme-card-swatches {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .scheme-swatch {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid rgba(44,36,32,0.08);
+      position: relative;
+    }
+
+    .scheme-swatch-label {
+      font-size: 9px;
+      font-weight: 600;
+      color: #B5AAA0;
+      margin-left: 4px;
+    }
+
+    .scheme-card-pros {
+      font-size: 10px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid #EDE8E3;
+    }
+
+    .scheme-card-pros strong { color: var(--text-soft); }
+
+    /* ── Sliders ── */
+    .slider-group {
+      margin-bottom: 14px;
+      transition: opacity 0.3s ease, max-height 0.3s ease;
+      overflow: hidden;
+    }
+
+    .slider-group.disabled {
+      opacity: 0.35;
+      pointer-events: none;
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .slider-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-soft);
+      min-width: 65px;
+    }
+
+    .slider-value {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      font-family: 'SF Mono', 'Consolas', monospace;
+      min-width: 60px;
+      text-align: right;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 5px;
+      background: linear-gradient(to right, #EDE8E3, #D9CEBD);
+      border-radius: 3px;
+      cursor: pointer;
+      flex: 1;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      background: white;
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      box-shadow: 0 1px 4px rgba(44,36,32,0.15);
+      cursor: grab;
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      background: white;
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      box-shadow: 0 1px 4px rgba(44,36,32,0.15);
+      cursor: grab;
+    }
+
+    /* ── Color picker row ── */
+    .color-pick-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .color-pick-swatch {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid rgba(44,36,32,0.08);
+      flex-shrink: 0;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .color-pick-swatch input[type="color"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+      border: none;
+    }
+
+    .color-pick-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-soft);
+    }
+
+    .color-pick-hex {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-muted);
+      font-family: 'SF Mono', 'Consolas', monospace;
+      margin-left: auto;
+    }
+
+    /* ── Info banner ── */
+    .info-banner {
+      background: rgba(232,114,74,0.06);
+      border: 1px solid rgba(232,114,74,0.15);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+    }
+
+    .info-banner-text {
+      font-size: 11px;
+      color: var(--text-soft);
+      line-height: 1.5;
+    }
+
+    .info-banner-text strong { color: var(--accent); }
+
+    /* ── Export ── */
+    .btn-export {
+      font-size: 11px;
+      font-weight: 700;
+      color: white;
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      padding: 7px 18px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      width: 100%;
+    }
+    .btn-export:hover { opacity: 0.85; }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(44,36,32,0.45);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.visible { display: flex; }
+
+    .modal-box {
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: 0 12px 40px rgba(44,36,32,0.20);
+    }
+    .modal-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+    .modal-code {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 11px;
+      line-height: 1.6;
+      background: #FAF8F5;
+      border: 1px solid #EDE8E3;
+      border-radius: 8px;
+      padding: 14px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-y: auto;
+      max-height: 60vh;
+      margin-bottom: 14px;
+      color: #2C2420;
+    }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .btn-copy {
+      font-size: 11px; font-weight: 600; color: var(--accent);
+      background: rgba(232,114,74,0.08); border: none; border-radius: 8px;
+      padding: 7px 14px; cursor: pointer;
+    }
+    .btn-close-modal {
+      font-size: 11px; font-weight: 600; color: var(--text-soft);
+      background: #F3EDE8; border: none; border-radius: 8px;
+      padding: 7px 14px; cursor: pointer;
+    }
+
+    /* ═══ Responsive ═══ */
+    @media (max-width: 1300px) {
+      .phone { width: 240px; height: 480px; }
+    }
+
+    @media (max-width: 1100px) {
+      html, body { height: auto; overflow: auto; }
+      .tuner-layout { flex-direction: column; overflow: visible; }
+      .mockups-area { flex-wrap: wrap; padding: 20px; }
+      .controls-panel {
+        width: 100%;
+        max-width: 700px;
+        margin: 0 auto;
+        border-left: none;
+        border-top: 1px solid #E5E0DA;
+      }
+      .phone { width: 300px; height: 600px; }
+    }
+
+    @media (max-width: 700px) {
+      .mockups-area { flex-direction: column; align-items: center; }
+      .phone { width: 320px; height: 620px; }
+    }
+
+    /* ═══ Shadow Style — Glow (locked in) ═══ */
+    /* Applied via JS based on accent color */
+  </style>
+</head>
+<body>
+
+<!-- ═══ Header ═══ -->
+<div class="header">
+  <h1>Forever Fireflies <span>— Color Scheme Explorer</span></h1>
+</div>
+
+<div class="tuner-layout">
+
+<!-- ═══ Phone Mockups ═══ -->
+<div class="mockups-area" id="mockups">
+
+  <!-- ── HOME SCREEN ── -->
+  <div class="mockup-wrapper">
+    <div class="mockup-label">HOME</div>
+    <div class="phone" id="phone-home">
+      <div class="top-gradient-overlay"></div>
+      <div class="mock-topbar">
+        <div class="mock-topbar-left">
+          <div class="home-title">Forever Fireflies</div>
+        </div>
+        <div class="mock-topbar-right">
+          <!-- Duo-tone icons -->
+          <div class="mock-icon-btn">
+            <svg viewBox="0 0 24 24" style="fill:none;stroke-linecap:round"><circle cx="11" cy="11" r="7" style="stroke:var(--text-muted);stroke-width:2"/><line x1="16.5" y1="16.5" x2="21" y2="21" style="stroke:var(--accent);stroke-width:2.5"/></svg>
+          </div>
+          <div class="mock-icon-btn">
+            <svg viewBox="0 0 24 24" style="stroke:var(--accent);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+          </div>
+          <div class="mock-icon-btn">
+            <svg viewBox="0 0 24 24" style="fill:none;stroke:var(--text-muted);stroke-width:2;stroke-linecap:round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="8" cy="6" r="2.5" style="fill:var(--card);stroke-width:2"/><circle cx="16" cy="12" r="2.5" style="fill:var(--card);stroke-width:2"/><circle cx="11" cy="18" r="2.5" style="fill:var(--card);stroke-width:2"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="mock-tabs" id="home-tabs">
+        <div class="mock-tab active" style="color:#B5AAA0; border-color:#B5AAA0;">
+          All
+        </div>
+        <div class="mock-tab inactive">
+          <span class="mock-tab-dot" style="background:#7BAFD4; width:7px; height:7px; border-radius:50%; display:none;"></span>
+          <span>Emma</span>
+        </div>
+        <div class="mock-tab inactive">
+          <span class="mock-tab-dot" style="background:#D4A07B; width:7px; height:7px; border-radius:50%; display:none;"></span>
+          <span>Noah</span>
+        </div>
+      </div>
+
+      <div class="home-scroll">
+        <div class="mock-card" style="--child-color:#7BAFD4; --child-color-faint:rgba(123,175,212,0.10);">
+          <div class="card-header">
+            <span class="card-dot" style="background:#7BAFD4;"></span>
+            <span class="card-child-name" style="color:#7BAFD4;">Emma</span>
+            <span class="card-meta-text">&middot; Sat, Feb 28 &middot; 8:42 PM</span>
+            <span class="card-heart">&hearts;</span>
+          </div>
+          <div class="card-title">Her First Full Sentence</div>
+          <div class="card-preview">Emma said her first full sentence today. She looked right at me and said "Mama, I want the big bear" and I almost cried.</div>
+          <div class="card-tags">
+            <span class="mock-tag">first words</span>
+            <span class="mock-tag">milestone</span>
+          </div>
+        </div>
+
+        <div class="mock-card" style="--child-color:#D4A07B; --child-color-faint:rgba(212,160,123,0.10);">
+          <div class="card-header">
+            <span class="card-dot" style="background:#D4A07B;"></span>
+            <span class="card-child-name" style="color:#D4A07B;">Noah</span>
+            <span class="card-meta-text">&middot; Fri, Feb 27 &middot; 6:15 PM</span>
+          </div>
+          <div class="card-title">The Block Tower</div>
+          <div class="card-preview">Noah built this incredible tower out of blocks and then very carefully knocked it down. He laughed so hard he fell over. Pure joy.</div>
+          <div class="card-tags">
+            <span class="mock-tag">funny</span>
+            <span class="mock-tag">play</span>
+          </div>
+        </div>
+
+        <div class="mock-card" style="--child-color:#7BAFD4; --child-color-faint:rgba(123,175,212,0.10);">
+          <div class="card-header">
+            <span class="card-dot" style="background:#7BAFD4;"></span>
+            <span class="card-child-name" style="color:#7BAFD4;">Emma</span>
+            <span class="card-meta-text">&middot; Thu, Feb 26 &middot; 7:30 PM</span>
+            <span class="card-heart">&hearts;</span>
+          </div>
+          <div class="card-title">Where Does the Moon Go?</div>
+          <div class="card-preview">Emma asked me tonight &ldquo;Mama, where does the moon go in the morning?&rdquo; I told her it goes to sleep and she said &ldquo;just like me!&rdquo;</div>
+          <div class="card-tags">
+            <span class="mock-tag">bedtime</span>
+            <span class="mock-tag">questions</span>
+          </div>
+        </div>
+
+        <div class="mock-card" style="--child-color:#D4A07B; --child-color-faint:rgba(212,160,123,0.10);">
+          <div class="card-header">
+            <span class="card-dot" style="background:#D4A07B;"></span>
+            <span class="card-child-name" style="color:#D4A07B;">Noah</span>
+            <span class="card-meta-text">&middot; Wed, Feb 25 &middot; 4:45 PM</span>
+          </div>
+          <div class="card-title">First Steps in the Park</div>
+          <div class="card-preview">Noah took three wobbly steps on the grass today at the park. He kept reaching for the dog and just went for it.</div>
+          <div class="card-tags">
+            <span class="mock-tag">milestone</span>
+            <span class="mock-tag">park</span>
+          </div>
+        </div>
+
+        <div class="mock-card" style="--child-color:#7BAFD4; --child-color-faint:rgba(123,175,212,0.10);">
+          <div class="card-header">
+            <span class="card-dot" style="background:#7BAFD4;"></span>
+            <span class="card-child-name" style="color:#7BAFD4;">Emma</span>
+            <span class="card-meta-text">&middot; Tue, Feb 24 &middot; 3:20 PM</span>
+          </div>
+          <div class="card-title">The Butterfly Song</div>
+          <div class="card-preview">Emma made up a song about butterflies in the car today. Something about purple wings and dancing. She sang it three times.</div>
+          <div class="card-tags">
+            <span class="mock-tag">creative</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="home-bottom-fade"></div>
+      <div class="home-bottom">
+        <div class="mock-mic-btn"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="1" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/></svg></div>
+        <div class="home-write-link">&#x270E; or write instead</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ENTRY DETAIL ── -->
+  <div class="mockup-wrapper">
+    <div class="mockup-label">ENTRY DETAIL</div>
+    <div class="phone" id="phone-detail">
+      <div class="top-gradient-overlay"></div>
+      <div class="mock-topbar">
+        <div class="mock-topbar-left">
+          <span class="mock-icon">&#x2039;</span>
+        </div>
+        <div class="mock-topbar-right">
+          <div class="mock-icon-btn">
+            <svg viewBox="0 0 24 24" style="stroke:var(--accent);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+          </div>
+          <div class="mock-icon-btn">
+            <svg viewBox="0 0 24 24" style="stroke:var(--text-muted);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-content">
+        <div class="detail-date-row">
+          <span class="detail-date">Saturday, February 28</span>
+          <span class="detail-time">8:42 PM</span>
+        </div>
+
+        <div class="detail-child-row">
+          <div class="detail-child-pill" style="background:rgba(123,175,212,0.12); border-color:#7BAFD4; box-shadow:0 2px 8px rgba(123,175,212,0.18);">
+            <span class="card-dot" style="background:#7BAFD4;"></span>
+            <span class="detail-child-name" style="color:#7BAFD4;">Emma</span>
+          </div>
+          <span class="detail-age">2y 4m</span>
+        </div>
+
+        <div class="detail-tags-row">
+          <span class="mock-tag">first words</span>
+          <span class="mock-tag">milestone</span>
+          <span class="mock-tag-add">+ add</span>
+        </div>
+
+        <div class="detail-transcript">
+          <div class="detail-transcript-text">
+            Emma said her first full sentence today. She looked right at me and said "Mama, I want the big bear" and I almost cried. She's growing up so fast and I don't want to forget any of it.<br><br>
+            She was sitting in the living room playing with her stuffed animals when she just looked up and said it so clearly.
+          </div>
+          <div class="detail-saved">All changes saved</div>
+        </div>
+
+        <div class="detail-audio">
+          <div class="audio-play">
+            <div class="audio-play-icon"></div>
+          </div>
+          <div class="audio-track">
+            <div class="audio-progress"></div>
+          </div>
+          <span class="audio-duration">1:24</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── FIREFLY JAR ── -->
+  <div class="mockup-wrapper">
+    <div class="mockup-label">FIREFLY JAR</div>
+    <div class="phone" id="phone-jar">
+      <div class="jar-gradient" id="jar-gradient"></div>
+
+      <!-- Floating firefly particles -->
+      <div class="firefly-particle" id="fly1" style="width:3px;height:3px;top:25%;left:20%;"></div>
+      <div class="firefly-particle" id="fly2" style="width:2px;height:2px;top:40%;left:70%;"></div>
+      <div class="firefly-particle" id="fly3" style="width:4px;height:4px;top:55%;left:45%;"></div>
+      <div class="firefly-particle" id="fly4" style="width:2px;height:2px;top:70%;left:80%;"></div>
+      <div class="firefly-particle" id="fly5" style="width:3px;height:3px;top:35%;left:55%;"></div>
+
+      <div class="mock-topbar" style="position:relative; z-index:2;">
+        <div class="mock-topbar-left">
+          <span class="mock-icon">&#x2039;</span>
+          <div class="jar-title">Firefly Jar</div>
+        </div>
+      </div>
+
+      <div class="jar-count" style="position:relative; z-index:2;">
+        <span class="jar-count-heart">&hearts;</span>
+        <span class="jar-count-text">3 memories saved</span>
+      </div>
+
+      <div class="jar-scroll" style="position:relative; z-index:2;">
+        <div class="mock-card" style="--child-color:#7BAFD4; --child-color-faint:rgba(123,175,212,0.10);">
+          <div class="card-header">
+            <span class="card-dot" style="background:#7BAFD4;"></span>
+            <span class="card-child-name" style="color:#7BAFD4;">Emma</span>
+            <span class="card-meta-text">&middot; Sat, Feb 28</span>
+            <span class="firefly-dot" id="dot1"></span>
+          </div>
+          <div class="card-title">Her First Full Sentence</div>
+          <div class="card-preview">Emma said her first full sentence today. She looked right at me and said "Mama, I want the big bear" and I almost cried.</div>
+          <div class="card-tags">
+            <span class="mock-tag">first words</span>
+            <span class="mock-tag">milestone</span>
+          </div>
+        </div>
+
+        <div class="mock-card" style="--child-color:#7BAFD4; --child-color-faint:rgba(123,175,212,0.10);">
+          <div class="card-header">
+            <span class="card-dot" style="background:#7BAFD4;"></span>
+            <span class="card-child-name" style="color:#7BAFD4;">Emma</span>
+            <span class="card-meta-text">&middot; Thu, Feb 26</span>
+            <span class="firefly-dot" id="dot2"></span>
+          </div>
+          <div class="card-title">Where Does the Moon Go?</div>
+          <div class="card-preview">Emma asked me tonight &ldquo;Mama, where does the moon go in the morning?&rdquo; I told her it goes to sleep and she said &ldquo;just like me!&rdquo;</div>
+          <div class="card-tags">
+            <span class="mock-tag">bedtime</span>
+            <span class="mock-tag">questions</span>
+          </div>
+        </div>
+
+        <div class="mock-card" style="--child-color:#D4A07B; --child-color-faint:rgba(212,160,123,0.10);">
+          <div class="card-header">
+            <span class="card-dot" style="background:#D4A07B;"></span>
+            <span class="card-child-name" style="color:#D4A07B;">Noah</span>
+            <span class="card-meta-text">&middot; Mon, Feb 23</span>
+            <span class="firefly-dot" id="dot3"></span>
+          </div>
+          <div class="card-title">Sharing His Snack</div>
+          <div class="card-preview">Noah offered me a bite of his banana unprompted. He held it out and said &ldquo;mama bite.&rdquo; Sweetest thing.</div>
+          <div class="card-tags">
+            <span class="mock-tag">sharing</span>
+            <span class="mock-tag">sweet</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══ Controls Panel ═══ -->
+<div class="controls-panel">
+
+  <div class="section-label">Color Scheme</div>
+
+  <div class="info-banner">
+    <div class="info-banner-text">
+      Choose how to layer <strong>firefly magic</strong> onto the existing warm palette. All other design values are locked in.
+    </div>
+  </div>
+
+  <!-- Option A -->
+  <div class="scheme-card selected" id="scheme-a" onclick="selectScheme('a')">
+    <div class="scheme-card-header">
+      <span class="scheme-card-name">A: Amber Glow</span>
+      <span class="scheme-card-badge">Active</span>
+    </div>
+    <div class="scheme-card-desc">
+      Keep the exact current palette. The existing coral already feels like warm light &mdash; lean into it in copy and marketing. Zero code changes.
+    </div>
+    <div class="scheme-card-swatches">
+      <div class="scheme-swatch" style="background:#E8724A;"></div>
+      <span class="scheme-swatch-label">Existing coral = "firefly amber"</span>
+    </div>
+    <div class="scheme-card-pros">
+      <strong>Pros:</strong> Immediate. No new colors to manage.<br>
+      <strong>Cons:</strong> No new visual dimension.
+    </div>
+  </div>
+
+  <!-- Option B -->
+  <div class="scheme-card" id="scheme-b" onclick="selectScheme('b')">
+    <div class="scheme-card-header">
+      <span class="scheme-card-name">B: Gold Glow</span>
+      <span class="scheme-card-badge">Active</span>
+    </div>
+    <div class="scheme-card-desc">
+      Add a warm gold as a secondary accent. Orange for actions, gold for magic. Firefly dots, Jar header, spark decorations.
+    </div>
+    <div class="scheme-card-swatches">
+      <div class="scheme-swatch" style="background:#E8724A;"></div>
+      <div class="scheme-swatch" style="background:#F2C94C;"></div>
+      <span class="scheme-swatch-label">glow #F2C94C</span>
+      <div class="scheme-swatch" style="background:#FDF6E3;"></div>
+      <span class="scheme-swatch-label">glowSoft #FDF6E3</span>
+    </div>
+    <div class="scheme-card-pros">
+      <strong>Pros:</strong> Magical layer without disrupting palette. Gold reads as "light."<br>
+      <strong>Cons:</strong> One more color to manage.
+    </div>
+  </div>
+
+  <!-- Option C -->
+  <div class="scheme-card" id="scheme-c" onclick="selectScheme('c')">
+    <div class="scheme-card-header">
+      <span class="scheme-card-name">C: Dusky Evening</span>
+      <span class="scheme-card-badge">Active</span>
+    </div>
+    <div class="scheme-card-desc">
+      Introduce dusky blue-purple for the Firefly Jar only. Like stepping outside at twilight &mdash; a different emotional register from the daytime cream of Home.
+    </div>
+    <div class="scheme-card-swatches">
+      <div class="scheme-swatch" style="background:#E8724A;"></div>
+      <div class="scheme-swatch" style="background:#2C3E50;"></div>
+      <span class="scheme-swatch-label">dusk #2C3E50</span>
+      <div class="scheme-swatch" style="background:#EDE8F0;"></div>
+      <span class="scheme-swatch-label">duskSoft #EDE8F0</span>
+    </div>
+    <div class="scheme-card-pros">
+      <strong>Pros:</strong> Dramatic, memorable, Jar feels truly special.<br>
+      <strong>Cons:</strong> Could feel disconnected from warm aesthetic.
+    </div>
+  </div>
+
+  <div class="section-divider"></div>
+
+  <!-- ─── Fine-Tuning Sliders ─── -->
+  <div class="section-label">Fine-Tune Colors</div>
+
+  <!-- Option B sliders -->
+  <div id="sliders-b" class="slider-group disabled">
+    <div class="control-label">Gold Glow (Option B)</div>
+
+    <div class="control-group">
+      <div class="color-pick-row">
+        <div class="color-pick-swatch" id="swatch-glow" style="background:#F2C94C;">
+          <input type="color" value="#F2C94C" id="pick-glow" oninput="updateGlowColor(this.value)">
+        </div>
+        <span class="color-pick-label">Glow</span>
+        <span class="color-pick-hex" id="hex-glow">#F2C94C</span>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <div class="color-pick-row">
+        <div class="color-pick-swatch" id="swatch-glow-soft" style="background:#FDF6E3;">
+          <input type="color" value="#FDF6E3" id="pick-glow-soft" oninput="updateGlowSoftColor(this.value)">
+        </div>
+        <span class="color-pick-label">Glow Soft</span>
+        <span class="color-pick-hex" id="hex-glow-soft">#FDF6E3</span>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <div class="slider-row">
+        <span class="slider-label">Firefly dots</span>
+        <input type="range" min="0" max="100" value="100" id="slider-dot-opacity" oninput="updateDotOpacity(+this.value)">
+        <span class="slider-value" id="val-dot-opacity">100%</span>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <div class="slider-row">
+        <span class="slider-label">Jar gradient</span>
+        <input type="range" min="0" max="100" value="100" id="slider-jar-glow" oninput="updateJarGlow(+this.value)">
+        <span class="slider-value" id="val-jar-glow">100%</span>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <div class="slider-row">
+        <span class="slider-label">Particles</span>
+        <input type="range" min="0" max="100" value="60" id="slider-particles" oninput="updateParticles(+this.value)">
+        <span class="slider-value" id="val-particles">60%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Option C sliders -->
+  <div id="sliders-c" class="slider-group disabled">
+    <div class="control-label">Dusky Evening (Option C)</div>
+
+    <div class="control-group">
+      <div class="color-pick-row">
+        <div class="color-pick-swatch" id="swatch-dusk" style="background:#2C3E50;">
+          <input type="color" value="#2C3E50" id="pick-dusk" oninput="updateDuskColor(this.value)">
+        </div>
+        <span class="color-pick-label">Dusk</span>
+        <span class="color-pick-hex" id="hex-dusk">#2C3E50</span>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <div class="color-pick-row">
+        <div class="color-pick-swatch" id="swatch-dusk-soft" style="background:#EDE8F0;">
+          <input type="color" value="#EDE8F0" id="pick-dusk-soft" oninput="updateDuskSoftColor(this.value)">
+        </div>
+        <span class="color-pick-label">Dusk Soft</span>
+        <span class="color-pick-hex" id="hex-dusk-soft">#EDE8F0</span>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <div class="slider-row">
+        <span class="slider-label">Jar tint</span>
+        <input type="range" min="0" max="100" value="100" id="slider-dusk-intensity" oninput="updateDuskIntensity(+this.value)">
+        <span class="slider-value" id="val-dusk-intensity">100%</span>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <div class="slider-row">
+        <span class="slider-label">Text contrast</span>
+        <input type="range" min="0" max="100" value="80" id="slider-dusk-contrast" oninput="updateDuskContrast(+this.value)">
+        <span class="slider-value" id="val-dusk-contrast">80%</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-divider"></div>
+
+  <button class="btn-export" onclick="showExport()">Export Color Values</button>
+
+</div>
+
+</div><!-- end tuner-layout -->
+
+<!-- ═══ Export Modal ═══ -->
+<div class="modal-overlay" id="export-modal">
+  <div class="modal-box">
+    <div class="modal-title">Color Scheme Values</div>
+    <div class="modal-code" id="export-code"></div>
+    <div class="modal-actions">
+      <button class="btn-copy" onclick="copyExport()">Copy</button>
+      <button class="btn-close-modal" onclick="closeExport()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══ State ═══
+let activeScheme = 'a';
+
+let glowColor = '#F2C94C';
+let glowSoftColor = '#FDF6E3';
+let dotOpacity = 100;
+let jarGlow = 100;
+let particleOpacity = 60;
+
+let duskColor = '#2C3E50';
+let duskSoftColor = '#EDE8F0';
+let duskIntensity = 100;
+let duskContrast = 80;
+
+// ═══ Helpers ═══
+function hexToRgb(hex) {
+  return {
+    r: parseInt(hex.slice(1, 3), 16),
+    g: parseInt(hex.slice(3, 5), 16),
+    b: parseInt(hex.slice(5, 7), 16),
+  };
+}
+
+function lerpColor(hex1, hex2, t) {
+  const c1 = hexToRgb(hex1);
+  const c2 = hexToRgb(hex2);
+  const r = Math.round(c1.r + (c2.r - c1.r) * t);
+  const g = Math.round(c1.g + (c2.g - c1.g) * t);
+  const b = Math.round(c1.b + (c2.b - c1.b) * t);
+  return '#' + [r, g, b].map(v => Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+
+// ═══ Scheme Selection ═══
+function selectScheme(scheme) {
+  activeScheme = scheme;
+
+  // Update card selection states
+  document.querySelectorAll('.scheme-card').forEach(card => card.classList.remove('selected'));
+  document.getElementById('scheme-' + scheme).classList.add('selected');
+
+  // Enable/disable slider groups
+  document.getElementById('sliders-b').classList.toggle('disabled', scheme !== 'b');
+  document.getElementById('sliders-c').classList.toggle('disabled', scheme !== 'c');
+
+  applyScheme();
+}
+
+// ═══ Apply Scheme to Mockups ═══
+function applyScheme() {
+  const jarGradient = document.getElementById('jar-gradient');
+  const dots = [document.getElementById('dot1'), document.getElementById('dot2'), document.getElementById('dot3')];
+  const flies = [document.getElementById('fly1'), document.getElementById('fly2'), document.getElementById('fly3'), document.getElementById('fly4'), document.getElementById('fly5')];
+  const jarPhone = document.getElementById('phone-jar');
+
+  if (activeScheme === 'a') {
+    // ── Option A: Amber Glow ──
+    // Standard warm gradient, hearts as firefly indicators, no particles
+    jarGradient.style.background = `linear-gradient(180deg, #F9F2EB 0%, var(--bg) 100%)`;
+
+    dots.forEach(dot => {
+      dot.style.background = '#E8724A';
+      dot.style.boxShadow = 'none';
+      dot.style.opacity = '1';
+    });
+
+    flies.forEach(fly => {
+      fly.style.opacity = '0';
+      fly.style.background = 'transparent';
+      fly.style.boxShadow = 'none';
+    });
+
+    // Reset jar phone text colors to default
+    jarPhone.style.setProperty('--text', '#2C2420');
+    jarPhone.style.setProperty('--text-soft', '#8C7E74');
+    jarPhone.style.setProperty('--text-muted', '#B5AAA0');
+    jarPhone.style.removeProperty('color');
+
+    // Reset card backgrounds on jar
+    jarPhone.querySelectorAll('.mock-card').forEach(card => {
+      card.style.background = 'var(--card)';
+      card.style.borderColor = 'var(--border)';
+    });
+
+    jarPhone.querySelector('.jar-title').style.color = '';
+    jarPhone.querySelector('.jar-count-text').style.color = '';
+
+  } else if (activeScheme === 'b') {
+    // ── Option B: Gold Glow ──
+    // Gold gradient, glowing gold firefly dots, floating gold particles
+    const glowRgb = hexToRgb(glowColor);
+    const softMixed = lerpColor('#F9F2EB', glowSoftColor, jarGlow / 100);
+
+    jarGradient.style.background = `linear-gradient(180deg, ${softMixed} 0%, var(--bg) 100%)`;
+
+    dots.forEach(dot => {
+      const opacity = dotOpacity / 100;
+      dot.style.background = glowColor;
+      dot.style.boxShadow = `0 0 6px rgba(${glowRgb.r},${glowRgb.g},${glowRgb.b},${0.5 * opacity})`;
+      dot.style.opacity = String(opacity);
+    });
+
+    const pOpacity = particleOpacity / 100;
+    flies.forEach((fly, i) => {
+      const flyOpacity = (0.12 + (i % 3) * 0.04) * pOpacity;
+      const size = 2 + (i % 3);
+      fly.style.width = size + 'px';
+      fly.style.height = size + 'px';
+      fly.style.background = glowColor;
+      fly.style.boxShadow = `0 0 ${size * 2}px rgba(${glowRgb.r},${glowRgb.g},${glowRgb.b},${flyOpacity * 2})`;
+      fly.style.opacity = String(flyOpacity);
+    });
+
+    // Reset jar text colors
+    jarPhone.style.setProperty('--text', '#2C2420');
+    jarPhone.style.setProperty('--text-soft', '#8C7E74');
+    jarPhone.style.setProperty('--text-muted', '#B5AAA0');
+
+    jarPhone.querySelectorAll('.mock-card').forEach(card => {
+      card.style.background = 'var(--card)';
+      card.style.borderColor = 'var(--border)';
+    });
+
+    jarPhone.querySelector('.jar-title').style.color = '';
+    jarPhone.querySelector('.jar-count-text').style.color = '';
+
+  } else if (activeScheme === 'c') {
+    // ── Option C: Dusky Evening ──
+    // Dark dusk background for jar, lavender tint cards
+    const intensity = duskIntensity / 100;
+    const contrast = duskContrast / 100;
+    const duskRgb = hexToRgb(duskColor);
+
+    // Gradient from dusk to a midpoint
+    const duskMixed = lerpColor('#FAF8F5', duskSoftColor, intensity);
+    jarGradient.style.background = `linear-gradient(180deg, ${duskMixed} 0%, ${lerpColor(duskMixed, '#FAF8F5', 0.7)} 100%)`;
+
+    // Firefly dots glow amber against the dusk
+    dots.forEach(dot => {
+      dot.style.background = '#E8724A';
+      dot.style.boxShadow = `0 0 8px rgba(232,114,74,${0.4 * intensity})`;
+      dot.style.opacity = '1';
+    });
+
+    // Particles glow warm amber against dusk
+    const pOpacity = particleOpacity / 100;
+    flies.forEach((fly, i) => {
+      const flyOpacity = (0.15 + (i % 3) * 0.05) * intensity * pOpacity;
+      const size = 2 + (i % 3);
+      fly.style.width = size + 'px';
+      fly.style.height = size + 'px';
+      fly.style.background = '#E8724A';
+      fly.style.boxShadow = `0 0 ${size * 3}px rgba(232,114,74,${flyOpacity * 3})`;
+      fly.style.opacity = String(flyOpacity);
+    });
+
+    // Adjust text colors for dusk background
+    const textColor = lerpColor('#2C2420', '#2C2420', 1);
+    jarPhone.querySelector('.jar-title').style.color = lerpColor('#2C2420', duskColor, contrast * 0.3);
+    jarPhone.querySelector('.jar-count-text').style.color = lerpColor('#8C7E74', duskColor, contrast * 0.2);
+
+    // Lavender tint on cards
+    jarPhone.querySelectorAll('.mock-card').forEach(card => {
+      card.style.background = lerpColor('#FEFCF9', duskSoftColor, intensity * 0.15);
+      card.style.borderColor = lerpColor('#EDE8E3', duskSoftColor, intensity * 0.3);
+    });
+  }
+
+  // Start/stop particle animation
+  if (activeScheme === 'b' || activeScheme === 'c') {
+    startParticleAnimation();
+  } else {
+    stopParticleAnimation();
+  }
+}
+
+// ═══ Particle Animation ═══
+let particleAnimFrame = null;
+let particleTime = 0;
+
+const particleConfigs = [
+  { x: 0.2, y: 0.25, speedX: 0.0003, speedY: 0.0002, ampX: 0.08, ampY: 0.05 },
+  { x: 0.7, y: 0.4,  speedX: 0.0002, speedY: 0.0003, ampX: 0.06, ampY: 0.07 },
+  { x: 0.45, y: 0.55, speedX: 0.00025, speedY: 0.00015, ampX: 0.10, ampY: 0.04 },
+  { x: 0.8, y: 0.7,  speedX: 0.00015, speedY: 0.00025, ampX: 0.05, ampY: 0.08 },
+  { x: 0.55, y: 0.35, speedX: 0.00035, speedY: 0.0002, ampX: 0.07, ampY: 0.06 },
+];
+
+function startParticleAnimation() {
+  if (particleAnimFrame) return;
+  const flies = [
+    document.getElementById('fly1'),
+    document.getElementById('fly2'),
+    document.getElementById('fly3'),
+    document.getElementById('fly4'),
+    document.getElementById('fly5'),
+  ];
+
+  function animate(timestamp) {
+    particleTime = timestamp;
+    flies.forEach((fly, i) => {
+      const cfg = particleConfigs[i];
+      const x = cfg.x + Math.sin(timestamp * cfg.speedX + i * 1.5) * cfg.ampX;
+      const y = cfg.y + Math.cos(timestamp * cfg.speedY + i * 2.0) * cfg.ampY;
+      fly.style.left = (x * 100) + '%';
+      fly.style.top = (y * 100) + '%';
+    });
+    particleAnimFrame = requestAnimationFrame(animate);
+  }
+  particleAnimFrame = requestAnimationFrame(animate);
+}
+
+function stopParticleAnimation() {
+  if (particleAnimFrame) {
+    cancelAnimationFrame(particleAnimFrame);
+    particleAnimFrame = null;
+  }
+}
+
+// ═══ Slider Handlers ═══
+function updateGlowColor(val) {
+  glowColor = val;
+  document.getElementById('swatch-glow').style.background = val;
+  document.getElementById('hex-glow').textContent = val.toUpperCase();
+  applyScheme();
+}
+
+function updateGlowSoftColor(val) {
+  glowSoftColor = val;
+  document.getElementById('swatch-glow-soft').style.background = val;
+  document.getElementById('hex-glow-soft').textContent = val.toUpperCase();
+  applyScheme();
+}
+
+function updateDotOpacity(val) {
+  dotOpacity = val;
+  document.getElementById('val-dot-opacity').textContent = val + '%';
+  applyScheme();
+}
+
+function updateJarGlow(val) {
+  jarGlow = val;
+  document.getElementById('val-jar-glow').textContent = val + '%';
+  applyScheme();
+}
+
+function updateParticles(val) {
+  particleOpacity = val;
+  document.getElementById('val-particles').textContent = val + '%';
+  applyScheme();
+}
+
+function updateDuskColor(val) {
+  duskColor = val;
+  document.getElementById('swatch-dusk').style.background = val;
+  document.getElementById('hex-dusk').textContent = val.toUpperCase();
+  applyScheme();
+}
+
+function updateDuskSoftColor(val) {
+  duskSoftColor = val;
+  document.getElementById('swatch-dusk-soft').style.background = val;
+  document.getElementById('hex-dusk-soft').textContent = val.toUpperCase();
+  applyScheme();
+}
+
+function updateDuskIntensity(val) {
+  duskIntensity = val;
+  document.getElementById('val-dusk-intensity').textContent = val + '%';
+  applyScheme();
+}
+
+function updateDuskContrast(val) {
+  duskContrast = val;
+  document.getElementById('val-dusk-contrast').textContent = val + '%';
+  applyScheme();
+}
+
+// ═══ Export ═══
+function showExport() {
+  let code = '// Paste into constants/theme.ts\n';
+  code += '// Color Scheme: Option ' + activeScheme.toUpperCase() + '\n\n';
+
+  code += '// Base palette (locked in)\n';
+  code += "bg: '#FAF8F5',\n";
+  code += "card: '#FEFCF9',\n";
+  code += "border: '#EDE8E3',\n";
+  code += "tag: '#F3EDE8',\n";
+  code += "cardPressed: '#F7F4F1',\n";
+  code += "heartEmpty: '#D9D2CB',\n";
+  code += "accent: '#E8724A',\n";
+  code += "accentSoft: 'rgba(232,114,74,0.08)',\n";
+  code += "accentPressed: '#CC6441',\n";
+  code += "accentGlow: 'rgba(232,114,74,0.12)',\n";
+  code += "heartFilled: '#E8724A',\n\n";
+
+  if (activeScheme === 'a') {
+    code += '// Option A: Amber Glow\n';
+    code += '// No additional colors — existing coral doubles as firefly amber.\n';
+    code += '// The visual identity lives in copy and marketing, not code.\n';
+  } else if (activeScheme === 'b') {
+    const glowRgb = hexToRgb(glowColor);
+    code += '// Option B: Gold Glow — secondary accent for magic moments\n';
+    code += `glow: '${glowColor}',\n`;
+    code += `glowSoft: '${glowSoftColor}',\n`;
+    code += `glowGlow: 'rgba(${glowRgb.r},${glowRgb.g},${glowRgb.b},0.12)',\n`;
+    code += `glowShadow: 'rgba(${glowRgb.r},${glowRgb.g},${glowRgb.b},0.35)',\n\n`;
+    code += '// Usage:\n';
+    code += '// - glow: Firefly dots on favorited cards, heart animation sparks\n';
+    code += '// - glowSoft: Firefly Jar header gradient top, celebration banners\n';
+    code += '// - Orange for actions (buttons, CTAs), gold for magic (firefly touches)\n';
+  } else if (activeScheme === 'c') {
+    code += '// Option C: Dusky Evening — Firefly Jar gets its own twilight palette\n';
+    code += `dusk: '${duskColor}',\n`;
+    code += `duskSoft: '${duskSoftColor}',\n\n`;
+    code += '// Usage:\n';
+    code += '// - dusk: Firefly Jar background (dark-mode feel, just for this screen)\n';
+    code += '// - duskSoft: Light lavender tint for Firefly Jar cards in light mode\n';
+    code += '// - Other screens remain warm cream — dusk is only for the Jar\n';
+  }
+
+  document.getElementById('export-code').textContent = code;
+  document.getElementById('export-modal').classList.add('visible');
+}
+
+function copyExport() {
+  const code = document.getElementById('export-code').textContent;
+  navigator.clipboard.writeText(code);
+  const btn = document.querySelector('.btn-copy');
+  btn.textContent = 'Copied!';
+  setTimeout(() => btn.textContent = 'Copy', 1500);
+}
+
+function closeExport() {
+  document.getElementById('export-modal').classList.remove('visible');
+}
+
+// ═══ Init ═══
+// Apply glow shadow style for cards (locked in)
+(function initGlowShadows() {
+  const r = 232, g = 114, b = 74;
+  // Whisper level with glow style
+  document.documentElement.style.setProperty('--shadow-card',
+    `0 2px 12px rgba(${r},${g},${b},0.04)`
+  );
+  document.documentElement.style.setProperty('--shadow-prompt',
+    `0 2px 12px rgba(${r},${g},${b},0.04)`
+  );
+})();
+
+// Apply initial scheme
+applyScheme();
+</script>
+</body>
+</html>

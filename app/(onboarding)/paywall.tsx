@@ -13,6 +13,7 @@ import {
   minTouchTarget,
 } from '@/constants/theme';
 import { useAuthStore } from '@/stores/authStore';
+import { profilesService } from '@/services/profiles.service';
 import PrimaryButton from '@/components/PrimaryButton';
 
 const VALUE_PROPS = [
@@ -32,8 +33,25 @@ export default function PaywallScreen() {
   const insets = useSafeAreaInsets();
   const setOnboarded = useAuthStore((s) => s.setOnboarded);
   const [selectedPlan, setSelectedPlan] = useState<'annual' | 'monthly'>('annual');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleContinue = () => {
+  // Mark onboarding complete in TWO places:
+  // 1. Supabase (server) — so the flag survives across devices
+  // 2. Local store — so the router redirects immediately
+  //
+  // We do both because: the local flag makes routing instant
+  // (no network delay), and the server flag means if they sign
+  // in on another phone, they skip onboarding there too.
+  const handleContinue = async () => {
+    setIsLoading(true);
+    try {
+      await profilesService.completeOnboarding();
+    } catch (error) {
+      // Non-blocking — if server update fails, the local flag
+      // still works. Next time handleAuthChange runs, it'll
+      // sync from the server anyway.
+      console.warn('Failed to mark onboarding complete on server:', error);
+    }
     setOnboarded();
     router.replace('/(main)/home');
   };

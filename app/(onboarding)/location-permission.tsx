@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,6 +37,9 @@ export default function LocationPermissionScreen() {
           label="Allow location"
           onPress={handleAllow}
         />
+        <Pressable onPress={() => router.push('/(onboarding)/notifications')}>
+          <Text style={styles.skipLink}>Not now</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -77,6 +80,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(4),
   },
   bottom: {
+    gap: spacing(4),
+    alignItems: 'center',
     paddingBottom: spacing(12),
+  },
+  skipLink: {
+    ...typography.formLabel,
+    color: colors.textMuted,
   },
 });

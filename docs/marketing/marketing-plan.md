@@ -1,4 +1,4 @@
-# Core-Memories — Marketing Plan
+# Forever Fireflies — Marketing Plan
 
 Step-by-step marketing playbook for a bootstrapped consumer app launch. Organized by phase, with tactics that cost $0 first and paid channels only when organic signals justify the spend.
 
@@ -20,7 +20,7 @@ Before tactics, acknowledge what you have that most indie devs don't:
 
 Zero cost. Zero distraction from coding. Just planting seeds.
 
-- [ ] Create an Instagram account (@core-memories or similar) — post occasional behind-the-scenes: screenshot of your mockup, "building something for parents who don't want to forget the little things." Don't overthink it — 1 post every 1-2 weeks.
+- [ ] Create an Instagram account (@forever-fireflies or similar) — post occasional behind-the-scenes: screenshot of your mockup, "building something for parents who don't want to forget the little things." Don't overthink it — 1 post every 1-2 weeks.
 - [ ] Put up a "coming soon" landing page — one paragraph, an email capture form ("Get notified when we launch"), your emotional tagline. Use Framer ($0 on free tier).
 - [ ] Ask your sister-in-law for a 30-minute marketing chat — show her the mockup, explain the concept, ask for her gut reactions on positioning and channels. Take notes.
 - [ ] Have wife + sister review the HTML mockup — ask "would you use this? what would you tell a friend about it?"
@@ -80,7 +80,7 @@ Minimal spend. Focus: get to 100-500 users and validate retention before spendin
 
 | Field | Length | Visibility | Purpose |
 |-------|--------|------------|---------|
-| **Title** | 30 chars | Shown in search results | App name. E.g., "Core-Memories" |
+| **Title** | 30 chars | Shown in search results | App name. E.g., "Forever Fireflies" |
 | **Subtitle** | 30 chars | Shown below title in results | Your #1 keyword opportunity. E.g., "Voice Memory Journal for Parents" |
 | **Keyword field** | 100 chars | Hidden from users | Comma-separated search terms Apple uses for ranking |
 
@@ -90,7 +90,7 @@ Minimal spend. Focus: get to 100-500 users and validate retention before spendin
 3. Free tools: **AppFollow** (free tier), **App Store Connect analytics** (shows which search terms lead to your app page)
 4. Paid tools (when revenue justifies): **AppTweak**, **Sensor Tower** — show search volume for specific terms
 
-**Target keywords for Core-Memories:**
+**Target keywords for Forever Fireflies:**
 - High intent: "baby journal", "memory book app", "baby memory"
 - Medium intent: "parenting journal", "voice journal", "baby milestones"
 - Long tail: "toddler memory book", "childhood journal app", "voice diary for parents"
@@ -113,6 +113,16 @@ Minimal spend. Focus: get to 100-500 users and validate retention before spendin
 - DM them: "I built a voice memory journal for parents — would love to gift you a free year if you'd try it with your kids."
 - Many will say yes. If even one posts about it, that's hundreds of highly-targeted eyeballs.
 - Cost: $0 (a gifted year subscription costs you nothing in marginal cost).
+
+### Owned Social & Website Content
+Once you have real users, start posting consistently on your own channels. This is the traditional marketing engine — think of it as building a library of proof that real parents love the app.
+
+- **User spotlight videos** — short (15-30s) clips of real moms/dads talking about a favorite memory they saved, or a screen recording of the app in action. Post on Instagram Reels, TikTok, and your website. Always get permission first.
+- **"Memory of the week" posts** — pick a heartwarming (anonymized or permission-granted) entry and share it as a quote graphic or short video. Parents eat this up — it shows the product's emotional value better than any feature list.
+- **Feature announcements & updates** — when you ship something new, post about it. Keep it simple: before/after screenshots, a 15-second demo clip, or a short caption explaining what's new and why it matters.
+- **Behind-the-scenes / founder story** — occasional posts about why you're building this as a dad. Authenticity builds trust and differentiates you from faceless apps.
+- **Website blog / landing page updates** — add a "Stories" or "From Our Families" section to your site showcasing real testimonials, user quotes, and screenshots. This doubles as social proof for anyone who Googles you before downloading.
+- **Posting cadence** — aim for 2-3 posts/week across Instagram + TikTok once you have enough content. Quality over quantity — one genuine parent video outperforms five generic graphics.
 
 ### Content Marketing (Optional — SEO Play)
 If you add a blog to your website, write 3-5 posts targeting search terms parents Google:
@@ -159,7 +169,7 @@ By now you know which channels produce retained, paying users. Double down on th
 
 ## The Viral Loop Already in Your Roadmap
 
-Your V1.5 shared entry feature (share a memory via link → recipient sees Core-Memories branding + "Capture your family's memories" CTA) is a built-in growth engine. Every shared memory is a free, highly-targeted ad to another parent. Consider prioritizing this feature if early users ask for sharing.
+Your V1.5 shared entry feature (share a memory via link → recipient sees Forever Fireflies branding + "Capture your family's memories" CTA) is a built-in growth engine. Every shared memory is a free, highly-targeted ad to another parent. Consider prioritizing this feature if early users ask for sharing.
 
 ---
 
@@ -197,6 +207,10 @@ Your V1.5 shared entry feature (share a memory via link → recipient sees Core-
 - [ ] App Store review prompt added (after 10+ entries)
 - [ ] 5-10 micro-influencer DMs sent
 - [ ] Respond to all App Store reviews
+- [ ] Collect permission from 3-5 users for spotlight videos/testimonials
+- [ ] Post first user spotlight video (Instagram Reels / TikTok)
+- [ ] Add "Stories" / testimonials section to website
+- [ ] Establish 2-3 posts/week cadence on owned socials
 
 ### Months 4-8 (If Retention Validates)
 - [ ] Apple Search Ads campaign ($5-10/day)

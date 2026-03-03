@@ -1,13 +1,13 @@
-# Core Memories — Database Schema (v1)
+# Forever Fireflies — Database Schema (v1)
 
-Complete database schema for the Core Memories voice-first parenting journal. This document covers every table, column, index, RLS policy, and storage bucket needed from MVP through V3+.
+Complete database schema for the Forever Fireflies voice-first parenting journal. This document covers every table, column, index, RLS policy, and storage bucket needed from MVP through V3+.
 
 **How to use this document:** During Phase 3 (Supabase Backend), open this doc and write SQL migrations from it. Every table is listed with exact column types and constraints. Pre-wired columns (for future versions) are marked with bold version tags — create them as nullable columns during MVP so the schema won't need major rewrites later.
 
 **Reference documents:**
 - [Product Spec](product-spec.md) — feature definitions, data model overview (Section 8), technical stack (Section 10)
 - [Functional Requirements](functional-requirements.md) — acceptance criteria and FR IDs
-- [Project Plan](project-plan.md) — Phase 3 migration checklist
+- [Feature Roadmap](feature-roadmap.md) — build phases and migration checklist
 - [Scaling](../business/scaling.md) — infrastructure cost projections and performance checkpoints
 
 ---
@@ -215,7 +215,7 @@ This avoids painful `ALTER TABLE` migrations on tables that may have millions of
 | `id` | uuid | NO | gen_random_uuid() | MVP | PK |
 | `name` | text | NO | — | MVP | Required. FR-002 |
 | `nickname` | text | YES | null | MVP | Used for transcript auto-detection. FR-002, FR-009 |
-| `birthday` | date | YES | null | MVP | Powers age stamps (e.g., "Emma 2y 4m"). Optional per FR-002 |
+| `birthday` | date | NO | — | MVP | Powers age stamps (e.g., "Emma 2y 4m"). Required — gates onboarding continue button. Product Spec §2.2 |
 | `color_index` | smallint | NO | 0 | MVP | 0–5 cycling through childColors palette |
 | `display_order` | smallint | NO | 0 | MVP | Sort order for tab display |
 | `photo_url` | text | YES | null | **V2** | Pre-wired. Profile photo in Supabase Storage |
@@ -263,7 +263,7 @@ This avoids painful `ALTER TABLE` migrations on tables that may have millions of
 
 > **Version:** MVP | **RLS:** Yes | **Refs:** FR-004 through FR-008, FR-018, Product Spec §2, §8
 
-**Purpose:** The core table. Every voice recording or text entry creates one row here. This is the table you'll query most — the home screen timeline, Core Memories, and search all read from it.
+**Purpose:** The core table. Every voice recording or text entry creates one row here. This is the table you'll query most — the home screen timeline, Firefly Jar, and search all read from it.
 
 | Column | Type | Nullable | Default | Version | Notes |
 |--------|------|----------|---------|---------|-------|
@@ -276,7 +276,9 @@ This avoids painful `ALTER TABLE` migrations on tables that may have millions of
 | `entry_date` | date | NO | CURRENT_DATE | MVP | User-selectable for backdating. FR-009b |
 | `audio_storage_path` | text | YES | null | MVP | Path in Supabase Storage. Null for text entries |
 | `audio_duration_seconds` | smallint | YES | null | MVP | Recording length. Null for text entries |
-| `is_favorited` | boolean | NO | false | MVP | Core Memory toggle. FR-018 |
+| `title` | text | YES | null | **V1.5** | Pre-wired. AI-generated entry title (e.g., "Emma's First Giggle"). Editable by parent. Product Spec §7, V1.5 |
+| `location_text` | text | YES | null | MVP | Auto-detected location label (e.g., "Tampa, FL") or manually entered. Free-text, no geo-coordinates. Product Spec §2.4 |
+| `is_favorited` | boolean | NO | false | MVP | Firefly toggle. FR-018 |
 | `is_deleted` | boolean | NO | false | MVP | Soft delete flag |
 | `deleted_at` | timestamptz | YES | null | MVP | 30-day recovery window start |
 | `mood` | text | YES | null | **V1.5** | Pre-wired. Quick-react mood tag |
@@ -286,6 +288,8 @@ This avoids painful `ALTER TABLE` migrations on tables that may have millions of
 | `updated_at` | timestamptz | NO | now() | MVP | |
 
 **Pre-wired fields:**
+- `title` (V1.5) — AI-generated entry title displayed on cards in the feed, making entries scannable and distinct. Editable by parent — AI suggests, parent controls. Generated via Claude Haiku API call alongside tagging. Essential for parent merge (V2) where titles help reference specific memories. *(See Product Spec §7, V1.5 roadmap)*
+- `location_text` (MVP) — not technically pre-wired (used at MVP for location capture), but included here for completeness. Auto-detected from device GPS and converted to a readable place name at recording time. Parent can edit or clear. Used for V2 location search via simple text matching (e.g., search "Italy"). *(See Product Spec §2.4)*
 - `mood` (V1.5) — quick-react mood/emotion tag (laughing, crying, proud, exhausted, grateful). Added as a column rather than a separate table for simplicity since it's always 1:1 with the entry. *(See Product Spec §7, V1.5 roadmap)*
 - `unlock_at_date` (V3+) — Time Capsule feature. A message that "unlocks" on a specific date (e.g., "Open on your 18th birthday"). Null means the entry is visible immediately. *(See Product Spec §7, Brainstorm Parking Lot)*
 - `unlock_at_age_months` (V3+) — Time Capsule by age. Unlocks when the tagged child reaches a certain age in months (e.g., 216 = 18 years). Alternative to a fixed date — the app calculates unlock date from the child's birthday.
@@ -293,8 +297,9 @@ This avoids painful `ALTER TABLE` migrations on tables that may have millions of
 **Why `family_id` is denormalized here:** RLS policies need to check "does this user belong to the family that owns this entry?" On every query. Joining through `profiles → family_members → families` on every row is expensive. Storing `family_id` directly on entries lets RLS do a simple subquery: `family_id IN (SELECT family_id FROM family_members WHERE profile_id = auth.uid())`.
 
 **Notes:**
-- `user_id` is the "recorded_by" field — it tells you which parent created this entry. This is the field that makes V2 partner sharing work: both parents create entries, and each entry shows who recorded it.
+- `user_id` is the "recorded_by" field — it tells you which parent created this entry. This is the field that makes V2 partner sharing work: both parents create entries, and each entry shows who recorded it. (Product Spec §7 mentions `recorded_by` as a pre-wired field — `user_id` already serves this purpose, so no additional column is needed.)
 - `audio_storage_path` follows the pattern: `{user_id}/{entry_id}.wav` (MVP) or `.m4a` (post-optimization)
+- **Re-record behavior:** When a parent re-records, the new audio file is uploaded to the same storage path (`{user_id}/{entry_id}.wav`) with `upsert: true`, overwriting the previous recording. The `transcript` and `original_transcript` columns are both updated to reflect the new recording's transcription. `audio_duration_seconds` is updated. All other columns (children, tags, location, date, favorite status) remain unchanged.
 - Soft-deleted entries are hidden via RLS or app logic, then hard-deleted after 30 days by a scheduled Edge Function
 
 **RLS policies:**
@@ -347,10 +352,28 @@ This avoids painful `ALTER TABLE` migrations on tables that may have millions of
 | `family_id` | uuid | YES | null | MVP | FK → families.id. Null for system/ai tags, set for user-created |
 | `created_at` | timestamptz | NO | now() | MVP | |
 
-**Unique constraint:** `(slug, family_id)` — prevents duplicate tags within a family (null family_id = system-wide)
+**Unique constraint:** `(slug, family_id)` — prevents duplicate tags within a family for user-created tags.
+
+**Additional index for system/AI tags:** PostgreSQL treats `NULL != NULL` in unique constraints, so `(slug, NULL)` can be inserted multiple times without error. A partial unique index is required to prevent duplicate system tags:
+```sql
+CREATE UNIQUE INDEX tags_slug_system_unique ON tags (slug) WHERE family_id IS NULL;
+```
+This index is included in migration 018 (`create_indexes`).
 
 **MVP seed data (17 system tags):**
 humor, milestone, first, sports, school, health, birthday, holiday, family, friendship, creativity, nature, food, bedtime, travel, sweet-moment, other
+
+**Tag Deduplication Rules (App Logic):**
+
+The database allows a system tag `(slug="humor", family_id=NULL)` and a user-created tag `(slug="humor", family_id=abc)` to coexist — they're technically different rows. But showing the user two "humor" tags is confusing. The app must enforce these rules:
+
+1. **Before creating a user tag:** Check if a system or AI tag with the same slug already exists. If yes, reuse the existing tag — don't create a family-scoped duplicate.
+2. **Before creating an AI tag:** Same check — if a system tag with that slug exists, use it. If a user-created tag with that slug exists in the family, use that.
+3. **Slug normalization:** When creating any tag, generate the slug by lowercasing and replacing spaces with hyphens (e.g., "Swimming Lessons" → `swimming-lessons`). This prevents capitalization-only duplicates.
+4. **Autocomplete-first UI:** The tag editor should show matching existing tags as the user types (see Product Spec §2.4). This is the primary defense against typos — most users will tap an existing suggestion rather than finishing a misspelled word.
+5. **V2 tag merge:** Allow parents to merge two tags in Settings (e.g., merge "swiming" into "swimming"), updating all `entry_tags` rows to point to the surviving tag and deleting the typo tag.
+
+These rules are enforced in app code, not database constraints. The database's unique constraints prevent exact-match duplicates within the same scope, but cross-scope deduplication (system vs. user) and near-match typo prevention require application logic.
 
 **RLS policies:**
 - `tags_select_all` — all users can read system and AI tags
@@ -558,7 +581,7 @@ humor, milestone, first, sports, school, health, birthday, holiday, family, frie
 | `period_end` | date | NO | — | V1.5 | End of the recap period |
 | `summary_text` | text | YES | null | V1.5 | AI-generated summary (if applicable) |
 | `entry_count` | smallint | NO | 0 | V1.5 | Total entries in this period |
-| `highlight_entry_ids` | uuid[] | YES | null | V1.5 | Curated 3–5 highlighted entries |
+| `highlight_entry_ids` | uuid[] | YES | null | V1.5 | Curated 3–5 highlighted entries. See §5 "uuid[] Array Convention" for trade-off notes |
 | `created_at` | timestamptz | NO | now() | V1.5 | |
 
 ---
@@ -566,6 +589,24 @@ humor, milestone, first, sports, school, health, birthday, holiday, family, frie
 ## 5. V2 Tables
 
 > **6 tables.** Created when V2 features ship. The `families`, `family_members`, and `family_children` tables from MVP already handle the core partner sharing — these tables handle extended family contributions, semantic search, and keepsake features.
+
+### uuid[] Array Convention — Design Trade-off
+
+Several V2 tables store child references as `uuid[]` arrays (`contributor_links.child_ids`, `record_requests.child_ids`) and `recap_digests.highlight_entry_ids` stores entry references the same way. This is a deliberate trade-off:
+
+- **Pro:** Simpler than creating a junction table for each. These are small, bounded arrays (1–6 children, 3–5 highlights).
+- **Con:** PostgreSQL cannot enforce foreign key constraints on array elements. If a child is deleted, the array may contain orphaned UUIDs.
+- **Mitigation:** When a child is deleted (V2), the application layer must clean up any `child_ids` arrays that reference that child. Add this to the child deletion checklist. Alternatively, convert to junction tables during V2 implementation if the orphan risk feels too high.
+
+This trade-off is acceptable for V2 scale. Revisit if these tables grow beyond simple scoping use cases.
+
+---
+
+### Contributor Identity — Design Decision
+
+Contributor display names (e.g., "Grandma Sarah", "Uncle Dave") are **normalized to `family_members.label`** — not stored as free text on individual entries or links. The parent creates a `family_members` row with `role = 'contributor'` and sets the `label`. All `contributor_links` and `contributed_entries` reference this row via `family_member_id`.
+
+**Why:** If the contributor typed their own name on each recording, typos and inconsistencies ("Grandma Sarah" vs "Gramma Sara" vs "grandma sarah") would fragment search results and filters. By making the parent the single owner of the name and storing it in one place, a typo fix propagates to every entry instantly. See Product Spec §6, "Contributor Management" for the full UX flow.
 
 ---
 
@@ -580,14 +621,17 @@ humor, milestone, first, sports, school, health, birthday, holiday, family, frie
 | `id` | uuid | NO | gen_random_uuid() | V2 | PK |
 | `family_id` | uuid | NO | — | V2 | FK → families.id |
 | `created_by` | uuid | NO | — | V2 | FK → profiles.id. Who generated the link |
+| `family_member_id` | uuid | NO | — | V2 | FK → family_members.id. The contributor identity this link belongs to |
 | `token` | text | NO | — | V2 | Unique, URL-safe token |
-| `label` | text | YES | null | V2 | Display name, e.g., "Grandma Sarah". FR-V2-005 |
-| `child_ids` | uuid[] | YES | null | V2 | Scoped to these children. Null = any child |
+| `child_ids` | uuid[] | YES | null | V2 | Scoped to these children. Null = any child. See §5 "uuid[] Array Convention" for trade-off notes |
 | `is_active` | boolean | NO | true | V2 | Can be deactivated from Settings |
 | `expires_at` | timestamptz | YES | null | V2 | Never, 24h, 7d, or 30d. FR-V2-005 |
 | `created_at` | timestamptz | NO | now() | V2 | |
 
 **Unique constraint:** `token`
+
+**Notes:**
+- The `label` column was removed in favor of `family_member_id`. The contributor's display name (e.g., "Grandma Sarah") lives in `family_members.label` — the single source of truth. This prevents name inconsistencies across multiple recordings from the same contributor. The parent sets the name when creating the contributor, and can edit it later from Settings. See Product Spec §6, "Contributor Management."
 
 ---
 
@@ -602,11 +646,14 @@ humor, milestone, first, sports, school, health, birthday, holiday, family, frie
 | `id` | uuid | NO | gen_random_uuid() | V2 | PK |
 | `entry_id` | uuid | NO | — | V2 | FK → entries.id |
 | `contributor_link_id` | uuid | NO | — | V2 | FK → contributor_links.id |
-| `contributor_name` | text | YES | null | V2 | Name provided by contributor at recording time |
+| `family_member_id` | uuid | NO | — | V2 | FK → family_members.id. Canonical contributor identity — display name resolved via family_members.label |
 | `approval_status` | text | NO | 'pending' | V2 | 'pending', 'approved', 'rejected' |
 | `approved_by` | uuid | YES | null | V2 | FK → profiles.id |
 | `approved_at` | timestamptz | YES | null | V2 | When approved/rejected |
 | `created_at` | timestamptz | NO | now() | V2 | |
+
+**Notes:**
+- `contributor_name` was replaced by `family_member_id`. The contributor's display name is always resolved from `family_members.label`, not stored per-entry. This means: (1) the parent controls the name, not the contributor; (2) fixing a typo updates all entries at once; (3) search and filtering by contributor always returns consistent results. See Product Spec §6, "Contributor Management."
 
 ---
 
@@ -677,16 +724,19 @@ humor, milestone, first, sports, school, health, birthday, holiday, family, frie
 | `id` | uuid | NO | gen_random_uuid() | V2 | PK |
 | `family_id` | uuid | NO | — | V2 | FK → families.id |
 | `created_by` | uuid | NO | — | V2 | FK → profiles.id |
+| `family_member_id` | uuid | YES | null | V2 | FK → family_members.id. Recipient identity — display name resolved via family_members.label. Null if request is sent to someone not yet added as a contributor |
 | `title` | text | NO | — | V2 | Request title/theme |
 | `description` | text | YES | null | V2 | Additional context for the recipient |
-| `recipient_name` | text | YES | null | V2 | Who this request is for |
-| `child_ids` | uuid[] | YES | null | V2 | Which children this is about |
+| `child_ids` | uuid[] | YES | null | V2 | Which children this is about. See §5 "uuid[] Array Convention" for trade-off notes |
 | `token` | text | NO | — | V2 | Unique, URL-safe token for the recording page |
 | `status` | text | NO | 'pending' | V2 | 'pending', 'recorded', 'expired' |
 | `expires_at` | timestamptz | YES | null | V2 | Optional expiration |
 | `created_at` | timestamptz | NO | now() | V2 | |
 
 **Unique constraint:** `token`
+
+**Notes:**
+- `recipient_name` was replaced by `family_member_id`. Same normalization rationale as `contributor_links` and `contributed_entries` — the recipient's display name lives in `family_members.label`. Nullable here because a parent might send a record request to someone they haven't formally added as a contributor yet (in which case the app should prompt them to create the contributor first, or auto-create on send).
 
 ---
 
@@ -783,12 +833,13 @@ All indexes should be created in the MVP migration. They're cheap to create on e
 | `user_devices` | `(profile_id)` | B-tree | "Which devices does this user have?" for push delivery |
 | `prompt_history` | `(profile_id, shown_at DESC)` | B-tree | "What prompts has this user seen recently?" for rotation |
 | `notification_log` | `(profile_id, sent_at DESC)` | B-tree | FR-014 backoff — "were the last 5 notifications ignored?" |
+| `tags` | `(slug) WHERE family_id IS NULL` | B-tree (partial unique) | Prevents duplicate system/AI tags. Standard unique constraint doesn't catch NULL duplicates — see §3.8 notes |
 
 ### V1.5+ Indexes (Add When Features Ship)
 
 | Table | Columns | Type | Purpose |
 |-------|---------|------|---------|
-| `entries` | `(family_id, is_favorited, entry_date DESC)` | B-tree | Core Memories screen — favorited entries only |
+| `entries` | `(family_id, is_favorited, entry_date DESC)` | B-tree | Firefly Jar screen — favorited entries only |
 | `entry_shares` | `(share_token)` | B-tree (unique) | Token lookup for shared entry URLs |
 | `entry_embeddings` | `embedding` | HNSW (pgvector) | V2 semantic similarity search |
 

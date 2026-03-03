@@ -1,4 +1,4 @@
-# Core Memories — Design Style Guide (v3)
+# Forever Fireflies — Design Style Guide (v3)
 
 Updated to merge the Design System Principles into a single source of truth. This document captures the visual language as built — not aspirational, but actual patterns extracted from the working wireframe. Every component, screen, and style must conform to this guide. When in doubt, reference this file.
 
@@ -6,7 +6,7 @@ Updated to merge the Design System Principles into a single source of truth. Thi
 
 ## Design Direction
 
-Core Memories should feel like a personal journal, not a tech product. Warm, quiet, and analog — closer to a leather notebook than a dashboard. The palette is intentionally muted with a single warm accent to keep the focus on the content (your kid's words), not the interface. Serif text and paper textures reinforce the journal metaphor. The app is built for speed — one-tap recording for busy parents — but the visual language should never feel rushed or utilitarian. It should feel like the end of the day: settled, reflective, yours.
+Forever Fireflies should feel like a personal journal, not a tech product. Warm, quiet, and analog — closer to a leather notebook than a dashboard. The palette is intentionally muted with a single warm accent to keep the focus on the content (your kid's words), not the interface. Serif text and paper textures reinforce the journal metaphor. The app is built for speed — one-tap recording for busy parents — but the visual language should never feel rushed or utilitarian. It should feel like the end of the day: settled, reflective, yours.
 
 **Key tensions to get right:**
 - **Fast to use, calm to look at.** The interaction model is optimized for speed. The visual design is not.
@@ -62,10 +62,21 @@ Use child color at full opacity for text, dots, and active borders. Use at ~12% 
 
 | Where | Color | Usage |
 |---|---|---|
-| Core Memories background | `#F9F2EB` | Warm gradient top, fades to `bg` — distinguishes from Home |
+| Firefly Jar background | `#FDF6E3` | Warm gold gradient top (matches `glowSoft`), fades to `bg` — distinguishes from Home |
 | Notification background | `#F5F0EB` | Subtle warm gradient behind notification card |
 | Recording backdrop | `rgba(244,226,214,0.45)` | Radial gradient warmth for recording/onboarding |
 | First-entry banner | `linear-gradient(135deg, accentSoft, rgba(255,240,235,0.5))` | Celebration banner after first recording |
+
+### Firefly Glow Palette
+
+Secondary accent introduced during the Forever Fireflies rebrand. Gold for "magic moments" — firefly animations, the Firefly Jar screen, celebrations. Orange stays for actions (buttons, CTAs), gold marks the special/emotional touches.
+
+| Token | Hex | Usage |
+|---|---|---|
+| glow | `#F2C94C` | Firefly dot animations, Firefly Jar header accent, star/spark decorations |
+| glowSoft | `#FDF6E3` | Firefly Jar gradient top, celebration banners |
+| glowGlow | `rgba(242,201,76,0.12)` | Glow tint for accents |
+| glowShadow | `rgba(242,201,76,0.35)` | Glow shadow for elevation |
 
 ### Color Rules
 
@@ -82,7 +93,7 @@ Use child color at full opacity for text, dots, and active borders. Use at ~12% 
 | Font | Usage |
 |---|---|
 | **System sans** (`-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`) | Default everywhere — UI chrome, labels, buttons, tags, metadata, navigation |
-| **Georgia serif** (`'Georgia', serif`) | App title, onboarding headings, transcript body text, prompt cards, Core Memories title and card previews, empty state messages, birthday picker values, child name input. Georgia = journal voice. System sans = app voice. |
+| **Georgia serif** (`'Georgia', serif`) | App title, onboarding headings, transcript body text, prompt cards, Firefly Jar title and card previews, empty state messages, birthday picker values, child name input. Georgia = journal voice. System sans = app voice. |
 
 ### Type Scale
 
@@ -90,7 +101,7 @@ Five named sizes for implementation. Map wireframe values to the nearest.
 
 | Name | Size | Weight | Line-height | Usage |
 |---|---|---|---|---|
-| title | 22px | 800 | 1.3 | App title ("Core Memories") |
+| title | 22px | 800 | 1.3 | App title ("Forever Fireflies") |
 | heading | 16px | 700 | 1.4 | Screen headers, dialog titles, section headers |
 | body | 14px | 400 | 1.5 | Entry text, descriptions, form inputs, body copy |
 | label | 12px | 500–700 | 1.4 | Timestamps, section headers, labels, legal text |
@@ -106,8 +117,8 @@ The wireframe uses additional sizes for specific contexts. At implementation, ma
 | 20px | 700 | Onboarding headings — Memory Saved, Paywall (Georgia serif) |
 | 18px | 700 | Section headings — Add Child, Mic Permission, Notifications (Georgia serif) |
 | 18px | 500 | Prompt card text (Georgia serif, 1.5 line-height) |
-| 17px | 700 | Core Memories screen title (Georgia serif, 0.3 tracking) |
-| 15px | 400–700 | Transcript body text (Georgia serif, 1.65 line-height), Core Memories card previews (Georgia, 1.6 line-height), onboarding tagline |
+| 17px | 700 | Firefly Jar screen title (Georgia serif, 0.3 tracking) |
+| 15px | 400–700 | Transcript body text (Georgia serif, 1.65 line-height), Firefly Jar card previews (Georgia, 1.6 line-height), onboarding tagline |
 | 13px | 600–700 | Child pills, tab labels, button labels, banner text |
 | 10px | 600–700 | Date/time on cards, audio duration, flow map labels |
 
@@ -127,7 +138,7 @@ The wireframe uses additional sizes for specific contexts. At implementation, ma
 | Value | Usage |
 |---|---|
 | 1.65 | Transcript text area (Georgia serif — needs room to breathe) |
-| 1.6 | Core Memories card previews, empty state text |
+| 1.6 | Firefly Jar card previews, empty state text |
 | 1.55 | Entry card previews on Home |
 | 1.5 | General body text, descriptions, prompt cards |
 | 1.4 | Compact body — notification text, headings with tight leading |
@@ -227,7 +238,7 @@ Five tiers. Every border-radius in the codebase must use one of these values.
 | sm | 8px | Tags, small badges, progress bars, flow map elements |
 | md | 12px | Child pills, inputs, notification action buttons, birthday picker confirm, banners |
 | card | 14px | Entry cards, form cards, transcript area, primary buttons, settings cards, pickers |
-| lg | 16px | Large cards (Core Memories, first-entry glow), modals, confirm dialogs |
+| lg | 16px | Large cards (Firefly Jar, first-entry glow), modals, confirm dialogs |
 | full | 9999px | Filter chips, child tabs (20px rendered), circular elements |
 
 ### Radius Rules
@@ -263,7 +274,7 @@ Three levels plus an accent glow. All shadows use warm brown `rgba(44,36,32,...)
 | `0 8px 32px rgba(44,36,32,0.12)` | Phone frame (wireframe only) |
 | `0 0 20px/40px rgba(232,114,74,...)` | Pulsing mic button glow (animated) |
 | `0 0 0 1.5px accent30, 0 2px 8px accentGlow` | Favorited entry card glow |
-| `0 0 0 1.5px accent25, 0 3px 12px accent10` | Core Memories card glow |
+| `0 0 0 1.5px accent25, 0 3px 12px accent10` | Firefly Jar card glow |
 | `0 0 20px accent18, 0 2px 12px rgba(44,36,32,0.06)` | First-entry celebration card |
 
 ### Shadow Rules
@@ -290,7 +301,7 @@ Every tappable element must meet accessibility standards and provide visible fee
 | Back/X/gear icons | ~20–22px | Pad tappable area to 44px minimum |
 | Child picker + button | 24×24px | Pad tappable area to 44px minimum |
 | Play button (Detail) | 36×36px | AccentSoft background circle |
-| Play button (Core Memories card) | 26×26px | AccentSoft background circle |
+| Play button (Firefly Jar card) | 26×26px | AccentSoft background circle |
 
 ### Pressed States
 
@@ -392,7 +403,7 @@ Standard entry cards on the Home screen and Search results.
 - Content: child dot + name (colored), date, time, then 2-line transcript preview (system sans, 14.5px, 450 weight, `-webkit-line-clamp: 2`)
 - **Favorited variant:** Border becomes `1px solid accent25`, shadow adds accent glow, filled heart icon shown
 
-### Entry Cards (Core Memories)
+### Entry Cards (Firefly Jar)
 
 Elevated treatment for the favorites screen. Should feel warmer and more expansive.
 
@@ -401,7 +412,7 @@ Elevated treatment for the favorites screen. Should feel warmer and more expansi
 - Border: `1px solid accent20`
 - Transcript preview: **Georgia serif**, 15px, 400 weight, 1.6 line-height, **3 lines** (vs. Home's 2)
 - Includes inline audio play button at bottom of card (26px circle, accentSoft background)
-- Play button uses `stopPropagation` — tapping audio stays on Core Memories; tapping card navigates to Detail
+- Play button uses `stopPropagation` — tapping audio stays on Firefly Jar; tapping card navigates to Detail
 
 ### Child Pills
 
@@ -415,7 +426,7 @@ Used in metadata rows on Entry Detail and on entry cards.
 
 ### Child Tabs
 
-Horizontal scrollable row on Home and Core Memories screens.
+Horizontal scrollable row on Home and Firefly Jar screens.
 
 - Padding: 7px 14px
 - Border radius: `full`
@@ -501,7 +512,7 @@ Not applied to: tabs, pills, buttons, settings rows, UI chrome.
 | Gradient | Where |
 |---|---|
 | `radial-gradient(ellipse at 50% 40%, rgba(244,226,214,0.45) 0%, transparent 70%)` | Recording and Empty State backdrop — warm center glow |
-| `linear-gradient(180deg, #F9F2EB 0%, bg 35%)` | Core Memories screen — warmer top fading to standard cream |
+| `linear-gradient(180deg, #FDF6E3 0%, bg 35%)` | Firefly Jar screen — warm gold top (glowSoft) fading to standard cream |
 | `linear-gradient(180deg, bg 0%, #F5F0EB 100%)` | Notification screen — subtle warm base |
 | `linear-gradient(to bottom, bg@0 0%, bg@55% 55%, bg 100%)` | Home screen bottom fade — content dissolves into mic button area |
 | `linear-gradient(135deg, accentSoft 0%, rgba(255,240,235,0.5) 100%)` | First-entry celebration banner |
@@ -516,7 +527,7 @@ The interface speaks in warm, encouraging language. Never clinical, never instru
 | Context | ✅ Do | ❌ Don't |
 |---|---|---|
 | Empty states | "No memories yet" | "No data found" |
-| Core Memories empty | "Tap the heart on any entry to save it as a Core Memory" | "You haven't favorited any entries" |
+| Firefly Jar empty | "Tap the heart on any entry to save it as a Firefly" | "You haven't favorited any entries" |
 | Search empty | "No memories found. Try different keywords or filters." | "0 results" |
 | Delete confirmation | "Delete this memory?" | "Are you sure you want to delete?" |
 | Recovery | "Entries are kept for 30 days" | "Items in trash will be permanently deleted" |
@@ -546,7 +557,7 @@ Each screen has a distinct emotional weight, created through background treatmen
 | Recording | Radial warm gradient | — | Prompt cards (Georgia serif) | Focus — calm, encouraging |
 | Entry Detail | Flat `bg` cream | — | Transcript area (Georgia serif, paper texture) | Workshop — edit, refine, enrich |
 | Search | Flat `bg` cream | System sans | Standard cards with highlights | Utility — find, filter |
-| Core Memories | Warm gradient top (#F9F2EB→cream) | Georgia serif | Larger cards (serif preview, inline audio, amber glow) | Treasure box — slow down, savor |
+| Firefly Jar | Warm gradient top (#F9F2EB→cream) | Georgia serif | Larger cards (serif preview, inline audio, amber glow) | Treasure box — slow down, savor |
 | Settings | Flat `bg` cream | System sans | Grouped list rows | Configuration — functional |
 | Notification | Warm gradient | System sans | Frosted glass card | Nudge — personal, inviting |
 | Onboarding | Flat `bg` cream (except recording step) | Georgia serif | Paper-textured form cards | Welcome — emotional, progressive |

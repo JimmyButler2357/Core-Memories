@@ -1,4 +1,4 @@
-"""Generate a one-page financial summary PDF for Core Memories."""
+"""Generate a one-page financial summary PDF for Forever Fireflies."""
 
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
@@ -80,7 +80,7 @@ def build():
     story = []
 
     # ---- Title ----
-    story.append(Paragraph("Core Memories — Financial Overview", title_style))
+    story.append(Paragraph("Forever Fireflies — Financial Overview", title_style))
     story.append(Paragraph("Parenting journal app  |  Subscription model  |  iOS + Android", subtitle_style))
 
     # ---- Section 1: Monthly Costs ----
@@ -250,7 +250,7 @@ def build():
 
     # ---- Footer ----
     story.append(Spacer(1, 3))
-    story.append(Paragraph("Core Memories — Confidential Financial Summary — February 2026", footer_style))
+    story.append(Paragraph("Forever Fireflies — Confidential Financial Summary — February 2026", footer_style))
 
     doc.build(story)
     print(f"PDF saved to: {OUTPUT}")

@@ -1,4 +1,4 @@
-# Core-Memories — Business Operations & Legal Guide
+# Forever Fireflies — Business Operations & Legal Guide
 
 Everything outside of code and marketing that goes into running a consumer app as a business: legal compliance, business formation, financial planning, App Store presence, customer support, and team growth.
 
@@ -65,7 +65,7 @@ Everything outside of code and marketing that goes into running a consumer app a
 - Apple pays developer proceeds monthly, ~45 days after the end of each fiscal month.
 
 **Trademark**
-- Search USPTO (free, 10 minutes) for "Core-Memories" before you get too attached. A conflict could force an expensive rebrand.
+- Search USPTO (free, 10 minutes) for "Forever Fireflies" before you get too attached. A conflict could force an expensive rebrand.
 - Filing costs $250-350 if you DIY through USPTO's TEAS system. Takes 8-12 months for approval.
 - **Do the search now (free). File when revenue supports it.**
 - Note: app name isn't finalized yet, so search your top candidates.

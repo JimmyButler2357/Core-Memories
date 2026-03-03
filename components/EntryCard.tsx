@@ -11,6 +11,7 @@ import {
 import { childColorWithOpacity } from '@/constants/theme';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import PaperTexture from './PaperTexture';
+import FireflyDot from './FireflyDot';
 
 // ─── Highlight Helper ────────────────────────────────────
 
@@ -168,15 +169,18 @@ export default function EntryCard({
               </View>
             ))}
             <Text style={styles.meta}>
-              {entry.date} {'\u00B7'} {entry.time}
+              {entry.date}
             </Text>
           </View>
           {entry.isFavorited && (
-            <Ionicons
-              name="heart"
-              size={14}
-              color={colors.heartFilled}
-            />
+            <View style={styles.heartRow}>
+              <Ionicons
+                name="heart"
+                size={14}
+                color={colors.heartFilled}
+              />
+              {isCoreMemory && <FireflyDot />}
+            </View>
           )}
         </View>
 
@@ -249,8 +253,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingBottom: 14,
     borderWidth: 1,
-    borderColor: childColorWithOpacity('#E8724A', 0.20),
-    shadowColor: '#E8724A',
+    borderColor: childColorWithOpacity(colors.glow, 0.20),
+    shadowColor: colors.glow,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.10,
     shadowRadius: 12,
@@ -302,7 +306,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   coreMemoryPreview: {
-    ...typography.coreMemoriesPreview,
+    ...typography.fireflyJarPreview,
     color: colors.text,
     marginBottom: 10,
   },
@@ -338,5 +342,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  heartRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
 });

@@ -21,12 +21,13 @@ export default function MemorySavedScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.content}>
-        {/* Static heart — animation deferred to polish pass */}
+        {/* Gold glowing heart — like a firefly being caught */}
         <View style={styles.heartWrapper}>
-          <Ionicons name="heart" size={56} color={colors.accent} />
+          <View style={styles.heartGlow} />
+          <Ionicons name="heart" size={56} color={colors.glow} />
         </View>
 
-        <Text style={styles.heading}>{firstName}'s first memory, saved.</Text>
+        <Text style={styles.heading}>{firstName}'s first firefly, caught.</Text>
         <Text style={styles.body}>Your voice and your words — kept forever.</Text>
       </View>
 
@@ -53,6 +54,15 @@ const styles = StyleSheet.create({
   },
   heartWrapper: {
     marginBottom: spacing(6),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heartGlow: {
+    position: 'absolute',
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: colors.glowGlow,
   },
   heading: {
     ...typography.onboardingHeading,

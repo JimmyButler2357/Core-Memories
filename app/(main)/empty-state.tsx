@@ -15,11 +15,11 @@ import {
   spacing,
   radii,
   shadows,
-  screenColors,
 } from '@/constants/theme';
 import { useChildrenStore } from '@/stores/childrenStore';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import PaperTexture from '@/components/PaperTexture';
+import WarmGlow from '@/components/WarmGlow';
 
 // ─── Prompt bank — gentle nudges ──────────────────────────
 
@@ -85,8 +85,8 @@ export default function EmptyStateScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Warm gradient backdrop */}
-      <View style={styles.gradientTop} />
+      {/* Warm radial gradient backdrop */}
+      <WarmGlow />
 
       {/* Animated content */}
       <Animated.View
@@ -132,7 +132,7 @@ export default function EmptyStateScreen() {
 
         {/* Write instead link */}
         <Pressable
-          onPress={() => router.push('/(main)/entry-detail')}
+          onPress={() => router.push({ pathname: '/(main)/entry-detail', params: { transcript: '' } })}
           style={({ pressed }) => [styles.linkRow, pressed && { opacity: 0.6 }]}
         >
           <Ionicons name="pencil" size={14} color={colors.textSoft} />
@@ -147,14 +147,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
-  },
-  gradientTop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 360,
-    backgroundColor: screenColors.recordingBackdrop,
   },
   content: {
     flex: 1,

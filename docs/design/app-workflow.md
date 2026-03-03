@@ -1,6 +1,6 @@
-# App Workflow — Core Memories (v4)
+# App Workflow — Forever Fireflies (v4)
 
-Updated to reflect all wireframe iterations through v13. This document covers the complete user experience: onboarding (8 screens), core app (7 screens + 1 edge case), push notification, all screen states, navigation flows, and resolved design decisions.
+Updated to reflect all wireframe iterations through v13. This document covers the complete user experience: onboarding (8 screens), core app (6 screens + 1 edge case), push notification, all screen states, navigation flows, and resolved design decisions.
 
 ---
 
@@ -19,17 +19,16 @@ Updated to reflect all wireframe iterations through v13. This document covers th
 | 7 | Memory Saved | Emotional payoff — heart animation |
 | 8 | Paywall | Trial conversion after experiencing value |
 
-### Main App (7 screens + 1 edge case)
+### Main App (6 screens + 1 edge case)
 
 | # | Screen | Purpose |
 |---|--------|---------|
-| 1 | Home | Central hub — browse, filter, launch capture |
+| 1 | Home | Central hub — browse, search, filter, launch capture |
 | 2 | Recording | Voice capture — focused, distraction-free |
 | 3 | Entry Detail | View, edit, enrich a single entry |
-| 4 | Search | Full-text search with filters |
-| 5 | Core Memories | Curated favorites — visually elevated |
-| 6 | Settings | Configuration, child management, data controls |
-| 7 | Push Notification | Nightly bedtime prompt (external to app) |
+| 4 | Firefly Jar | Curated favorites — visually elevated |
+| 5 | Settings | Configuration, child management, data controls |
+| 6 | Push Notification | Nightly bedtime prompt (external to app) |
 | — | Empty State | Edge case when all entries deleted |
 
 ---
@@ -40,7 +39,7 @@ Updated to reflect all wireframe iterations through v13. This document covers th
 
 **Purpose:** Authentication and first impression. Sets the emotional tone before any setup begins.
 
-**Layout:** The app title "Core Memories" in Georgia serif with the tagline "You'll never forget the little things." dominates the upper half. Three auth buttons stack at the bottom: Continue with Apple (black, required by Apple for apps offering social login), Continue with Google (white with Google logo), Continue with Email (neutral). Legal links (Terms of Service, Privacy Policy) sit below the buttons in small muted text.
+**Layout:** The app title "Forever Fireflies" in Georgia serif with the tagline "You'll never forget the little things." dominates the upper half. Three auth buttons stack at the bottom: Continue with Apple (black, required by Apple for apps offering social login), Continue with Google (white with Google logo), Continue with Email (neutral). Legal links (Terms of Service, Privacy Policy) sit below the buttons in small muted text.
 
 **Flow:** Any auth method → Add Child.
 
@@ -142,7 +141,9 @@ Updated to reflect all wireframe iterations through v13. This document covers th
 
 **Layout (top to bottom):**
 
-**Top bar:** The app title "Core Memories" in Georgia serif sits on the left. On the right, a search pill (magnifying glass + "Search" label in a bordered capsule), a heart icon for Core Memories navigation, and a settings gear icon. In the first-entry state, search and heart icons are hidden to keep the celebration focused.
+**Top bar:** The app title "Forever Fireflies" in Georgia serif sits on the left. On the right, a search icon (magnifying glass — toggles inline search mode), a heart icon for Firefly Jar navigation, and a settings gear icon. In the first-entry state, search and heart icons are hidden to keep the celebration focused.
+
+**Inline search mode:** Tapping the search icon reveals a collapsible area below the top bar containing a search bar (auto-focuses keyboard), filter chips (tag chips + date range chip), and a "Clear" chip when filters are active. The search icon changes to an X while search is active. Child tabs remain visible and compose with search filters — selecting "Emma" tab + searching "bedtime" shows only Emma's entries containing "bedtime." Entry cards show tags and highlighted matching text during search. A floating result count pill ("X memories found") appears above the mic button. Tapping X or clearing all filters collapses the search area with a 250ms animation.
 
 **Child area:** The layout adapts based on how many children are registered and the current state.
 
@@ -153,14 +154,14 @@ Updated to reflect all wireframe iterations through v13. This document covers th
 **States:**
 - **Multi-child (default):** Horizontal scrollable child tab row below the top bar. "All" tab (default, shows every child's entries) plus one tab per child. Active tab gets a colored border, tinted background, and subtle shadow. Entries mentioning multiple children appear under every relevant tab plus "All."
 - **Single-child:** No tabs. Instead, a warm pill showing the child's name, age, and total memory count sits below the top bar.
-- **First-entry:** Post-onboarding celebration. A gradient banner with sparkle emoji reads "Your first memory is saved" with encouraging body text. Below, a single child info row and one entry card with a warm glow border. Search and Core Memories icons are hidden. This state is reached directly from the paywall.
+- **First-entry:** Post-onboarding celebration. A gradient banner with sparkle emoji reads "Your first memory is saved" with encouraging body text. Below, a single child info row and one entry card with a warm glow border. Search and Firefly Jar icons are hidden. This state is reached directly from the paywall.
 
 **Navigation from Home:**
 - Tap mic → Recording
 - Tap "or write instead" → Entry Detail (new, blank)
 - Tap entry card → Entry Detail (existing entry)
-- Tap search pill → Search
-- Tap heart icon → Core Memories
+- Tap search icon → Inline search mode (no navigation — stays on Home)
+- Tap heart icon → Firefly Jar
 - Tap gear icon → Settings
 
 ---
@@ -171,7 +172,7 @@ Updated to reflect all wireframe iterations through v13. This document covers th
 
 **Trigger:** Fires at the user's configured reminder time each evening.
 
-**Notification content:** The notification displays the app icon (accent orange with mic), "Core Memories" as the app name, and "now" as the timestamp. The primary prompt uses the child's name: "What made Emma smile today?" A secondary line references the child's age: "She's 2 years, 4 months old — these days go fast." The prompt text rotates nightly from a curated bank. The warm gradient background behind the notification card distinguishes it visually from standard system notifications.
+**Notification content:** The notification displays the app icon (accent orange with mic), "Forever Fireflies" as the app name, and "now" as the timestamp. The primary prompt uses the child's name: "What made Emma smile today?" A secondary line references the child's age: "She's 2 years, 4 months old — these days go fast." The prompt text rotates nightly from a curated bank. The warm gradient background behind the notification card distinguishes it visually from standard system notifications.
 
 **Action buttons (two visible):**
 
@@ -199,23 +200,26 @@ Updated to reflect all wireframe iterations through v13. This document covers th
 
 **After recording stops:** The app transitions directly to the Entry Detail screen with the transcript populated. There is no intermediate child-selection step on the Recording screen — auto-detection runs on the transcript and pre-fills child pills on the Entry Detail screen. This was a deliberate simplification from an earlier design that had a full-screen child-select step after recording.
 
+**Re-record mode:** When launched from Entry Detail with a `reRecordEntryId` param, the Recording screen behaves slightly differently. Instead of 3 random prompt cards, a single context card reads "Take your time and re-record this memory" with a refresh icon. After stopping, the existing entry is updated (not a new one created) and `router.back()` returns to Entry Detail. The X button also returns to Entry Detail (not Home). Timer, breathing circle, and mic/stop behavior are identical.
+
 **States:**
-- **Prompts:** Pre-recording — prompt cards visible, mic button ready, warm gradient backdrop.
+- **Prompts:** Pre-recording — prompt cards visible (or re-record context card), mic button ready, warm gradient backdrop.
 - **Recording:** Active recording — prompts fade out, breathing circle + timer shown, stop button replaces mic.
 
 **Navigation:**
 - Stop recording → Entry Detail (from recording, with auto-detect)
-- Cancel/X → Home
+- Stop recording (re-record mode) → Entry Detail (existing entry, updated transcript)
+- Cancel/X → Home (or Entry Detail in re-record mode)
 
 ---
 
 ### 4. Entry Detail / Editor Screen
 
-**Purpose:** View, edit, and enrich a single journal entry. This is where the parent sees their transcribed words and can refine them. Used for both new entries (from recording or text input) and existing entries (from Home, Search, or Core Memories).
+**Purpose:** View, edit, and enrich a single journal entry. This is where the parent sees their transcribed words and can refine them. Used for both new entries (from recording or text input) and existing entries (from Home or Firefly Jar).
 
 **Layout:**
 
-**Top bar:** A back arrow on the left returns to the previous screen (Home, Search, Core Memories, or wherever the user came from). On the right, two icons: a heart toggle (tap to mark/unmark as a Core Memory — filled state means favorited) and a delete/trash icon.
+**Top bar:** A back arrow on the left returns to the previous screen (Home, Firefly Jar, or wherever the user came from). On the right, two icons: a heart toggle (tap to mark/unmark as a Firefly — filled state means favorited) and a delete/trash icon.
 
 **Post-recording banner:** When arriving from a recording, a brief "Memory saved" confirmation banner appears at the top with a heart icon. It auto-dismisses after a few seconds with a fade-out and collapse animation.
 
@@ -241,53 +245,32 @@ The always-stacked layout was chosen over a side-by-side (date left, pills right
 
 **Audio playback bar:** At the bottom of the screen, a persistent mini-player with a play button (accent-tinted circle) and a scrub bar for the original audio recording. This lets the parent replay what they said. For text-only entries (no recording), this bar is hidden.
 
+**Re-record button:** A small mic icon (accent-tinted circle, 28px) at the right edge of the audio playback bar. Tapping opens a confirmation dialog: "Re-record this memory?" with the body "Your current recording will be replaced with a new one. The transcript will update to match." The confirm button uses the default accent variant (not danger — re-recording is a "try again," not a destruction). On confirm, the Recording screen opens in re-record mode. After stopping, the new audio overwrites the old file, the transcript updates, and the parent returns to Entry Detail with all metadata (children, tags, location, date, favorite status) preserved. Only visible for voice entries.
+
 **States:**
 - **Viewing (default):** Reading/editing the entry, all panels closed.
 - **Child Picker:** Inline child picker panel open with toggle pills.
 - **Tag Editor:** Tag editor panel open with text input and frequent tags.
 - **Delete Confirm:** Confirmation dialog overlay — "Delete this memory?" with a note that deleted entries can be recovered for 30 days. Soft delete always; permanent purge after 30 days. Cancel and Delete buttons.
+- **Re-record Confirm:** Confirmation dialog overlay — "Re-record this memory?" with a note that the recording will be replaced. Cancel and Re-record buttons (accent, not danger).
 
 **Navigation:**
-- Back arrow → previous screen (Home, Search, Core Memories)
-- Heart toggle → marks/unmarks as Core Memory (stays on this screen)
+- Back arrow → previous screen (Home, Firefly Jar)
+- Heart toggle → marks/unmarks as Firefly (stays on this screen)
 - Delete → confirmation dialog → soft delete → returns to previous screen
+- Re-record → confirmation dialog → Recording screen (re-record mode) → returns to Entry Detail with updated audio/transcript
 
 ---
 
-### 5. Search Screen
-
-**Purpose:** Find any memory across the entire archive using full-text search and filters.
-
-**Layout:**
-
-**Top bar:** Back arrow on the left, "Search" title centered.
-
-**Search bar:** A full-text search input that auto-focuses the keyboard when the screen opens. Placeholder: "Search your memories..."
-
-**Filter chips:** A horizontal scrollable row below the search bar. Filter categories: child name chips (multi-select, colored), tag chips (milestone, funny, bedtime, etc.), and a date range chip. Tapping the date range chip expands a preset picker (Last 7 days, Last month, Last 3 months, Custom). Filters combine with search text — e.g., search "first steps" filtered to a specific child and a date range.
-
-**Results area:** Entry cards in the same format as the Home Screen, with matching search text highlighted in yellow in the preview snippet. Tapping a card opens Entry Detail.
-
-**States:**
-- **Default:** Search bar focused, filter chips visible, results shown (or full archive if no query).
-- **Date Picker Open:** Date range preset picker expanded below the date chip.
-- **No Results:** Warm empty state — "No memories found. Try different keywords or filters." with a subtle search icon.
-
-**Navigation:**
-- Tap result card → Entry Detail
-- Back arrow → Home
-
----
-
-### 6. Core Memories Screen (Favorites)
+### 4. Firefly Jar Screen (Favorites)
 
 **Purpose:** The app's emotional centerpiece — a curated treasure box of the parent's most meaningful moments. Visually elevated from Home to feel like opening something special, not just filtering a list.
 
-**Visual distinction from Home:** The Core Memories screen has a warm gradient background (#F9F2EB → cream) instead of Home's flat cream. The title "Core Memories" uses Georgia serif (not system sans like other screen titles). A memory count sits below the header ("♡ 3 memories saved"). These details create a different texture — Home is the inbox (scan, capture, move on); Core Memories is the keepsake box (slow down, relive, savor).
+**Visual distinction from Home:** The Firefly Jar screen has a warm gradient background (#F9F2EB → cream) instead of Home's flat cream. The title "Firefly Jar" uses Georgia serif (not system sans like other screen titles). A memory count sits below the header ("♡ 3 memories saved"). These details create a different texture — Home is the inbox (scan, capture, move on); Firefly Jar is the keepsake box (slow down, relive, savor).
 
 **Layout:**
 
-**Top bar:** Back arrow on the left, "Core Memories" in Georgia serif centered. No settings or search icons — this is a focused, curated view.
+**Top bar:** Back arrow on the left, "Firefly Jar" in Georgia serif centered. No settings or search icons — this is a focused, curated view.
 
 **Memory count:** Below the header, a small line with a filled heart icon and the count of favorited entries.
 
@@ -297,7 +280,7 @@ The always-stacked layout was chosen over a side-by-side (date left, pills right
 
 **States:**
 - **Filled (default):** Showing favorited entries with the elevated card treatment and inline audio.
-- **Empty:** Warm encouragement text in Georgia serif — "Tap the heart on any entry to save it as a Core Memory." with a "Browse your entries" button that navigates back to Home. This completes the loop so the parent isn't stranded on an empty screen.
+- **Empty:** Warm encouragement text in Georgia serif — "Tap the heart on any entry to save it as a Firefly." with a "Browse your entries" button that navigates back to Home. This completes the loop so the parent isn't stranded on an empty screen.
 
 **Navigation:**
 - Tap card (non-audio area) → Entry Detail
@@ -306,7 +289,7 @@ The always-stacked layout was chosen over a side-by-side (date left, pills right
 
 ---
 
-### 7. Settings Screen
+### 5. Settings Screen
 
 **Purpose:** Configure the app, manage children, manage subscription, and access data controls.
 
@@ -316,7 +299,9 @@ The always-stacked layout was chosen over a side-by-side (date left, pills right
 
 **Reminder:** Current time shown (e.g., "Time: 8:30 PM"). Toggle for enabling/disabling reminders.
 
-**Subscription:** Current plan status (e.g., "Plan: Core Memories Premium"). "Manage Subscription" link to App Store subscription management.
+**Family Contributors (V2):** Lists all invited family members (e.g., "Grandma Sarah — Active", "Uncle Dave — Revoked"). Tap to edit display name, view their recordings, revoke access, or generate a new invite link. "+ Invite Family Member" button at the bottom. *(See Product Spec §6, Contributor Management.)*
+
+**Subscription:** Current plan status (e.g., "Plan: Forever Fireflies Premium"). "Manage Subscription" link to App Store subscription management.
 
 **Recently Deleted:** A dedicated section (not buried inside Data & Privacy) with an accent-tinted border to make it findable in a panic moment. Shows "View deleted memories" with a sublabel "Entries are kept for 30 days." Tapping opens the recovery view. This prominent placement was a deliberate decision — recovery is a rare action, but when someone accidentally deletes a precious memory, it needs to be findable immediately.
 
@@ -342,7 +327,7 @@ The always-stacked layout was chosen over a side-by-side (date left, pills right
 
 Entries can be associated with one child, multiple children, or (in theory) a general/untagged entry — but the zero-child state is blocked by the picker's protection logic, so every entry always has at least one child.
 
-When an entry is tagged to multiple children, it appears on every relevant child's tab on the Home Screen and Core Memories screen, as well as under the "All" tab. The entry is not duplicated — it's the same entry, just visible in multiple filtered views. A story about two siblings playing together shows up on both children's pages.
+When an entry is tagged to multiple children, it appears on every relevant child's tab on the Home Screen and Firefly Jar screen, as well as under the "All" tab. The entry is not duplicated — it's the same entry, just visible in multiple filtered views. A story about two siblings playing together shows up on both children's pages.
 
 On entry cards, multiple child pills are always visible so the parent knows which children are associated at a glance.
 
@@ -362,19 +347,19 @@ Sign In → Add Child → Mic Permission → Notifications → First Recording �
 ### Main App Flow (hub-and-spoke from Home)
 
 ```
-                    ┌─ Search ──────── Entry Detail
-                    ├─ ♡ Core Memories ─── Entry Detail
+                    ├─ ♡ Firefly Jar ─── Entry Detail
  Notification ──→ Recording ──→ Entry Detail
                     │
               ┌─────┤
               Home ──┤
               └─────┤
+                    ├─ 🔍 Inline search mode (no navigation)
                     ├─ Settings
                     ├─ Entry Detail (tap card)
                     └─ Entry Detail (new text entry)
 ```
 
-All secondary screens return to Home via back arrow. Entry Detail returns to whichever screen launched it (Home, Search, or Core Memories).
+All secondary screens return to Home via back arrow. Entry Detail returns to whichever screen launched it (Home or Firefly Jar). Search is inline on the Home screen — no separate route.
 
 ---
 
@@ -391,8 +376,8 @@ All secondary screens return to Home via back arrow. Entry Detail returns to whi
 | Prompt card interaction | Read-only inspiration, separate record button | Parent may want to browse prompts before choosing; auto-start is too aggressive |
 | Regenerate transcription | Included in paid tier, 1 per entry, ~5/week cap | Poor transcription is the app's shortcoming, not the user's; no extra charge |
 | Notification personalization | Child name + age in prompt text | Makes the notification feel personal, not generic; drives habit better |
-| Core Memories visual treatment | Warm gradient, serif title, larger cards, inline audio | Must feel like a treasure box, not a filtered list; it's the app's namesake |
-| Core Memories empty state | CTA button "Browse your entries" → Home | Completes the navigation loop; doesn't strand the parent |
+| Firefly Jar visual treatment | Warm gradient, serif title, larger cards, inline audio | Must feel like a treasure box, not a filtered list; it's the app's centerpiece |
+| Firefly Jar empty state | CTA button "Browse your entries" → Home | Completes the navigation loop; doesn't strand the parent |
 | Text entry placement | "or write instead" link below mic button | Clearly secondary to voice; always available but doesn't compete visually |
 | Remind Me Later | Fixed 30-minute snooze from time of tap | Simple; parent is usually mid-bedtime and wants one more nudge |
 | Entry deletion | Soft delete with 30-day recovery | Content is irreplaceable; Recently Deleted in Settings with accent border |
@@ -401,6 +386,10 @@ All secondary screens return to Home via back arrow. Entry Detail returns to whi
 | Paywall exit destination | Home (first-entry state) | Parent sees their entry celebrated before normal app experience |
 | Age display on Detail | Subtle muted line below child pills | Keeps age visible as context without cluttering the pills themselves |
 | Flow map labeling | Paywall → "Home (first-entry state)" explicit | Reviewer can see exactly which Home variant is the destination |
+| Re-record placement | Mic icon on audio bar, not top bar | Action is about the audio, so it belongs with audio controls; top bar placement creates ambiguity with "add recording" |
+| Re-record confirm variant | Default (accent), not danger | Re-recording is a "try again," not a destruction; warm orange says "go ahead" |
+| Re-record original_transcript | Replace with new transcript | Old transcript has no value once old audio is gone; new baseline for future edits |
+| Search integration | Merged into Home screen as collapsible inline mode | Reduces navigation depth; follows Apple Photos pattern; child tabs compose with search filters; one less screen to maintain |
 
 ---
 
@@ -410,7 +399,7 @@ All secondary screens return to Home via back arrow. Entry Detail returns to whi
 
 2. **Entry card preview length:** Two lines on Home cards gives a taste without overwhelming. But some entries might benefit from three lines, especially if the first line is throat-clearing. Two lines is probably right, but worth testing with real content.
 
-3. **Audio playback on Home cards:** Should entry cards on the Home Screen have a small play button (like Core Memories cards do) so the parent can listen without opening Entry Detail? More immersive but adds UI complexity to the feed. Probably post-MVP, but compelling. Core Memories already has this — if it works well there, it validates bringing it to Home.
+3. **Audio playback on Home cards:** Should entry cards on the Home Screen have a small play button (like Firefly Jar cards do) so the parent can listen without opening Entry Detail? More immersive but adds UI complexity to the feed. Probably post-MVP, but compelling. Firefly Jar already has this — if it works well there, it validates bringing it to Home.
 
 4. **Prompt rotation strategy:** MVP uses age-bracketed shuffle from a bank of 20–30 curated prompts. Future versions should surface contextually relevant prompts based on the child's age, recent entry topics, time of year, and milestones. The prompt bank should grow to hundreds over time.
 

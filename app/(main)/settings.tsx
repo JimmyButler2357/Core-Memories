@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   FlatList,
   Alert,
   Linking,
+  ActivityIndicator,
   StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -26,15 +27,19 @@ import {
   hitSlop,
   minTouchTarget,
 } from '@/constants/theme';
-import { useChildrenStore, type Child } from '@/stores/childrenStore';
-import { useEntriesStore, type Entry } from '@/stores/entriesStore';
+import { useChildrenStore, mapSupabaseChild, type Child } from '@/stores/childrenStore';
+import { useEntriesStore, mapSupabaseEntry, type Entry } from '@/stores/entriesStore';
 import { useAuthStore } from '@/stores/authStore';
+import { childrenService } from '@/services/children.service';
+import { entriesService } from '@/services/entries.service';
+import { storageService } from '@/services/storage.service';
 import TopBar from '@/components/TopBar';
 import ConfirmationDialog from '@/components/ConfirmationDialog';
 import PrimaryButton from '@/components/PrimaryButton';
 import BirthdayPicker from '@/components/BirthdayPicker';
 import ColorPicker from '@/components/ColorPicker';
 import { useLocationPermission } from '@/hooks/useLocation';
+import { formatDate } from '@/lib/dateUtils';
 
 // ─── Helpers ──────────────────────────────────────────────
 
@@ -45,11 +50,6 @@ function formatBirthday(iso: string): string {
     day: 'numeric',
     year: 'numeric',
   });
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 function daysAgo(iso: string): number {
@@ -75,18 +75,21 @@ export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const children = useChildrenStore((s) => s.children);
-  const removeChild = useChildrenStore((s) => s.removeChild);
-  const updateChild = useChildrenStore((s) => s.updateChild);
-  const addChild = useChildrenStore((s) => s.addChild);
-  const entries = useEntriesStore((s) => s.entries);
-  const restoreEntry = useEntriesStore((s) => s.restoreEntry);
-  const permanentlyDeleteEntry = useEntriesStore((s) => s.permanentlyDeleteEntry);
-  const reset = useAuthStore((s) => s.reset);
+  const removeChildLocal = useChildrenStore((s) => s.removeChildLocal);
+  const updateChildLocal = useChildrenStore((s) => s.updateChildLocal);
+  const addChildLocal = useChildrenStore((s) => s.addChildLocal);
+  const addEntryLocal = useEntriesStore((s) => s.addEntryLocal);
+  const removeEntryLocal = useEntriesStore((s) => s.removeEntryLocal);
+  const signOut = useAuthStore((s) => s.signOut);
+  const familyId = useAuthStore((s) => s.familyId);
+  const clearChildren = useChildrenStore((s) => s.clearChildren);
+  const clearEntries = useEntriesStore((s) => s.clearEntries);
   const locationEnabled = useLocationPermission();
 
   // Local state
   const [reminderEnabled, setReminderEnabled] = useState(true);
   const [reminderTime, setReminderTime] = useState('8:30 PM');
+  const [isSaving, setIsSaving] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showDeletedModal, setShowDeletedModal] = useState(false);
   const [showEditChildModal, setShowEditChildModal] = useState(false);
@@ -102,14 +105,28 @@ export default function SettingsScreen() {
   const [newChildColorIndex, setNewChildColorIndex] = useState(children.length % 6);
   const [newChildNickname, setNewChildNickname] = useState('');
 
-  // Recently deleted entries (soft-deleted within 30 days)
-  const deletedEntries = useMemo(
-    () =>
-      entries.filter(
-        (e) => e.isDeleted && e.deletedAt && daysAgo(e.deletedAt) <= 30,
-      ),
-    [entries],
-  );
+  // Recently deleted entries — fetched from Supabase when the
+  // modal opens, not filtered from local state.
+  const [deletedEntries, setDeletedEntries] = useState<Entry[]>([]);
+  const [isLoadingDeleted, setIsLoadingDeleted] = useState(false);
+
+  // Fetch deleted entries when the modal opens
+  const fetchDeletedEntries = useCallback(async () => {
+    if (!familyId) return;
+    setIsLoadingDeleted(true);
+    try {
+      const rows = await entriesService.getDeleted(familyId);
+      setDeletedEntries(rows.map(mapSupabaseEntry));
+    } catch (err) {
+      console.warn('Failed to fetch deleted entries:', err);
+    } finally {
+      setIsLoadingDeleted(false);
+    }
+  }, [familyId]);
+
+  useEffect(() => {
+    if (showDeletedModal) fetchDeletedEntries();
+  }, [showDeletedModal]);
 
   // Build child lookup
   const childMap = useMemo(() => {
@@ -129,34 +146,65 @@ export default function SettingsScreen() {
     setShowEditChildModal(true);
   };
 
-  const saveEditChild = () => {
-    if (editingChild && editName.trim() && editBirthday) {
-      updateChild(editingChild.id, {
+  // Save edits to Supabase, then update the local store.
+  // We use the "pessimistic" approach — wait for the server
+  // to confirm before updating the UI. This means the user
+  // sees a brief loading state, but we never show stale data.
+  const saveEditChild = async () => {
+    if (!editingChild || !editName.trim() || !editBirthday) return;
+
+    setIsSaving(true);
+    try {
+      const updated = await childrenService.updateChild(editingChild.id, {
         name: editName.trim(),
         birthday: editBirthday,
-        colorIndex: editColorIndex,
-        nickname: editNickname.trim() || undefined,
+        color_index: editColorIndex,
+        nickname: editNickname.trim() || null,
       });
+      // Update local cache with the server's response
+      const mapped = mapSupabaseChild(updated);
+      updateChildLocal(mapped.id, {
+        name: mapped.name,
+        birthday: mapped.birthday,
+        colorIndex: mapped.colorIndex,
+        nickname: mapped.nickname,
+      });
+      setShowEditChildModal(false);
+      setEditingChild(null);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Could not save changes';
+      Alert.alert('Error', msg);
+    } finally {
+      setIsSaving(false);
     }
-    setShowEditChildModal(false);
-    setEditingChild(null);
   };
 
   // ─── Add Child Handler ─────────────────────────────────
 
-  const handleAddChild = () => {
-    if (newChildName.trim() && newChildBirthday) {
-      addChild({
+  // Create child in Supabase, then add to local store.
+  const handleAddChild = async () => {
+    if (!newChildName.trim() || !newChildBirthday) return;
+
+    setIsSaving(true);
+    try {
+      const row = await childrenService.createChild({
         name: newChildName.trim(),
         birthday: newChildBirthday,
-        nickname: newChildNickname.trim() || undefined,
-        colorIndex: newChildColorIndex,
+        nickname: newChildNickname.trim() || null,
+        color_index: newChildColorIndex,
+        display_order: children.length,
       });
+      addChildLocal(mapSupabaseChild(row));
       setNewChildName('');
       setNewChildBirthday('');
       setNewChildNickname('');
       setNewChildColorIndex((children.length + 1) % 6);
       setShowAddChildModal(false);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Could not add child';
+      Alert.alert('Error', msg);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -172,9 +220,22 @@ export default function SettingsScreen() {
 
   const handleDeleteAccount = () => {
     setShowDeleteAccountDialog(false);
-    // For MVP: reset onboarding state (simulates account deletion)
-    reset();
-    router.replace('/(onboarding)');
+    // For MVP: sign out (simulates account deletion).
+    // Real account deletion will be added in a future phase.
+    handleSignOut();
+  };
+
+  // Sign out — clears Supabase session + all local stores,
+  // then routes back to onboarding/sign-in.
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      clearChildren();
+      clearEntries();
+      router.replace('/(onboarding)');
+    } catch (error) {
+      console.warn('Sign out error:', error);
+    }
   };
 
   return (
@@ -474,6 +535,24 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* ─── 7. Sign Out ─────────────────────── */}
+        <View style={styles.section}>
+          <View style={styles.card}>
+            <Pressable
+              onPress={handleSignOut}
+              style={({ pressed }) => [
+                styles.row,
+                pressed && { backgroundColor: colors.cardPressed },
+              ]}
+            >
+              <View style={styles.addRow}>
+                <Ionicons name="log-out-outline" size={18} color={colors.danger} />
+                <Text style={styles.dangerLabel}>Sign Out</Text>
+              </View>
+            </Pressable>
+          </View>
+        </View>
+
         {/* Bottom spacer */}
         <View style={{ height: insets.bottom + spacing(8) }} />
       </ScrollView>
@@ -547,20 +626,27 @@ export default function SettingsScreen() {
             {/* Save button */}
             <View style={styles.fullModalButtonArea}>
               <PrimaryButton
-                label="Save"
+                label={isSaving ? 'Saving...' : 'Save'}
                 onPress={saveEditChild}
-                disabled={!editName.trim() || !editBirthday}
+                disabled={!editName.trim() || !editBirthday || isSaving}
               />
             </View>
 
             {/* Remove child */}
             {children.length > 1 && editingChild && (
               <Pressable
-                onPress={() => {
-                  removeChild(editingChild.id);
-                  setShowEditChildModal(false);
-                  setEditingChild(null);
+                onPress={async () => {
+                  try {
+                    await childrenService.deleteChild(editingChild.id);
+                    removeChildLocal(editingChild.id);
+                    setShowEditChildModal(false);
+                    setEditingChild(null);
+                  } catch (error) {
+                    const msg = error instanceof Error ? error.message : 'Could not remove child';
+                    Alert.alert('Error', msg);
+                  }
                 }}
+                disabled={isSaving}
                 style={({ pressed }) => [
                   styles.removeChildBtn,
                   pressed && { opacity: 0.7 },
@@ -642,9 +728,13 @@ export default function SettingsScreen() {
             {/* Add button */}
             <View style={styles.fullModalButtonArea}>
               <PrimaryButton
-                label={newChildName.trim() && newChildBirthday ? `Add ${newChildName.trim()}` : 'Fill name & birthday to continue'}
+                label={isSaving
+                  ? 'Saving...'
+                  : newChildName.trim() && newChildBirthday
+                    ? `Add ${newChildName.trim()}`
+                    : 'Fill name & birthday to continue'}
                 onPress={handleAddChild}
-                disabled={!newChildName.trim() || !newChildBirthday}
+                disabled={!newChildName.trim() || !newChildBirthday || isSaving}
               />
             </View>
           </ScrollView>
@@ -673,7 +763,11 @@ export default function SettingsScreen() {
             <View style={{ width: minTouchTarget }} />
           </View>
 
-          {deletedEntries.length === 0 ? (
+          {isLoadingDeleted ? (
+            <View style={styles.deletedEmpty}>
+              <ActivityIndicator size="large" color={colors.accent} />
+            </View>
+          ) : deletedEntries.length === 0 ? (
             <View style={styles.deletedEmpty}>
               <Ionicons name="trash-outline" size={40} color={colors.textMuted} />
               <Text style={styles.deletedEmptyText}>No deleted memories</Text>
@@ -707,7 +801,20 @@ export default function SettingsScreen() {
                     </Text>
                     <View style={styles.deletedActions}>
                       <Pressable
-                        onPress={() => restoreEntry(item.id)}
+                        onPress={async () => {
+                          try {
+                            await entriesService.restore(item.id);
+                            // Refetch the full entry and add it back to Home
+                            const row = await entriesService.getEntry(item.id);
+                            addEntryLocal(mapSupabaseEntry(row));
+                            // Remove from local deleted list
+                            setDeletedEntries((prev) =>
+                              prev.filter((e) => e.id !== item.id),
+                            );
+                          } catch (err) {
+                            console.warn('Failed to restore:', err);
+                          }
+                        }}
                         style={({ pressed }) => [
                           styles.restoreBtn,
                           pressed && { opacity: 0.7 },
@@ -721,7 +828,16 @@ export default function SettingsScreen() {
                         <Text style={styles.restoreLabel}>Restore</Text>
                       </Pressable>
                       <Pressable
-                        onPress={() => permanentlyDeleteEntry(item.id)}
+                        onPress={async () => {
+                          try {
+                            await entriesService.hardDelete(item.id);
+                            setDeletedEntries((prev) =>
+                              prev.filter((e) => e.id !== item.id),
+                            );
+                          } catch (err) {
+                            console.warn('Failed to permanently delete:', err);
+                          }
+                        }}
                         style={({ pressed }) => [
                           styles.permDeleteBtn,
                           pressed && { opacity: 0.7 },

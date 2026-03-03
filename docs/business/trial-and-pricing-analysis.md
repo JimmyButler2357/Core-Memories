@@ -1,6 +1,6 @@
 # Trial Length & Pricing Tier Analysis
 
-> Core Memories — February 2026
+> Forever Fireflies — February 2026
 > Current plan: 7-day trial → $5.99/mo or $49.99/yr
 
 ---
@@ -21,7 +21,7 @@ Key finding: Once you get past 4 days, the conversion rate barely moves (~44-45%
 ### 7-Day Trial
 
 #### Pros
-- **Natural fit for a daily-use app.** Core Memories is designed around a nightly recording habit. 7 days = 7 chances to record, which is enough to build the beginnings of a routine and accumulate content the parent doesn't want to lose.
+- **Natural fit for a daily-use app.** Forever Fireflies is designed around a nightly recording habit. 7 days = 7 chances to record, which is enough to build the beginnings of a routine and accumulate content the parent doesn't want to lose.
 - **Creates healthy urgency.** Shorter trials drive faster engagement — users explore features immediately rather than procrastinating. Research shows every 10-minute delay in time-to-first-value costs ~8% in conversion.
 - **Lower cancellation rate (~35% vs 51% for 30-day).** Users who convert from shorter trials tend to be more committed.
 - **Faster revenue feedback loop.** You learn within a week whether your onboarding is working, enabling rapid iteration during early launch.
@@ -60,9 +60,9 @@ Key finding: Once you get past 4 days, the conversion rate barely moves (~44-45%
 - **Terrible for early-stage economics.** You're giving away a full month of server costs (audio storage, transcription) before seeing any revenue. At your $5.99 price point, this matters.
 - **Creates an expectation of "free."** Users who get 30 days free may feel the paywall is unfair — they've been using it for a month without paying.
 - **No urgency to convert.** The trial-ending notification feels abrupt after a month of free access.
-- **Overkill for your app's simplicity.** 30-day trials benefit complex B2B products where users need time to evaluate. Core Memories delivers value in 60 seconds (one recording). You don't need 30 days to prove that.
+- **Overkill for your app's simplicity.** 30-day trials benefit complex B2B products where users need time to evaluate. Forever Fireflies delivers value in 60 seconds (one recording). You don't need 30 days to prove that.
 
-### Recommendation for Core Memories
+### Recommendation for Forever Fireflies
 
 **Start with 7 days. A/B test 14 days within the first 3 months via RevenueCat Experiments.**
 
@@ -92,7 +92,7 @@ Rationale:
 | **Journey** | N/A | $29.99 | $2.50 | — |
 | **Rosebud** | $4.99 | — | — | — |
 | **Voice Diary** | $1.49 | $8.99 | $0.75 | — |
-| **Core Memories** | $5.99 | $49.99 | $4.17 | — |
+| **Forever Fireflies** | $5.99 | $49.99 | $4.17 | — |
 
 Your $5.99/mo is right in line with Day One and at the upper-middle of the journal category. Your annual is above Day One ($49.99 vs $34.99) but below Qeepsake Premium ($90-96/yr). This positioning makes sense — you're a specialized, voice-first parenting journal with audio storage costs that general journals don't have.
 
@@ -161,7 +161,7 @@ The 3-month plan at $16.99 ($5.66/mo) makes the annual plan's $4.17/mo look like
 - Some users who would pay for 3 or 6 months may churn off monthly before reaching annual conversion.
 - Less pricing flexibility for promotions and win-back campaigns.
 
-### Recommendation for Core Memories
+### Recommendation for Forever Fireflies
 
 **Launch with Monthly + Annual only (Option C). Consider adding a 3-month decoy (Option A, anchor variant) after you have baseline conversion data.**
 

@@ -1,0 +1,1478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forever Fireflies — Vision Video Playground</title>
+<style>
+  /* ─── Reset & Base ──────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ui-bg: #1a1a1a;
+    --ui-surface: #242424;
+    --ui-border: #333;
+    --ui-text: #e0e0e0;
+    --ui-text-dim: #888;
+    --ui-accent: #E8724A;
+    /* App design tokens */
+    --cm-bg: #FAF8F5;
+    --cm-card: #FFFFFF;
+    --cm-text: #2C2420;
+    --cm-textSoft: #8C7E74;
+    --cm-textMuted: #B5AAA0;
+    --cm-accent: #E8724A;
+    --cm-accentSoft: #FFF0EB;
+    --cm-border: #EDE8E3;
+    --cm-tag: #F3EDE8;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--ui-bg);
+    color: var(--ui-text);
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ─── Layout ────────────────────────────────────────────── */
+  .layout {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    grid-template-rows: 1fr auto;
+    height: 100vh;
+  }
+  .controls {
+    grid-row: 1 / 3;
+    background: var(--ui-surface);
+    border-right: 1px solid var(--ui-border);
+    overflow-y: auto;
+    padding: 20px;
+  }
+  .preview-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .bottom-bar {
+    background: var(--ui-surface);
+    border-top: 1px solid var(--ui-border);
+    display: flex;
+    gap: 0;
+  }
+
+  /* ─── Controls Panel ────────────────────────────────────── */
+  .controls h1 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: var(--ui-accent);
+  }
+  .controls .subtitle {
+    font-size: 12px;
+    color: var(--ui-text-dim);
+    margin-bottom: 20px;
+  }
+  .control-group { margin-bottom: 20px; }
+  .control-group h3 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--ui-text-dim);
+    margin-bottom: 10px;
+  }
+  .control-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .control-row label { font-size: 13px; }
+  .control-row input[type="text"],
+  .control-row input[type="number"] {
+    background: var(--ui-bg);
+    border: 1px solid var(--ui-border);
+    border-radius: 6px;
+    color: var(--ui-text);
+    padding: 5px 8px;
+    font-size: 13px;
+    width: 100px;
+    outline: none;
+  }
+  .control-row input:focus { border-color: var(--ui-accent); }
+
+  /* Range slider */
+  .range-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .range-row label { font-size: 13px; flex-shrink: 0; min-width: 95px; }
+  .range-row input[type="range"] {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--ui-border);
+    border-radius: 2px;
+    outline: none;
+  }
+  .range-row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--ui-accent);
+    cursor: pointer;
+  }
+  .range-row .range-val {
+    font-size: 12px;
+    color: var(--ui-text-dim);
+    font-family: monospace;
+    min-width: 32px;
+    text-align: right;
+  }
+
+  /* Toggle switch */
+  .toggle { position: relative; width: 40px; height: 22px; cursor: pointer; }
+  .toggle input { display: none; }
+  .toggle .slider {
+    position: absolute; inset: 0;
+    background: var(--ui-border);
+    border-radius: 11px;
+    transition: background 0.2s;
+  }
+  .toggle .slider::after {
+    content: '';
+    position: absolute;
+    width: 16px; height: 16px;
+    left: 3px; top: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+  }
+  .toggle input:checked + .slider { background: var(--ui-accent); }
+  .toggle input:checked + .slider::after { transform: translateX(18px); }
+
+  /* Speed & style buttons */
+  .speed-btns { display: flex; gap: 4px; flex-wrap: wrap; }
+  .speed-btn {
+    background: var(--ui-bg);
+    border: 1px solid var(--ui-border);
+    border-radius: 6px;
+    color: var(--ui-text-dim);
+    font-size: 12px;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .speed-btn.active {
+    background: var(--ui-accent);
+    border-color: var(--ui-accent);
+    color: white;
+  }
+
+  /* Transport */
+  .transport { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .transport-btn {
+    background: none;
+    border: 1.5px solid var(--ui-border);
+    border-radius: 8px;
+    color: var(--ui-text);
+    width: 36px; height: 36px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    transition: all 0.15s;
+  }
+  .transport-btn:hover { border-color: var(--ui-accent); color: var(--ui-accent); }
+  .transport-btn.playing { background: var(--ui-accent); border-color: var(--ui-accent); color: white; }
+  .time-display {
+    font-family: 'SF Mono', 'Cascadia Code', monospace;
+    font-size: 13px;
+    color: var(--ui-text-dim);
+    min-width: 80px;
+  }
+
+  /* Scrubber */
+  .scrubber-wrap { margin-bottom: 8px; }
+  .scrubber {
+    width: 100%;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--ui-bg);
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+  }
+  .scrubber::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--ui-accent);
+    cursor: pointer;
+    border: 2px solid var(--ui-surface);
+  }
+
+  /* Phase markers */
+  .phase-markers { display: flex; font-size: 10px; color: var(--ui-text-dim); margin-top: 4px; }
+  .phase-marker {
+    text-align: center;
+    border-top: 2px solid var(--ui-border);
+    padding-top: 3px;
+    transition: all 0.2s;
+  }
+  .phase-marker.active { color: var(--ui-accent); border-top-color: var(--ui-accent); }
+
+  /* Presets */
+  .presets { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 16px; }
+  .preset-btn {
+    background: var(--ui-bg);
+    border: 1px solid var(--ui-border);
+    border-radius: 6px;
+    color: var(--ui-text-dim);
+    font-size: 11px;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .preset-btn:hover { border-color: var(--ui-accent); color: var(--ui-text); }
+
+  .divider { height: 1px; background: var(--ui-border); margin: 16px 0; }
+
+  /* ─── Phone Frame ───────────────────────────────────────── */
+  .phone-container { position: relative; }
+  .phone-glow {
+    position: absolute;
+    width: 500px; height: 500px;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(ellipse, rgba(232,114,74,0.08) 0%, transparent 70%);
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  .phone-frame {
+    position: relative;
+    width: 300px; height: 620px;
+    background: #1c1c1e;
+    border-radius: 40px;
+    padding: 12px;
+    box-shadow: 0 8px 32px rgba(44,36,32,0.4), 0 0 0 1px rgba(255,255,255,0.05);
+    transition: all 0.3s;
+  }
+  .phone-frame.no-frame {
+    background: none;
+    border-radius: 16px;
+    padding: 0;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+  .phone-screen {
+    width: 100%; height: 100%;
+    border-radius: 30px;
+    overflow: hidden;
+    position: relative;
+    background: var(--cm-bg);
+  }
+  .phone-frame.no-frame .phone-screen { border-radius: 16px; }
+  .phone-notch {
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 120px; height: 28px;
+    background: #1c1c1e;
+    border-radius: 0 0 18px 18px;
+    z-index: 50;
+  }
+  .phone-frame.no-frame .phone-notch { display: none; }
+  .phone-home-indicator {
+    position: absolute;
+    bottom: 8px; left: 50%;
+    transform: translateX(-50%);
+    width: 100px; height: 4px;
+    background: rgba(44,36,32,0.2);
+    border-radius: 2px;
+    z-index: 50;
+  }
+
+  /* ─── Animation Layers ──────────────────────────────────── */
+  .anim-layer {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+
+  /* Phase 1: Title */
+  .phase-title { text-align: center; padding: 24px; }
+  .phase-title h2 {
+    font-family: Georgia, serif;
+    font-size: 24px; font-weight: 800;
+    color: var(--cm-text);
+    letter-spacing: -0.3px;
+    line-height: 1.3;
+  }
+  .phase-title .warm-glow {
+    position: absolute;
+    top: 35%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 250px; height: 250px;
+    background: radial-gradient(ellipse, rgba(244,226,214,0.5) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* Phase 2: Montage */
+  .montage-container {
+    position: absolute; inset: 0;
+    overflow: hidden;
+  }
+  /* Fade masks at top and bottom of montage area */
+  .montage-fade-top, .montage-fade-bottom {
+    position: absolute;
+    left: 0; right: 0;
+    height: 80px;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .montage-fade-top {
+    top: 0;
+    background: linear-gradient(to bottom, var(--cm-bg), transparent);
+  }
+  .montage-fade-bottom {
+    bottom: 0;
+    background: linear-gradient(to top, var(--cm-bg), transparent);
+  }
+  .memory-card {
+    position: absolute;
+    width: 230px;
+    background: var(--cm-card);
+    border: 1px solid var(--cm-border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    box-shadow: 0 1px 3px rgba(44,36,32,0.06);
+    left: 50%;
+    overflow: hidden;
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+  }
+  .memory-card .card-header {
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 8px;
+  }
+  .memory-card .child-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .memory-card .child-name { font-size: 11px; font-weight: 600; }
+  .memory-card .card-date { font-size: 10px; color: var(--cm-textMuted); margin-left: auto; }
+  .memory-card .card-text {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px; font-weight: 450;
+    color: var(--cm-text);
+    line-height: 1.55;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .memory-card .card-texture {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    opacity: 0.025;
+  }
+
+  /* Phase 3: Number Reveal */
+  .phase-number { text-align: center; padding: 24px; }
+  .phase-number .big-number {
+    font-family: Georgia, serif;
+    font-size: 52px; font-weight: 800;
+    color: var(--cm-text);
+    line-height: 1; margin-bottom: 4px;
+  }
+  .phase-number .memories-label {
+    font-family: Georgia, serif;
+    font-size: 20px; font-weight: 400;
+    color: var(--cm-textSoft);
+    margin-bottom: 20px;
+  }
+  .phase-number .tagline {
+    font-size: 14px;
+    color: var(--cm-textMuted);
+    font-style: italic;
+  }
+
+  /* Phase 4: CTA */
+  .phase-cta { text-align: center; padding: 24px; }
+  .phase-cta .cta-heading {
+    font-family: Georgia, serif;
+    font-size: 18px; font-weight: 700;
+    color: var(--cm-text);
+    margin-bottom: 6px;
+  }
+  .phase-cta .cta-sub {
+    font-size: 14px;
+    color: var(--cm-textSoft);
+    margin-bottom: 28px;
+  }
+  .mic-btn-wrap {
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 16px;
+  }
+  .mic-glow {
+    position: absolute;
+    width: 120px; height: 120px;
+    border-radius: 60px;
+    background: var(--cm-accent);
+    opacity: 0.12;
+    animation: micPulse 2.4s ease-in-out infinite;
+  }
+  .mic-btn {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    background: var(--cm-accent);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 20px rgba(232,114,74,0.35);
+    position: relative;
+  }
+  .mic-btn svg { width: 32px; height: 32px; fill: white; }
+  .write-link { font-size: 13px; color: var(--cm-textSoft); font-weight: 500; }
+  @keyframes micPulse {
+    0%, 100% { transform: scale(1); opacity: 0.12; }
+    50% { transform: scale(1.2); opacity: 0.18; }
+  }
+
+  /* Phase transition splash */
+  .transition-splash {
+    position: absolute;
+    inset: 0;
+    z-index: 40;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .splash-wash-el {
+    position: absolute;
+    inset: 0;
+    background: var(--cm-accent);
+  }
+  .splash-radial-el {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 200%;
+    height: 200%;
+    border-radius: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    background: radial-gradient(circle, var(--cm-accent) 0%, rgba(232,114,74,0.5) 35%, transparent 65%);
+  }
+  .splash-wipe-el {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 100%;
+    background: linear-gradient(to top, var(--cm-accent), rgba(232,114,74,0.7) 60%, transparent);
+    transform: translateY(100%);
+  }
+  .splash-page-el {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, var(--cm-accent) 0%, rgba(232,114,74,0.6) 50%, rgba(250,248,245,0.9) 51%, var(--cm-bg) 100%);
+    transform-origin: left center;
+    transform: perspective(800px) rotateY(-90deg);
+  }
+
+  /* Debug overlay */
+  .debug-overlay {
+    position: absolute;
+    top: 8px; right: 8px;
+    background: rgba(0,0,0,0.75);
+    color: #0f0;
+    font-family: monospace;
+    font-size: 10px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    z-index: 100;
+    pointer-events: none;
+    line-height: 1.6;
+  }
+
+  /* ─── Bottom Bar: Prompt + Feedback ─────────────────────── */
+  .bottom-bar {
+    display: flex;
+    height: 110px;
+  }
+  .prompt-panel, .feedback-panel {
+    flex: 1;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .prompt-panel {
+    border-right: 1px solid var(--ui-border);
+  }
+  .panel-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--ui-text-dim);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .prompt-text {
+    flex: 1;
+    font-size: 12px;
+    color: var(--ui-text-dim);
+    line-height: 1.4;
+    font-family: 'SF Mono', 'Cascadia Code', monospace;
+    background: var(--ui-bg);
+    border: 1px solid var(--ui-border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    overflow-y: auto;
+  }
+  .feedback-textarea {
+    flex: 1;
+    font-size: 13px;
+    color: var(--ui-text);
+    line-height: 1.4;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--ui-bg);
+    border: 1px solid var(--ui-border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    resize: none;
+    outline: none;
+  }
+  .feedback-textarea:focus { border-color: var(--ui-accent); }
+  .feedback-textarea::placeholder { color: #555; }
+  .small-btn {
+    background: var(--ui-accent);
+    border: none;
+    border-radius: 6px;
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 5px 14px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+  }
+  .small-btn:hover { opacity: 0.85; }
+  .small-btn.secondary {
+    background: var(--ui-border);
+    color: var(--ui-text);
+  }
+
+  /* ─── Ambient ───────────────────────────────────────────── */
+  .preview-area.dark-ambient { background: #111; }
+  .preview-area.light-ambient { background: #2a2a2a; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- ─── Controls Panel ────────────────────────────────── -->
+  <div class="controls">
+    <h1>Vision Video</h1>
+    <p class="subtitle">Forever Fireflies — "6 months from now" intro</p>
+
+    <!-- Presets -->
+    <div class="presets">
+      <button class="preset-btn" onclick="applyPreset('cinematic')">Cinematic</button>
+      <button class="preset-btn" onclick="applyPreset('gentle')">Gentle</button>
+      <button class="preset-btn" onclick="applyPreset('fast')">Fast & Punchy</button>
+      <button class="preset-btn" onclick="applyPreset('debug')">Debug Slow</button>
+    </div>
+
+    <!-- Transport -->
+    <div class="control-group">
+      <h3>Playback</h3>
+      <div class="transport">
+        <button class="transport-btn" id="restartBtn" onclick="restart()" title="Restart">&#x27F2;</button>
+        <button class="transport-btn" id="playBtn" onclick="togglePlay()" title="Play/Pause">&#x25B6;</button>
+        <span class="time-display" id="timeDisplay">0.00 / 12.00</span>
+      </div>
+      <div class="scrubber-wrap">
+        <input type="range" class="scrubber" id="scrubber" min="0" max="1200" value="0" oninput="scrub(this.value)">
+      </div>
+      <div class="phase-markers" id="phaseMarkers">
+        <div class="phase-marker" style="width:16.67%">Title</div>
+        <div class="phase-marker" style="width:50%">Montage</div>
+        <div class="phase-marker" style="width:16.67%">Number</div>
+        <div class="phase-marker" style="width:16.67%">CTA</div>
+      </div>
+    </div>
+
+    <!-- Speed -->
+    <div class="control-group">
+      <h3>Playback Speed</h3>
+      <div class="speed-btns" id="speedBtns">
+        <button class="speed-btn" onclick="setSpeed(0.25)">0.25&times;</button>
+        <button class="speed-btn" onclick="setSpeed(0.5)">0.5&times;</button>
+        <button class="speed-btn active" onclick="setSpeed(1)">1&times;</button>
+        <button class="speed-btn" onclick="setSpeed(2)">2&times;</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Content -->
+    <div class="control-group">
+      <h3>Content</h3>
+      <div class="control-row">
+        <label>Child name</label>
+        <input type="text" id="childName" value="Emma" oninput="updateAll()">
+      </div>
+      <div class="control-row">
+        <label>Memory count</label>
+        <input type="number" id="memoryCount" value="182" min="1" max="999" oninput="updateAll()">
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Montage tuning -->
+    <div class="control-group">
+      <h3>Montage Cards</h3>
+      <div class="range-row">
+        <label>Card count</label>
+        <input type="range" id="cardCount" min="3" max="12" step="1" value="12" oninput="updateCardTuning()">
+        <span class="range-val" id="cardCountVal">12</span>
+      </div>
+      <div class="range-row">
+        <label>Card pace</label>
+        <input type="range" id="cardPace" min="0.5" max="5" step="0.1" value="2.5" oninput="updateCardTuning()">
+        <span class="range-val" id="cardPaceVal">2.5s</span>
+      </div>
+      <div class="range-row">
+        <label>Card overlap</label>
+        <input type="range" id="cardOverlap" min="1" max="10" step="1" value="4" oninput="updateCardTuning()">
+        <span class="range-val" id="cardOverlapVal">4</span>
+      </div>
+      <div class="range-row">
+        <label>Card wobble</label>
+        <input type="range" id="cardWobble" min="0" max="15" step="1" value="5" oninput="updateCardTuning()">
+        <span class="range-val" id="cardWobbleVal">5&deg;</span>
+      </div>
+      <p style="font-size:11px; color:var(--ui-text-dim); margin-top:4px; line-height:1.4">
+        Pace = how long each card is readable. Overlap = how many cards visible at once. Wobble = rotation amount.
+      </p>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Montage exit style -->
+    <div class="control-group">
+      <h3>Card Exit Style</h3>
+      <div class="speed-btns">
+        <button class="speed-btn active" id="exitFade" onclick="setExitStyle('fade')">Fade Out</button>
+        <button class="speed-btn" id="exitFlip" onclick="setExitStyle('flip')">Flip Away</button>
+        <button class="speed-btn" id="exitShrink" onclick="setExitStyle('shrink')">Shrink</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Transition style -->
+    <div class="control-group">
+      <h3>Phase Transitions</h3>
+      <div class="speed-btns" style="margin-bottom:10px">
+        <button class="speed-btn active" id="trWash" onclick="setTransitionStyle('wash')">Color Wash</button>
+        <button class="speed-btn" id="trRadial" onclick="setTransitionStyle('radial')">Radial Burst</button>
+        <button class="speed-btn" id="trWipe" onclick="setTransitionStyle('wipe')">Wipe Up</button>
+        <button class="speed-btn" id="trPage" onclick="setTransitionStyle('page')">Page Turn</button>
+        <button class="speed-btn" id="trNone" onclick="setTransitionStyle('none')">None</button>
+      </div>
+      <div class="range-row">
+        <label>Duration</label>
+        <input type="range" id="transitionDur" min="0.1" max="1" step="0.05" value="0.3" oninput="updateTransitionTuning()">
+        <span class="range-val" id="transitionDurVal">0.30s</span>
+      </div>
+      <div class="range-row">
+        <label>Intensity</label>
+        <input type="range" id="transitionIntensity" min="10" max="80" step="5" value="35" oninput="updateTransitionTuning()">
+        <span class="range-val" id="transitionIntensityVal">35%</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Phase timing -->
+    <div class="control-group">
+      <h3>Phase Timing (seconds)</h3>
+      <div class="control-row">
+        <label>Title</label>
+        <input type="number" id="titleDur" value="2" min="0.5" max="5" step="0.5" oninput="updateTimings()">
+      </div>
+      <div class="control-row">
+        <label>Montage</label>
+        <input type="number" id="montageDur" value="15" min="4" max="30" step="0.5" oninput="updateTimings()">
+      </div>
+      <div class="control-row">
+        <label>Number reveal</label>
+        <input type="number" id="numberDur" value="2.5" min="1" max="5" step="0.5" oninput="updateTimings()">
+      </div>
+      <div class="control-row">
+        <label>CTA</label>
+        <input type="number" id="ctaDur" value="2.5" min="1" max="5" step="0.5" oninput="updateTimings()">
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Visual toggles -->
+    <div class="control-group">
+      <h3>Visual</h3>
+      <div class="control-row">
+        <label>Phone frame</label>
+        <label class="toggle"><input type="checkbox" id="showFrame" checked onchange="updateAll()"><span class="slider"></span></label>
+      </div>
+      <div class="control-row">
+        <label>Dark ambient</label>
+        <label class="toggle"><input type="checkbox" id="darkAmbient" checked onchange="updateAll()"><span class="slider"></span></label>
+      </div>
+      <div class="control-row">
+        <label>Paper texture</label>
+        <label class="toggle"><input type="checkbox" id="showTexture" checked onchange="updateAll()"><span class="slider"></span></label>
+      </div>
+      <div class="control-row">
+        <label>Fade edges</label>
+        <label class="toggle"><input type="checkbox" id="showFades" checked onchange="updateAll()"><span class="slider"></span></label>
+      </div>
+      <div class="control-row">
+        <label>Debug overlay</label>
+        <label class="toggle"><input type="checkbox" id="showDebug" onchange="updateAll()"><span class="slider"></span></label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Preview Area ──────────────────────────────────── -->
+  <div class="preview-area dark-ambient" id="previewArea">
+    <div class="phone-container">
+      <div class="phone-glow" id="phoneGlow"></div>
+      <div class="phone-frame" id="phoneFrame">
+        <div class="phone-notch" id="phoneNotch"></div>
+        <div class="phone-screen" id="phoneScreen">
+
+          <!-- Phase 1: Title -->
+          <div class="anim-layer" id="layerTitle" style="opacity:0">
+            <div class="phase-title">
+              <div class="warm-glow"></div>
+              <h2 id="titleText">Forever Fireflies</h2>
+            </div>
+          </div>
+
+          <!-- Phase 2: Montage -->
+          <div class="anim-layer" id="layerMontage" style="opacity:0">
+            <div class="montage-container" id="montageContainer">
+              <div class="montage-fade-top" id="fadeTop"></div>
+              <div class="montage-fade-bottom" id="fadeBottom"></div>
+            </div>
+          </div>
+
+          <!-- Phase 3: Number -->
+          <div class="anim-layer" id="layerNumber" style="opacity:0">
+            <div class="phase-number">
+              <div class="big-number" id="bigNumber">182</div>
+              <div class="memories-label">memories</div>
+              <div class="tagline">One moment a day. That's all it takes.</div>
+            </div>
+          </div>
+
+          <!-- Phase 4: CTA -->
+          <div class="anim-layer" id="layerCTA" style="opacity:0">
+            <div class="phase-cta">
+              <div class="cta-heading" id="ctaHeading">Start Emma's memory book</div>
+              <div class="cta-sub">One moment a day. That's all it takes.</div>
+              <div class="mic-btn-wrap">
+                <div class="mic-glow"></div>
+                <div class="mic-btn">
+                  <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+                </div>
+              </div>
+              <div class="write-link">or write instead</div>
+            </div>
+          </div>
+
+          <!-- Phase transition splash -->
+          <div class="transition-splash" id="transitionSplash">
+            <div class="splash-wash-el" id="splashWashEl"></div>
+            <div class="splash-radial-el" id="splashRadialEl"></div>
+            <div class="splash-wipe-el" id="splashWipeEl"></div>
+            <div class="splash-page-el" id="splashPageEl"></div>
+          </div>
+
+          <!-- Debug overlay -->
+          <div class="debug-overlay" id="debugOverlay" style="display:none">
+            Phase: <span id="debugPhase">&mdash;</span><br>
+            Time: <span id="debugTime">0.00</span>s<br>
+            Cards visible: <span id="debugCards">0</span><br>
+            Progress: <span id="debugProgress">0</span>%
+          </div>
+        </div>
+        <div class="phone-home-indicator"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Bottom Bar: Prompt + Feedback ─────────────────── -->
+  <div class="bottom-bar">
+    <div class="prompt-panel">
+      <div class="panel-label">
+        <span>Generated Prompt</span>
+        <button class="small-btn" onclick="copyPrompt()">Copy</button>
+      </div>
+      <div class="prompt-text" id="promptText"></div>
+    </div>
+    <div class="feedback-panel">
+      <div class="panel-label">
+        <span>Feedback Notes</span>
+        <button class="small-btn secondary" onclick="copyFeedback()">Copy Notes</button>
+      </div>
+      <textarea class="feedback-textarea" id="feedbackArea" placeholder="Jot down what you'd like changed... e.g. 'cards too fast', 'love the number reveal', 'try warmer glow'&#10;&#10;Copy these notes and paste them back into Claude Code."></textarea>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Memory entries data ──────────────────────────────────
+const MEMORIES = [
+  { text: 'She said "I love you to the moon" for the first time', child: 'Emma', color: '#7BAFD4', month: 0 },
+  { text: 'He built a tower taller than himself today', child: 'Liam', color: '#D4A07B', month: 0 },
+  { text: "First day of preschool \u2014 she didn't even look back", child: 'Emma', color: '#7BAFD4', month: 1 },
+  { text: 'He asked why the sky is blue and I had no answer', child: 'Liam', color: '#D4A07B', month: 1 },
+  { text: 'She shared her cookie with a stranger at the park', child: 'Emma', color: '#7BAFD4', month: 2 },
+  { text: 'Bedtime giggles that went on for twenty minutes', child: 'Liam', color: '#D4A07B', month: 2 },
+  { text: 'She drew our family \u2014 I was the biggest one', child: 'Emma', color: '#7BAFD4', month: 3 },
+  { text: 'He sang the ABCs perfectly, then took a bow', child: 'Liam', color: '#D4A07B', month: 3 },
+  { text: "She whispered \"you're my best friend\" at bedtime", child: 'Emma', color: '#7BAFD4', month: 4 },
+  { text: 'He counted to twenty for the first time', child: 'Liam', color: '#D4A07B', month: 4 },
+  { text: 'She tried to make breakfast \u2014 cereal everywhere', child: 'Emma', color: '#7BAFD4', month: 5 },
+  { text: 'He told the dog a whole story about a dragon', child: 'Liam', color: '#D4A07B', month: 5 },
+];
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// ─── State ────────────────────────────────────────────────
+const state = {
+  playing: false,
+  time: 0,
+  speed: 1,
+  childName: 'Emma',
+  memoryCount: 182,
+  showFrame: true,
+  darkAmbient: true,
+  showTexture: true,
+  showFades: true,
+  showDebug: false,
+  exitStyle: 'fade',           // fade | flip | shrink
+  transitionStyle: 'wash',     // wash | radial | wipe | none
+  transitionDur: 0.3,          // seconds
+  transitionIntensity: 35,     // peak opacity %
+  // Card tuning
+  cardCount: 12,    // how many cards to show in montage
+  cardPace: 2.5,    // seconds each card is readable (slow enough to read)
+  cardOverlap: 4,   // how many cards visible simultaneously
+  cardWobble: 5,    // max rotation degrees
+  // Phase timings in seconds
+  titleDur: 2,
+  montageDur: 15,
+  numberDur: 2.5,
+  ctaDur: 2.5,
+};
+
+let totalDuration = 15;
+let totalTicks = 1500;
+let animFrame = null;
+let lastTimestamp = null;
+let phases = {};
+
+// Screen height for card travel (phone screen inner area)
+const SCREEN_H = 596; // phone-screen height
+
+function recalcPhases() {
+  totalDuration = state.titleDur + state.montageDur + state.numberDur + state.ctaDur;
+  totalTicks = Math.round(totalDuration * 100);
+  const t1 = state.titleDur * 100;
+  const t2 = t1 + state.montageDur * 100;
+  const t3 = t2 + state.numberDur * 100;
+  phases = {
+    title: { start: 0, end: t1 },
+    montage: { start: t1, end: t2 },
+    number: { start: t2, end: t3 },
+    cta: { start: t3, end: totalTicks },
+  };
+  document.getElementById('scrubber').max = totalTicks;
+  const markers = document.querySelectorAll('.phase-marker');
+  const durations = [state.titleDur, state.montageDur, state.numberDur, state.ctaDur];
+  markers.forEach((m, i) => {
+    m.style.width = (durations[i] / totalDuration * 100) + '%';
+  });
+}
+
+// ─── Animation Loop ──────────────────────────────────────
+function tick(timestamp) {
+  if (!state.playing) return;
+  if (lastTimestamp === null) lastTimestamp = timestamp;
+  const delta = (timestamp - lastTimestamp) * state.speed;
+  lastTimestamp = timestamp;
+  state.time += delta / 10;
+
+  if (state.time >= totalTicks) {
+    state.time = totalTicks;
+    state.playing = false;
+    document.getElementById('playBtn').classList.remove('playing');
+    document.getElementById('playBtn').innerHTML = '&#x25B6;';
+  }
+  renderFrame();
+  if (state.playing) animFrame = requestAnimationFrame(tick);
+}
+
+function renderFrame() {
+  const t = state.time;
+  document.getElementById('scrubber').value = t;
+
+  const secs = (t / 100).toFixed(2);
+  document.getElementById('timeDisplay').textContent = secs + ' / ' + (totalTicks/100).toFixed(2);
+
+  let currentPhase = 'title';
+  if (t >= phases.cta.start) currentPhase = 'cta';
+  else if (t >= phases.number.start) currentPhase = 'number';
+  else if (t >= phases.montage.start) currentPhase = 'montage';
+
+  const markerEls = document.querySelectorAll('.phase-marker');
+  ['title','montage','number','cta'].forEach((name, i) => {
+    markerEls[i].classList.toggle('active', name === currentPhase);
+  });
+
+  if (state.showDebug) {
+    document.getElementById('debugPhase').textContent = currentPhase;
+    document.getElementById('debugTime').textContent = secs;
+    document.getElementById('debugProgress').textContent = Math.round(t / totalTicks * 100);
+  }
+
+  renderTransitions(t);
+  renderPhaseTitle(t);
+  renderPhaseMontage(t);
+  renderPhaseNumber(t);
+  renderPhaseCTA(t);
+}
+
+// ─── Phase Transition Splashes ────────────────────────────
+function renderTransitions(t) {
+  var washEl = document.getElementById('splashWashEl');
+  var radialEl = document.getElementById('splashRadialEl');
+  var wipeEl = document.getElementById('splashWipeEl');
+  var pageEl = document.getElementById('splashPageEl');
+
+  // Hide all by default
+  washEl.style.opacity = '0';
+  radialEl.style.opacity = '0';
+  wipeEl.style.opacity = '0';
+  pageEl.style.opacity = '0';
+
+  if (state.transitionStyle === 'none') return;
+
+  // Transition points: end of title, end of montage, end of number
+  var transitionPoints = [phases.title.end, phases.montage.end, phases.number.end];
+  var halfDur = Math.round(state.transitionDur * 50); // centiseconds each side of peak
+  var peakOpacity = state.transitionIntensity / 100;
+
+  var bestProgress = -1;
+
+  for (var ti = 0; ti < transitionPoints.length; ti++) {
+    var tp = transitionPoints[ti];
+    var dist = t - tp;
+    if (dist > -halfDur && dist < halfDur) {
+      var progress = 1 - Math.abs(dist) / halfDur;
+      if (progress > bestProgress) bestProgress = progress;
+    }
+  }
+
+  if (bestProgress <= 0) return;
+
+  var eased = Math.sin(bestProgress * Math.PI * 0.5);
+
+  if (state.transitionStyle === 'wash') {
+    washEl.style.opacity = (eased * peakOpacity).toFixed(3);
+  } else if (state.transitionStyle === 'radial') {
+    var scale = 0.1 + eased * 0.9;
+    radialEl.style.transform = 'translate(-50%, -50%) scale(' + scale.toFixed(3) + ')';
+    radialEl.style.opacity = (eased * peakOpacity * 1.5).toFixed(3);
+  } else if (state.transitionStyle === 'wipe') {
+    var wipeY;
+    if (bestProgress < 0.5) {
+      wipeY = 100 - (bestProgress / 0.5) * 100;
+    } else {
+      wipeY = -((bestProgress - 0.5) / 0.5) * 100;
+    }
+    wipeEl.style.transform = 'translateY(' + wipeY.toFixed(1) + '%)';
+    wipeEl.style.opacity = (peakOpacity * 1.2).toFixed(3);
+  } else if (state.transitionStyle === 'page') {
+    // Page turn: a page swings from right (-90deg) through flat (0deg) to left (90deg)
+    // Like turning a page in a journal — fits the book metaphor perfectly
+    // bestProgress 0→0.5 = page swings in (closed right → flat)
+    // bestProgress 0.5→1 = page swings out (flat → closed left)
+    var angle;
+    if (bestProgress < 0.5) {
+      var inT = bestProgress / 0.5; // 0→1
+      angle = -90 + easeOutCubic(inT) * 90; // -90 → 0
+    } else {
+      var outT = (bestProgress - 0.5) / 0.5; // 0→1
+      angle = easeInCubic(outT) * 90; // 0 → 90
+    }
+    // Shadow on the page edge for depth
+    var shadowIntensity = (1 - Math.abs(angle) / 90) * 0.3;
+    pageEl.style.transform = 'perspective(800px) rotateY(' + angle.toFixed(1) + 'deg)';
+    pageEl.style.opacity = (peakOpacity * 1.3).toFixed(3);
+    pageEl.style.boxShadow = Math.abs(angle) < 45
+      ? (-10 * Math.sign(angle || 1)) + 'px 0 30px rgba(44,36,32,' + shadowIntensity.toFixed(2) + ')'
+      : 'none';
+  }
+}
+
+// ─── Phase 1: Title ───────────────────────────────────────
+function renderPhaseTitle(t) {
+  const layer = document.getElementById('layerTitle');
+  const p = phases.title;
+  if (t < p.start || t > p.end + 50) { layer.style.opacity = 0; return; }
+  const localT = (t - p.start) / (p.end - p.start);
+  let opacity = 1;
+  if (localT < 0.3) opacity = localT / 0.3;
+  if (localT > 0.8) opacity = Math.max(0, 1 - (localT - 0.8) / 0.2);
+  layer.style.opacity = opacity;
+  const scale = 0.92 + 0.08 * Math.min(1, localT / 0.4);
+  document.getElementById('titleText').style.transform = 'scale(' + scale + ')';
+}
+
+// ─── Phase 2: Montage (REWRITTEN — continuous upward flow) ─
+let montageCards = [];
+
+function buildMontageCards() {
+  const container = document.getElementById('montageContainer');
+  // Preserve fade elements
+  const fadeTop = document.getElementById('fadeTop');
+  const fadeBottom = document.getElementById('fadeBottom');
+  // Clear only card elements
+  while (container.children.length > 2) {
+    const last = container.lastChild;
+    if (last !== fadeTop && last !== fadeBottom) container.removeChild(last);
+    else break;
+  }
+  // Re-add fades if removed
+  if (!container.contains(fadeTop)) container.appendChild(fadeTop);
+  if (!container.contains(fadeBottom)) container.appendChild(fadeBottom);
+
+  montageCards = [];
+
+  MEMORIES.slice(0, state.cardCount).forEach((mem, i) => {
+    const card = document.createElement('div');
+    card.className = 'memory-card';
+    const now = new Date();
+    const entryMonth = (now.getMonth() + mem.month) % 12;
+    const day = 5 + ((i * 7 + 3) % 20); // deterministic so it doesn't change on rebuild
+
+    const textureSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><filter id="n' + i + '"><feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="4"/></filter><rect width="200" height="200" filter="url(%23n' + i + ')" opacity="0.025"/></svg>';
+
+    card.innerHTML =
+      (state.showTexture ? '<div class="card-texture" style="background:url(\'data:image/svg+xml,' + encodeURIComponent(textureSvg) + '\') repeat"></div>' : '') +
+      '<div class="card-header">' +
+        '<div class="child-dot" style="background:' + mem.color + '"></div>' +
+        '<span class="child-name" style="color:' + mem.color + '">' + mem.child + '</span>' +
+        '<span class="card-date">' + MONTHS[entryMonth] + ' ' + day + '</span>' +
+      '</div>' +
+      '<div class="card-text">' + mem.text + '</div>';
+
+    card.style.opacity = '0';
+    container.appendChild(card);
+    montageCards.push(card);
+  });
+}
+
+function renderPhaseMontage(t) {
+  const layer = document.getElementById('layerMontage');
+  const p = phases.montage;
+
+  if (t < p.start - 30 || t > p.end + 50) {
+    layer.style.opacity = '0';
+    montageCards.forEach(c => { c.style.opacity = '0'; });
+    return;
+  }
+
+  // Layer fade in/out
+  const localT = Math.max(0, Math.min(1, (t - p.start) / (p.end - p.start)));
+  let layerOpacity = 1;
+  if (localT < 0.03) layerOpacity = localT / 0.03;
+  if (localT > 0.95) layerOpacity = Math.max(0, 1 - (localT - 0.95) / 0.05);
+  layer.style.opacity = layerOpacity;
+
+  // Toggle fade edges
+  document.getElementById('fadeTop').style.display = state.showFades ? 'block' : 'none';
+  document.getElementById('fadeBottom').style.display = state.showFades ? 'block' : 'none';
+
+  const count = montageCards.length;
+  const montageSecs = state.montageDur;
+
+  // Each card takes `cardPace` seconds to travel from bottom to top.
+  // Cards are staggered so `cardOverlap` are visible at once.
+  // Stagger interval = cardPace / cardOverlap
+  const staggerSec = state.cardPace / state.cardOverlap;
+  // Total time needed for all cards = (count - 1) * staggerSec + cardPace
+  // We scale to fit within the montage duration
+  const totalNeeded = (count - 1) * staggerSec + state.cardPace;
+  const timeScale = montageSecs / totalNeeded;
+
+  let visibleCount = 0;
+
+  montageCards.forEach((card, i) => {
+    // Each card's local time window (in montage-normalized 0-1 space)
+    const cardStartSec = i * staggerSec * timeScale;
+    const cardEndSec = cardStartSec + state.cardPace * timeScale;
+    const cardStartN = cardStartSec / montageSecs;
+    const cardEndN = cardEndSec / montageSecs;
+
+    // Where is this card in its own lifecycle? 0 = just appeared at bottom, 1 = exited at top
+    const cardLife = (localT - cardStartN) / (cardEndN - cardStartN);
+
+    if (cardLife < -0.05 || cardLife > 1.05) {
+      card.style.opacity = '0';
+      return;
+    }
+
+    const progress = Math.max(0, Math.min(1, cardLife));
+    visibleCount++;
+
+    // ─── Y position: bottom → center → top ─────────────
+    // 0.0 = below screen (y = SCREEN_H + 20)
+    // 0.5 = center (y = SCREEN_H/2 - 40, centered)
+    // 1.0 = above screen (y = -120)
+    const startY = SCREEN_H + 20;
+    const endY = -120;
+    const eased = easeInOutSine(progress);
+    const y = startY + (endY - startY) * eased;
+
+    // ─── X wobble: gentle side-to-side ──────────────────
+    const wobbleX = Math.sin(progress * Math.PI * 1.5 + i * 0.8) * 8 * (i % 2 ? 1 : -1);
+
+    // ─── Rotation wobble ────────────────────────────────
+    const maxRot = state.cardWobble;
+    const rotBase = (i % 2 ? 1 : -1) * maxRot * 0.6;
+    const rotWobble = Math.sin(progress * Math.PI + i) * maxRot * 0.4;
+    const rot = rotBase + rotWobble;
+
+    // ─── Opacity: fade in at bottom, readable in middle, exit at top ─
+    let opacity = 1;
+    // Fade in during first 15%
+    if (progress < 0.15) opacity = easeOutCubic(progress / 0.15);
+
+    // Exit behavior in last 20%
+    if (progress > 0.8) {
+      const exitT = (progress - 0.8) / 0.2;
+      if (state.exitStyle === 'fade') {
+        opacity = 1 - easeInCubic(exitT);
+      } else if (state.exitStyle === 'flip') {
+        opacity = 1 - easeInCubic(exitT);
+      } else { // shrink
+        opacity = 1 - easeInCubic(exitT);
+      }
+    }
+
+    // ─── Scale ──────────────────────────────────────────
+    let scale = 1;
+    if (progress < 0.1) scale = 0.85 + 0.15 * easeOutCubic(progress / 0.1);
+    if (progress > 0.8 && state.exitStyle === 'shrink') {
+      const exitT = (progress - 0.8) / 0.2;
+      scale = 1 - 0.3 * easeInCubic(exitT);
+    }
+
+    // ─── Flip rotation for "flip" exit style ────────────
+    let rotX = 0;
+    if (progress > 0.8 && state.exitStyle === 'flip') {
+      const exitT = (progress - 0.8) / 0.2;
+      rotX = easeInCubic(exitT) * 60; // tilt forward as it exits
+    }
+
+    // ─── Shadow depth: stronger when centered ───────────
+    const centerProx = 1 - Math.abs(progress - 0.45) * 2;
+    const shadowAlpha = 0.04 + 0.08 * Math.max(0, centerProx);
+    const shadowBlur = 3 + 12 * Math.max(0, centerProx);
+
+    card.style.opacity = Math.max(0, Math.min(1, opacity));
+    card.style.transform = 'translate(calc(-50% + ' + wobbleX.toFixed(1) + 'px), ' + y.toFixed(1) + 'px) rotate(' + rot.toFixed(1) + 'deg) scale(' + scale.toFixed(3) + ')' + (rotX ? ' perspective(400px) rotateX(' + rotX.toFixed(1) + 'deg)' : '');
+    card.style.boxShadow = '0 ' + Math.round(shadowBlur * 0.3) + 'px ' + Math.round(shadowBlur) + 'px rgba(44,36,32,' + shadowAlpha.toFixed(2) + ')';
+    card.style.zIndex = Math.round(progress * 100);
+  });
+
+  if (state.showDebug) {
+    document.getElementById('debugCards').textContent = visibleCount;
+  }
+}
+
+// ─── Phase 3: Number Reveal ───────────────────────────────
+function renderPhaseNumber(t) {
+  const layer = document.getElementById('layerNumber');
+  const p = phases.number;
+  if (t < p.start - 20 || t > p.end + 30) { layer.style.opacity = 0; return; }
+
+  const localT = Math.max(0, Math.min(1, (t - p.start) / (p.end - p.start)));
+  let opacity = 1;
+  if (localT < 0.2) opacity = easeOutCubic(localT / 0.2);
+  if (localT > 0.85) opacity = Math.max(0, 1 - (localT - 0.85) / 0.15);
+  layer.style.opacity = opacity;
+
+  const numberEl = document.getElementById('bigNumber');
+  const scaleT = Math.min(1, localT / 0.3);
+  const scale = easeOutBack(scaleT);
+  numberEl.style.transform = 'scale(' + scale + ')';
+  numberEl.style.opacity = scaleT;
+
+  const countT = Math.min(1, localT / 0.45);
+  numberEl.textContent = Math.round(easeOutCubic(countT) * state.memoryCount);
+}
+
+// ─── Phase 4: CTA ─────────────────────────────────────────
+function renderPhaseCTA(t) {
+  const layer = document.getElementById('layerCTA');
+  const p = phases.cta;
+  if (t < p.start - 20) { layer.style.opacity = 0; return; }
+
+  const localT = Math.max(0, Math.min(1, (t - p.start) / (p.end - p.start)));
+  layer.style.opacity = easeOutCubic(Math.min(1, localT / 0.3));
+  const slide = 20 * (1 - easeOutCubic(Math.min(1, localT / 0.4)));
+  layer.querySelector('.phase-cta').style.transform = 'translateY(' + slide + 'px)';
+}
+
+// ─── Easing functions ─────────────────────────────────────
+function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+function easeInCubic(t) { return t * t * t; }
+function easeInOutSine(t) { return -(Math.cos(Math.PI * t) - 1) / 2; }
+function easeOutBack(t) {
+  const c = 1.4;
+  return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2);
+}
+
+// ─── Controls ─────────────────────────────────────────────
+function togglePlay() {
+  state.playing = !state.playing;
+  const btn = document.getElementById('playBtn');
+  if (state.playing) {
+    if (state.time >= totalTicks) state.time = 0;
+    btn.classList.add('playing');
+    btn.innerHTML = '&#x23F8;';
+    lastTimestamp = null;
+    animFrame = requestAnimationFrame(tick);
+  } else {
+    btn.classList.remove('playing');
+    btn.innerHTML = '&#x25B6;';
+    if (animFrame) cancelAnimationFrame(animFrame);
+  }
+}
+
+function restart() {
+  state.time = 0;
+  state.playing = false;
+  document.getElementById('playBtn').classList.remove('playing');
+  document.getElementById('playBtn').innerHTML = '&#x25B6;';
+  if (animFrame) cancelAnimationFrame(animFrame);
+  lastTimestamp = null;
+  renderFrame();
+  setTimeout(function() { togglePlay(); }, 100);
+}
+
+function scrub(val) {
+  state.time = parseInt(val);
+  renderFrame();
+}
+
+function setSpeed(s) {
+  state.speed = s;
+  document.querySelectorAll('#speedBtns .speed-btn').forEach(function(btn) {
+    btn.classList.toggle('active', btn.textContent.replace('\u00d7','x') === s + 'x' || btn.textContent === s + '\u00d7');
+  });
+  // More robust matching
+  document.querySelectorAll('#speedBtns .speed-btn').forEach(function(btn) {
+    const val = parseFloat(btn.textContent);
+    btn.classList.toggle('active', val === s);
+  });
+}
+
+function setExitStyle(style) {
+  state.exitStyle = style;
+  document.getElementById('exitFade').classList.toggle('active', style === 'fade');
+  document.getElementById('exitFlip').classList.toggle('active', style === 'flip');
+  document.getElementById('exitShrink').classList.toggle('active', style === 'shrink');
+}
+
+function setTransitionStyle(style) {
+  state.transitionStyle = style;
+  document.getElementById('trWash').classList.toggle('active', style === 'wash');
+  document.getElementById('trRadial').classList.toggle('active', style === 'radial');
+  document.getElementById('trWipe').classList.toggle('active', style === 'wipe');
+  document.getElementById('trPage').classList.toggle('active', style === 'page');
+  document.getElementById('trNone').classList.toggle('active', style === 'none');
+  updatePrompt();
+}
+
+function updateTransitionTuning() {
+  state.transitionDur = parseFloat(document.getElementById('transitionDur').value);
+  state.transitionIntensity = parseInt(document.getElementById('transitionIntensity').value);
+  document.getElementById('transitionDurVal').textContent = state.transitionDur.toFixed(2) + 's';
+  document.getElementById('transitionIntensityVal').textContent = state.transitionIntensity + '%';
+  updatePrompt();
+}
+
+function updateCardTuning() {
+  state.cardCount = parseInt(document.getElementById('cardCount').value);
+  state.cardPace = parseFloat(document.getElementById('cardPace').value);
+  state.cardOverlap = parseInt(document.getElementById('cardOverlap').value);
+  state.cardWobble = parseInt(document.getElementById('cardWobble').value);
+  document.getElementById('cardCountVal').textContent = state.cardCount;
+  document.getElementById('cardPaceVal').textContent = state.cardPace.toFixed(1) + 's';
+  document.getElementById('cardOverlapVal').textContent = state.cardOverlap;
+  document.getElementById('cardWobbleVal').innerHTML = state.cardWobble + '&deg;';
+  buildMontageCards();
+  updatePrompt();
+  if (!state.playing) renderFrame();
+}
+
+function updateTimings() {
+  state.titleDur = parseFloat(document.getElementById('titleDur').value) || 2;
+  state.montageDur = parseFloat(document.getElementById('montageDur').value) || 8;
+  state.numberDur = parseFloat(document.getElementById('numberDur').value) || 2.5;
+  state.ctaDur = parseFloat(document.getElementById('ctaDur').value) || 2.5;
+  recalcPhases();
+  updatePrompt();
+  if (!state.playing) renderFrame();
+}
+
+function updateAll() {
+  state.childName = document.getElementById('childName').value || 'Emma';
+  state.memoryCount = parseInt(document.getElementById('memoryCount').value) || 182;
+  state.showFrame = document.getElementById('showFrame').checked;
+  state.darkAmbient = document.getElementById('darkAmbient').checked;
+  state.showTexture = document.getElementById('showTexture').checked;
+  state.showFades = document.getElementById('showFades').checked;
+  state.showDebug = document.getElementById('showDebug').checked;
+
+  document.getElementById('phoneFrame').classList.toggle('no-frame', !state.showFrame);
+  const area = document.getElementById('previewArea');
+  area.classList.toggle('dark-ambient', state.darkAmbient);
+  area.classList.toggle('light-ambient', !state.darkAmbient);
+  document.getElementById('phoneGlow').style.opacity = state.darkAmbient ? 1 : 0.3;
+  document.getElementById('debugOverlay').style.display = state.showDebug ? 'block' : 'none';
+  document.getElementById('ctaHeading').textContent = 'Start ' + state.childName + "'s memory book";
+
+  buildMontageCards();
+  renderFrame();
+  updatePrompt();
+}
+
+function updatePrompt() {
+  var parts = [];
+  parts.push('Build a welcome screen animation for the Forever Fireflies app (React Native Animated API).');
+  parts.push('The animation shows "what your journal looks like in 6 months" as a cinematic preview.\n');
+  parts.push('Sequence (' + totalDuration.toFixed(1) + 's total):');
+  parts.push('1. Title (' + state.titleDur + 's): Fade in "Forever Fireflies" in Georgia serif on cream #FAF8F5 with warm radial glow.');
+  parts.push('2. Montage (' + state.montageDur + 's): ' + state.cardCount + ' memory cards float up from the bottom of the screen, drift upward, and ' + state.exitStyle + ' out at the top. Cards have paper texture, child-colored dots (blue/amber), warm brown shadows. Each card is readable for ~' + state.cardPace.toFixed(1) + 's with ' + state.cardOverlap + ' cards visible at once. Wobble rotation: ' + state.cardWobble + ' degrees.');
+  parts.push('3. Number reveal (' + state.numberDur + 's): "' + state.memoryCount + ' memories" in Georgia serif, scale-in with overshoot easing + count-up. Tagline: "One moment a day."');
+  parts.push('4. CTA (' + state.ctaDur + 's): Fade to "Start ' + state.childName + "'s memory book\" with pulsing mic button (accent #E8724A).\n");
+  if (state.transitionStyle !== 'none') {
+    parts.push('Phase transitions: ' + state.transitionStyle + ' style using accent color #E8724A, ' + state.transitionDur.toFixed(2) + 's duration, ' + state.transitionIntensity + '% peak intensity.');
+  }
+  parts.push('\nDesign tokens: bg #FAF8F5, card #FFFFFF, text #2C2420, textSoft #8C7E74, accent #E8724A, border #EDE8E3. Warm brown shadows rgba(44,36,32,...). Border radius 14px cards. Georgia = journal voice, system sans = UI.');
+
+  document.getElementById('promptText').textContent = parts.join('\n');
+}
+
+function copyPrompt() {
+  var text = document.getElementById('promptText').textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    var btns = document.querySelectorAll('.prompt-panel .small-btn');
+    btns[0].textContent = 'Copied!';
+    setTimeout(function() { btns[0].textContent = 'Copy'; }, 1500);
+  });
+}
+
+function copyFeedback() {
+  var text = document.getElementById('feedbackArea').value;
+  if (!text.trim()) { alert('Write some notes first!'); return; }
+  var full = '--- Vision Video Feedback ---\n' + text + '\n\nCurrent settings:\n' +
+    '- Montage: ' + state.montageDur + 's, card pace ' + state.cardPace + 's, overlap ' + state.cardOverlap + ', wobble ' + state.cardWobble + 'deg, exit: ' + state.exitStyle + '\n' +
+    '- Phases: title ' + state.titleDur + 's / montage ' + state.montageDur + 's / number ' + state.numberDur + 's / CTA ' + state.ctaDur + 's\n' +
+    '- Total: ' + totalDuration.toFixed(1) + 's, ' + state.memoryCount + ' memories, child: ' + state.childName;
+  navigator.clipboard.writeText(full).then(function() {
+    var btns = document.querySelectorAll('.feedback-panel .small-btn');
+    btns[0].textContent = 'Copied!';
+    setTimeout(function() { btns[0].textContent = 'Copy Notes'; }, 1500);
+  });
+}
+
+// ─── Presets ──────────────────────────────────────────────
+function applyPreset(name) {
+  if (name === 'cinematic') {
+    setFields({ titleDur: 2.5, montageDur: 18, numberDur: 3, ctaDur: 2.5 });
+    setSpeed(1);
+    document.getElementById('cardCount').value = 10;
+    document.getElementById('cardPace').value = 3;
+    document.getElementById('cardOverlap').value = 4;
+    document.getElementById('cardWobble').value = 4;
+    setExitStyle('fade');
+    setTransitionStyle('radial');
+    document.getElementById('transitionDur').value = 0.4;
+    document.getElementById('transitionIntensity').value = 40;
+  } else if (name === 'gentle') {
+    setFields({ titleDur: 3, montageDur: 22, numberDur: 3, ctaDur: 3 });
+    setSpeed(1);
+    document.getElementById('cardCount').value = 8;
+    document.getElementById('cardPace').value = 4;
+    document.getElementById('cardOverlap').value = 3;
+    document.getElementById('cardWobble').value = 2;
+    setExitStyle('fade');
+    setTransitionStyle('wash');
+    document.getElementById('transitionDur').value = 0.5;
+    document.getElementById('transitionIntensity').value = 25;
+  } else if (name === 'fast') {
+    setFields({ titleDur: 1.5, montageDur: 8, numberDur: 1.5, ctaDur: 1.5 });
+    setSpeed(1);
+    document.getElementById('cardCount').value = 12;
+    document.getElementById('cardPace').value = 1.2;
+    document.getElementById('cardOverlap').value = 6;
+    document.getElementById('cardWobble').value = 8;
+    setExitStyle('flip');
+    setTransitionStyle('wipe');
+    document.getElementById('transitionDur').value = 0.2;
+    document.getElementById('transitionIntensity').value = 50;
+  } else if (name === 'debug') {
+    setFields({ titleDur: 3, montageDur: 25, numberDur: 3, ctaDur: 3 });
+    setSpeed(0.5);
+    document.getElementById('cardCount').value = 6;
+    document.getElementById('cardPace').value = 4;
+    document.getElementById('cardOverlap').value = 2;
+    document.getElementById('cardWobble').value = 3;
+    setExitStyle('fade');
+    setTransitionStyle('wash');
+    document.getElementById('transitionDur').value = 0.6;
+    document.getElementById('transitionIntensity').value = 50;
+    document.getElementById('showDebug').checked = true;
+    state.showDebug = true;
+    document.getElementById('debugOverlay').style.display = 'block';
+  }
+  updateTransitionTuning();
+  updateCardTuning();
+  updateTimings();
+}
+
+function setFields(vals) {
+  if (vals.titleDur != null) document.getElementById('titleDur').value = vals.titleDur;
+  if (vals.montageDur != null) document.getElementById('montageDur').value = vals.montageDur;
+  if (vals.numberDur != null) document.getElementById('numberDur').value = vals.numberDur;
+  if (vals.ctaDur != null) document.getElementById('ctaDur').value = vals.ctaDur;
+}
+
+// ─── Initialize ───────────────────────────────────────────
+recalcPhases();
+buildMontageCards();
+updateCardTuning();
+renderFrame();
+updatePrompt();
+</script>
+</body>
+</html>

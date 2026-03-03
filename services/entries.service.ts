@@ -1,0 +1,183 @@
+// Entries service — the heart of the app. Handles creating, reading,
+// updating, and searching journal entries. This is the service that
+// powers the home timeline, Firefly Jar, and search screens.
+
+import { supabase } from '@/lib/supabase';
+import type { Database } from '@/lib/database.types';
+
+type Entry = Database['public']['Tables']['entries']['Row'];
+type EntryInsert = Database['public']['Tables']['entries']['Insert'];
+type EntryUpdate = Database['public']['Tables']['entries']['Update'];
+
+export const entriesService = {
+  /** Fetch timeline entries for the user's family, newest first */
+  async getTimeline(familyId: string, page = 0, pageSize = 20) {
+    const { data, error } = await supabase
+      .from('entries')
+      .select('*, entry_children(child_id), entry_tags(tag_id, tags(name, slug))')
+      .eq('family_id', familyId)
+      .eq('is_deleted', false)
+      .order('entry_date', { ascending: false })
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+
+    if (error) throw new Error(`Failed to fetch timeline: ${error.message}`, { cause: error });
+    return data;
+  },
+
+  /** Get a single entry by ID (excludes soft-deleted entries) */
+  async getEntry(entryId: string) {
+    const { data, error } = await supabase
+      .from('entries')
+      .select('*, entry_children(child_id, auto_detected), entry_tags(tag_id, tags(name, slug))')
+      .eq('id', entryId)
+      .eq('is_deleted', false)
+      .single();
+
+    if (error) throw new Error(`Failed to fetch entry: ${error.message}`, { cause: error });
+    return data;
+  },
+
+  /** Create a new entry.
+   *  Derives user_id from the authenticated session instead of trusting
+   *  the caller. The caller provides family_id and content fields only. */
+  async create(entry: Omit<EntryInsert, 'user_id'>) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated — cannot create entry');
+
+    const { data, error } = await supabase
+      .from('entries')
+      .insert({ ...entry, user_id: user.id })
+      .select()
+      .single();
+
+    if (error) throw new Error(`Failed to create entry: ${error.message}`, { cause: error });
+    return data;
+  },
+
+  /** Update an entry (transcript, date, location, etc.) */
+  async update(entryId: string, updates: EntryUpdate) {
+    const { data, error } = await supabase
+      .from('entries')
+      .update(updates)
+      .eq('id', entryId)
+      .select()
+      .single();
+
+    if (error) throw new Error(`Failed to update entry: ${error.message}`, { cause: error });
+    return data;
+  },
+
+  /** Toggle favorite (Firefly) status.
+   *  Uses an RPC function so family members can star each other's entries
+   *  without having broad UPDATE access to all columns.
+   *  Returns the new is_favorited value, or null if the entry wasn't found. */
+  async toggleFavorite(entryId: string): Promise<boolean | null> {
+    const { data, error } = await supabase.rpc('toggle_entry_favorite', {
+      target_entry_id: entryId,
+    });
+
+    if (error) throw new Error(`Failed to toggle favorite: ${error.message}`, { cause: error });
+    return data;
+  },
+
+  /** Soft-delete an entry (30-day recovery window) */
+  async softDelete(entryId: string) {
+    const { error } = await supabase
+      .from('entries')
+      .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+      .eq('id', entryId);
+
+    if (error) throw new Error(`Failed to soft-delete entry: ${error.message}`, { cause: error });
+  },
+
+  /** Restore a soft-deleted entry */
+  async restore(entryId: string) {
+    const { error } = await supabase
+      .from('entries')
+      .update({ is_deleted: false, deleted_at: null })
+      .eq('id', entryId);
+
+    if (error) throw new Error(`Failed to restore entry: ${error.message}`, { cause: error });
+  },
+
+  /** Permanently delete an entry (only works on entries soft-deleted 30+ days ago) */
+  async hardDelete(entryId: string) {
+    const { error } = await supabase
+      .from('entries')
+      .delete()
+      .eq('id', entryId);
+
+    if (error) throw new Error(`Failed to hard-delete entry: ${error.message}`, { cause: error });
+  },
+
+  /** Get soft-deleted entries (for Recently Deleted in Settings) */
+  async getDeleted(familyId: string, page = 0, pageSize = 20) {
+    const { data, error } = await supabase
+      .from('entries')
+      .select('*, entry_children(child_id), entry_tags(tag_id, tags(name, slug))')
+      .eq('family_id', familyId)
+      .eq('is_deleted', true)
+      .order('deleted_at', { ascending: false })
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+
+    if (error) throw new Error(`Failed to fetch deleted entries: ${error.message}`, { cause: error });
+    return data;
+  },
+
+  /** Get favorited entries (Firefly Jar screen) */
+  async getFavorites(familyId: string, page = 0, pageSize = 20) {
+    const { data, error } = await supabase
+      .from('entries')
+      .select('*, entry_children(child_id), entry_tags(tag_id, tags(name, slug))')
+      .eq('family_id', familyId)
+      .eq('is_deleted', false)
+      .eq('is_favorited', true)
+      .order('entry_date', { ascending: false })
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+
+    if (error) throw new Error(`Failed to fetch favorites: ${error.message}`, { cause: error });
+    return data;
+  },
+
+  /** Full-text search on transcripts */
+  async search(familyId: string, query: string, page = 0, pageSize = 20) {
+    const { data, error } = await supabase
+      .from('entries')
+      .select('*, entry_children(child_id), entry_tags(tag_id, tags(name, slug))')
+      .eq('family_id', familyId)
+      .eq('is_deleted', false)
+      .textSearch('transcript', query, { type: 'websearch', config: 'english' })
+      .order('entry_date', { ascending: false })
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+
+    if (error) throw new Error(`Failed to search entries: ${error.message}`, { cause: error });
+    return data;
+  },
+
+  /** Link children to an entry (replaces existing links).
+   *  Uses an RPC function so the delete + insert happens in a single
+   *  database transaction — if the insert fails, the delete is rolled back
+   *  and the old links are preserved. No silent data loss. */
+  async setEntryChildren(entryId: string, childIds: string[], autoDetected = false) {
+    const { error } = await supabase.rpc('set_entry_children', {
+      target_entry_id: entryId,
+      child_ids: childIds,
+      is_auto_detected: autoDetected,
+    });
+
+    if (error) throw new Error(`Failed to set entry children: ${error.message}`, { cause: error });
+  },
+
+  /** Link tags to an entry (replaces existing links).
+   *  Uses an RPC function so the delete + insert happens in a single
+   *  database transaction — atomic, all-or-nothing. */
+  async setEntryTags(entryId: string, tagIds: string[], autoApplied = false) {
+    const { error } = await supabase.rpc('set_entry_tags', {
+      target_entry_id: entryId,
+      tag_ids: tagIds,
+      is_auto_applied: autoApplied,
+    });
+
+    if (error) throw new Error(`Failed to set entry tags: ${error.message}`, { cause: error });
+  },
+};

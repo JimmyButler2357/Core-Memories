@@ -17,24 +17,14 @@ import {
   screenColors,
   childColors,
 } from '@/constants/theme';
-import { useChildrenStore, type Child } from '@/stores/childrenStore';
-import { useEntriesStore, type Entry } from '@/stores/entriesStore';
+import { useChildrenStore } from '@/stores/childrenStore';
+import { useEntriesStore } from '@/stores/entriesStore';
+import { buildChildMap, entryToCard } from '@/lib/entryHelpers';
 import TopBar from '@/components/TopBar';
 import ChildTab from '@/components/ChildTab';
 import EntryCard from '@/components/EntryCard';
 import PrimaryButton from '@/components/PrimaryButton';
-
-// ─── Helpers ──────────────────────────────────────────────
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-function formatTime(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-}
+import FloatingFireflies from '@/components/FloatingFireflies';
 
 // ─── Core Memories Screen ─────────────────────────────────
 
@@ -47,11 +37,7 @@ export default function CoreMemoriesScreen() {
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
 
   // Build child lookup
-  const childMap = useMemo(() => {
-    const map: Record<string, Child> = {};
-    children.forEach((c) => (map[c.id] = c));
-    return map;
-  }, [children]);
+  const childMap = useMemo(() => buildChildMap(children), [children]);
 
   // All favorited, non-deleted entries (reverse chronological — newest first)
   const coreMemories = useMemo(
@@ -67,40 +53,26 @@ export default function CoreMemoriesScreen() {
 
   const isMultiChild = children.length >= 2;
 
-  // ─── Map Entry to EntryCard format ─────────────────────
-
-  const entryToCard = (entry: Entry) => {
-    const childNames = entry.childIds.map((id) => childMap[id]?.name ?? 'Unknown');
-    const entryChildColors = entry.childIds.map(
-      (id) => childColors[childMap[id]?.colorIndex ?? 0]?.hex ?? colors.textMuted,
-    );
-    return {
-      childNames,
-      childColors: entryChildColors,
-      date: formatDate(entry.date),
-      time: formatTime(entry.date),
-      preview: entry.text,
-      tags: entry.tags,
-      isFavorited: entry.isFavorited,
-      hasAudio: entry.hasAudio,
-    };
-  };
-
   return (
     <View style={styles.container}>
       {/* Warm gradient backdrop — top portion only */}
       <LinearGradient
-        colors={[screenColors.coreMemoriesBg, colors.bg]}
+        colors={[screenColors.fireflyJarBg, colors.bg]}
         locations={[0, 0.35]}
         style={styles.gradientTop}
       />
 
+      {/* Floating firefly particles — ambient gold dots drifting in background */}
+      <View style={styles.firefliesLayer} pointerEvents="none">
+        <FloatingFireflies />
+      </View>
+
       {/* Top bar — serif title, no right icons */}
-      <TopBar title="Core Memories" titleStyle="serif" showBack />
+      <TopBar title="Firefly Jar" titleStyle="serif" showBack />
 
       {/* Memory count */}
       <View style={styles.countRow}>
-        <Ionicons name="heart" size={14} color={colors.heartFilled} />
+        <Ionicons name="heart" size={14} color={colors.glow} />
         <Text style={styles.countText}>
           {coreMemories.length}{' '}
           {coreMemories.length === 1 ? 'memory' : 'memories'} saved
@@ -142,7 +114,7 @@ export default function CoreMemoriesScreen() {
         showsVerticalScrollIndicator={false}
         renderItem={({ item, index }) => (
           <EntryCard
-            entry={entryToCard(item)}
+            entry={entryToCard(item, childMap)}
             variant="coreMemory"
             index={index}
             onPress={() => router.push('/(main)/entry-detail')}
@@ -155,9 +127,9 @@ export default function CoreMemoriesScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="heart-outline" size={48} color={colors.textMuted} />
-            <Text style={styles.emptyHeading}>No core memories yet</Text>
+            <Text style={styles.emptyHeading}>No fireflies yet</Text>
             <Text style={styles.emptyBody}>
-              Tap the heart on any entry to save it as a Core Memory.
+              Tap the heart on any entry to catch it in your Firefly Jar.
             </Text>
             <View style={styles.emptyButtonWrap}>
               <PrimaryButton
@@ -178,6 +150,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   gradientTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 280,
+  },
+  firefliesLayer: {
     position: 'absolute',
     top: 0,
     left: 0,

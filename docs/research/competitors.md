@@ -1,4 +1,4 @@
-# Core Memories — Competitive Landscape Summary
+# Forever Fireflies — Competitive Landscape Summary
 
 ## Category 1: Baby Journal / Memory Book Apps (Photo & Text Focus)
 
@@ -87,7 +87,7 @@ Qeepsake sends daily text-message prompts tailored to each child's age — quest
 
 ### How to Beat Them: Marketing Strategy
 
-**Target Qeepsake's angry users directly.** The Tinybeans merger and paywall changes have created a wave of frustrated long-term users. These parents have years of memories locked in Qeepsake and feel trapped. Your marketing can speak to them directly: "Tired of your memories being held hostage? Switch to [Core Memories] — your voice entries and transcripts are always yours to download, subscription or not." Consider offering a "switch from Qeepsake" migration guide or import tool as a concrete conversion mechanism.
+**Target Qeepsake's angry users directly.** The Tinybeans merger and paywall changes have created a wave of frustrated long-term users. These parents have years of memories locked in Qeepsake and feel trapped. Your marketing can speak to them directly: "Tired of your memories being held hostage? Switch to [Forever Fireflies] — your voice entries and transcripts are always yours to download, subscription or not." Consider offering a "switch from Qeepsake" migration guide or import tool as a concrete conversion mechanism.
 
 **Win the "hands full" moment in social content.** Your social media strategy should relentlessly own the specific moments when Qeepsake fails: nursing at 2 AM, pushing a stroller through the park, driving home from daycare, holding a crying toddler. Short-form video content showing a real parent tapping one button and speaking a memory while their hands are literally occupied — contrasted with the impossibility of typing a text response in that same moment — is your highest-converting creative asset. This isn't theoretical differentiation; it's visceral and immediately understood.
 
@@ -295,7 +295,7 @@ At $49.99/year ($5.99/month), you sit right alongside Qeepsake Essential ($48) a
 - **Warm dark brown text** instead of black is a subtle but important detail across the best sites
 - **Generous whitespace** and lifestyle photography are universal
 
-### Implications for Core-Memories
+### Implications for Forever Fireflies
 - The **Rosewood** theme (pinkish-red + cream) aligns with the strongest competitors (Tinybeans, Leaf)
 - Consider warm brown text colors over pure black/dark across themes
 - Coral/red accent differentiates from the sage-green-heavy competition

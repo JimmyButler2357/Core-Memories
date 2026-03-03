@@ -76,8 +76,8 @@ export default function WelcomePreviewScreen() {
         {/* ─── Section 2: Favorite Moments ────────────── */}
         <View style={styles.section}>
           <View style={styles.sectionLabelRow}>
-            <Ionicons name="heart-outline" size={16} color={colors.accent} />
-            <Text style={[styles.sectionLabel, { color: colors.accent }]}>
+            <Ionicons name="heart-outline" size={16} color={colors.glow} />
+            <Text style={[styles.sectionLabel, { color: colors.glow }]}>
               Your favorite moments
             </Text>
           </View>

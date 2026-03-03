@@ -1,21 +1,77 @@
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useState } from 'react';
+import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, radii } from '@/constants/theme';
-import PrimaryButton from '@/components/PrimaryButton';
+import { authService } from '@/services/auth.service';
 
+/**
+ * Sign In screen — the very first screen new users see.
+ *
+ * Three sign-in options:
+ * 1. Apple (OAuth) — opens Apple's login sheet
+ * 2. Google (OAuth) — opens Google's login page
+ * 3. Email — navigates to our own email/password form
+ *
+ * Apple and Google use "OAuth" — a system where Apple/Google
+ * verify the user's identity and send us back a token.
+ * We never see the user's Apple/Google password.
+ *
+ * Email auth is different — we handle it ourselves with a
+ * form where users type their email and choose a password.
+ */
 export default function SignInScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const goToAddChild = () => router.push('/(onboarding)/add-child');
+  // Track whether an auth action is in progress.
+  // While loading, all buttons are disabled to prevent
+  // the user from tapping twice (which would start two
+  // auth flows at once and cause weird behavior).
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleAppleSignIn = async () => {
+    setIsLoading(true);
+    try {
+      // This opens Apple's sign-in sheet. After the user
+      // authenticates, Supabase receives a token from Apple,
+      // creates/finds the user, and triggers our auth listener
+      // (set up in _layout.tsx), which loads their profile.
+      await authService.signInWithApple();
+      // The auth state change listener in _layout.tsx will
+      // handle navigation — we don't need to manually route.
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Something went wrong';
+      Alert.alert('Sign In Failed', message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    try {
+      await authService.signInWithGoogle();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Something went wrong';
+      Alert.alert('Sign In Failed', message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Email doesn't do auth right here — it navigates to a
+  // separate screen with a form (email + password fields).
+  const handleEmailPress = () => {
+    router.push('/(onboarding)/email-auth');
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Upper area — title + tagline */}
       <View style={styles.upper}>
-        <Text style={styles.title}>Core Memories</Text>
+        <Text style={styles.title}>Forever Fireflies</Text>
         <Text style={styles.tagline}>You'll never forget the little things.</Text>
       </View>
 
@@ -23,11 +79,12 @@ export default function SignInScreen() {
       <View style={[styles.lower, { paddingBottom: insets.bottom + spacing(12) }]}>
         {/* Continue with Apple */}
         <Pressable
-          onPress={goToAddChild}
+          onPress={handleAppleSignIn}
+          disabled={isLoading}
           style={({ pressed }) => [
             styles.authButton,
             styles.appleButton,
-            pressed && { opacity: 0.85 },
+            (pressed || isLoading) && { opacity: 0.85 },
           ]}
         >
           <Ionicons name="logo-apple" size={20} color={colors.card} />
@@ -36,11 +93,12 @@ export default function SignInScreen() {
 
         {/* Continue with Google */}
         <Pressable
-          onPress={goToAddChild}
+          onPress={handleGoogleSignIn}
+          disabled={isLoading}
           style={({ pressed }) => [
             styles.authButton,
             styles.googleButton,
-            pressed && { opacity: 0.85 },
+            (pressed || isLoading) && { opacity: 0.85 },
           ]}
         >
           <Text style={styles.googleG}>G</Text>
@@ -49,11 +107,12 @@ export default function SignInScreen() {
 
         {/* Continue with Email */}
         <Pressable
-          onPress={goToAddChild}
+          onPress={handleEmailPress}
+          disabled={isLoading}
           style={({ pressed }) => [
             styles.authButton,
             styles.emailButton,
-            pressed && { opacity: 0.85 },
+            (pressed || isLoading) && { opacity: 0.85 },
           ]}
         >
           <Ionicons name="mail-outline" size={18} color={colors.text} />

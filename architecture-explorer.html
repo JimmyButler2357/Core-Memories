@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forever Fireflies — Architecture Explorer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #1a1210; color: #f0e6dc; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+  /* ── Tab Bar ── */
+  .tab-bar { display: flex; background: #1e1510; border-bottom: 1px solid #3d2e1a; padding: 0 16px; gap: 0; flex-shrink: 0; }
+  .tab-btn { padding: 12px 24px; background: none; border: none; border-bottom: 2px solid transparent; color: #9a8a7a; font-size: 15px; font-weight: 600; cursor: pointer; transition: all .15s; }
+  .tab-btn:hover { color: #d4c4b4; }
+  .tab-btn.active { color: #e8a87c; border-bottom-color: #e8a87c; }
+
+  /* ── Layout ── */
+  .app { display: flex; flex: 1; overflow: hidden; }
+  .view-container { display: none; flex: 1; overflow: hidden; }
+  .view-container.active { display: flex; flex-direction: column; }
+  .sidebar { width: 272px; min-width: 272px; background: #231a15; border-right: 1px solid #3d2e1a; display: flex; flex-direction: column; overflow-y: auto; }
+  .canvas-area { flex: 1; position: relative; overflow: hidden; background: #1a1210; cursor: grab; }
+  .canvas-area.grabbing { cursor: grabbing; }
+  .prompt-bar { background: #231a15; border-top: 1px solid #3d2e1a; padding: 12px 16px; display: flex; align-items: flex-start; gap: 12px; min-height: 64px; flex-shrink: 0; }
+
+  /* ── Sidebar sections ── */
+  .section { padding: 14px 16px; border-bottom: 1px solid #2c2018; }
+  .section-title { font-size: 12px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #9a8a7a; margin-bottom: 10px; }
+
+  /* ── Title bar ── */
+  .title-bar { padding: 16px 16px 12px; border-bottom: 1px solid #3d2e1a; }
+  .title-bar h1 { font-size: 18px; font-weight: 700; color: #e8a87c; }
+  .title-bar p { font-size: 13px; color: #9a8a7a; margin-top: 4px; }
+
+  /* ── Presets ── */
+  .preset-btn { display: block; width: 100%; padding: 9px 12px; margin-bottom: 4px; background: #2c2018; border: 1px solid #3d2e1a; border-radius: 6px; color: #d4c4b4; font-size: 14px; cursor: pointer; text-align: left; transition: all .15s; }
+  .preset-btn:hover { background: #3a2a1e; color: #f0e6dc; }
+  .preset-btn.active { background: #3a2a18; border-color: #e8a87c; color: #f0c8a0; }
+
+  /* ── Checkboxes ── */
+  .check-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; cursor: pointer; font-size: 14px; color: #c4b0a0; }
+  .check-row input { accent-color: #e8a87c; cursor: pointer; }
+  .check-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+  /* ── Comments ── */
+  .comment-item { background: #2c2018; border: 1px solid #3d2e1a; border-radius: 8px; padding: 10px; margin-bottom: 8px; position: relative; }
+  .comment-item .target { font-size: 13px; font-weight: 600; color: #e8a87c; }
+  .comment-item .file { font-size: 12px; color: #8a7a6a; margin-top: 2px; }
+  .comment-item .text { font-size: 14px; color: #e0d4c8; margin-top: 6px; line-height: 1.5; }
+  .comment-item .del-btn { position: absolute; top: 8px; right: 8px; background: none; border: none; color: #7a6a5a; cursor: pointer; font-size: 16px; line-height: 1; }
+  .comment-item .del-btn:hover { color: #ef4444; }
+  .no-comments { font-size: 14px; color: #7a6a5a; font-style: italic; }
+
+  /* ── Prompt ── */
+  .prompt-text { flex: 1; font-size: 14px; color: #c4b0a0; line-height: 1.5; max-height: 80px; overflow-y: auto; font-family: 'SF Mono', 'Cascadia Code', monospace; white-space: pre-wrap; }
+  .copy-btn { padding: 10px 20px; background: #e8a87c; color: #1a1210; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all .15s; }
+  .copy-btn:hover { background: #f0b88c; }
+  .copy-btn.copied { background: #10b981; color: #fff; }
+
+  /* ── Zoom controls ── */
+  .zoom-controls { position: absolute; bottom: 12px; right: 12px; display: flex; gap: 4px; z-index: 5; }
+  .zoom-btn { width: 32px; height: 32px; background: #2c2018; border: 1px solid #3d2e1a; border-radius: 6px; color: #c4b0a0; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .zoom-btn:hover { background: #3a2a1e; color: #f0e6dc; }
+
+  /* ── SVG ── */
+  #diagram { width: 100%; height: 100%; }
+
+  /* ── Comment Modal ── */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 100; display: none; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: #2c2018; border: 1px solid #3d2e1a; border-radius: 12px; padding: 20px; width: 400px; max-width: 90vw; }
+  .modal h3 { font-size: 18px; color: #e8a87c; margin-bottom: 4px; }
+  .modal .modal-sub { font-size: 13px; color: #9a8a7a; margin-bottom: 14px; line-height: 1.6; }
+  .modal textarea { width: 100%; height: 80px; background: #1e1510; border: 1px solid #3d2e1a; border-radius: 8px; color: #f0e6dc; font-size: 15px; padding: 12px; resize: vertical; font-family: inherit; }
+  .modal textarea:focus { outline: none; border-color: #e8a87c; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end; }
+  .modal-actions button { padding: 9px 20px; border-radius: 6px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .btn-cancel { background: #3d2e1a; color: #b8a898; }
+  .btn-cancel:hover { background: #4a3a2a; }
+  .btn-save { background: #e8a87c; color: #1a1210; }
+  .btn-save:hover { background: #f0b88c; }
+
+  /* ── Legend ── */
+  .legend { position: absolute; bottom: 12px; left: 12px; background: rgba(35,26,21,.94); border: 1px solid #3d2e1a; border-radius: 8px; padding: 10px 14px; z-index: 5; }
+  .legend-title { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8a7a6a; margin-bottom: 6px; }
+  .legend-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #b8a898; padding: 3px 0; }
+  .legend-line { width: 24px; height: 0; border-top: 2px solid; display: inline-block; }
+  .legend-swatch { width: 14px; height: 14px; border-radius: 4px; display: inline-block; border: 1px solid rgba(255,255,255,.1); }
+
+  /* ═══════════════ TECH STACK TAB ═══════════════ */
+  .tech-view { display: none; flex: 1; overflow: hidden; }
+  .tech-view.active { display: flex; }
+
+  .tech-sidebar { width: 220px; min-width: 220px; background: #231a15; border-right: 1px solid #3d2e1a; overflow-y: auto; padding-top: 8px; }
+  .cat-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 16px; background: none; border: none; color: #a89888; font-size: 14px; cursor: pointer; text-align: left; transition: all .15s; border-left: 3px solid transparent; }
+  .cat-btn:hover { color: #e0d4c8; background: #281e16; }
+  .cat-btn.active { color: #f0e6dc; border-left-color: #e8a87c; background: #281e16; }
+  .cat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .cat-count { margin-left: auto; font-size: 12px; color: #7a6a5a; background: #2c2018; padding: 2px 7px; border-radius: 8px; }
+
+  .tech-main { flex: 1; overflow-y: auto; padding: 24px 32px 40px; }
+  .tech-main::-webkit-scrollbar { width: 6px; }
+  .tech-main::-webkit-scrollbar-thumb { background: #3d2e1a; border-radius: 3px; }
+
+  .tech-section-header { font-size: 13px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #8a7a6a; margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 1px solid #2c2018; display: flex; align-items: center; gap: 10px; }
+  .tech-section-header:first-child { margin-top: 0; }
+  .tech-section-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  .tech-card { background: #231a15; border: 1px solid #3d2e1a; border-radius: 12px; margin-bottom: 16px; overflow: hidden; transition: border-color .15s; cursor: pointer; }
+  .tech-card:hover { border-color: #5a4a3a; }
+  .tech-card.has-comment { border-color: #e8a87c; }
+  .tech-card-bar { height: 3px; }
+  .tech-card-body { padding: 16px 20px 18px; }
+  .tech-card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .tech-card-icon { font-size: 24px; line-height: 1; flex-shrink: 0; width: 36px; text-align: center; }
+  .tech-card-title { font-size: 17px; font-weight: 700; color: #f0e6dc; }
+  .tech-card-version { font-size: 12px; font-weight: 600; color: #a89888; background: #2c2018; padding: 3px 9px; border-radius: 4px; margin-left: 8px; }
+  .tech-card-status { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 4px; margin-left: auto; }
+  .status-active { background: rgba(16,185,129,.15); color: #10b981; }
+  .status-future { background: rgba(138,122,106,.15); color: #8a7a6a; }
+  .tech-card-oneliner { font-size: 15px; color: #c4b0a0; margin-bottom: 14px; line-height: 1.5; }
+
+  .eli5-box { background: #281e16; border: 1px solid #362a1e; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; }
+  .eli5-label { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #e8a87c; margin-bottom: 6px; }
+  .eli5-text { font-size: 14px; color: #e8dcd0; line-height: 1.7; }
+
+  .in-app-label { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #d4a054; margin-bottom: 6px; }
+  .in-app-text { font-size: 14px; color: #b8a898; line-height: 1.7; }
+
+  .tech-card-comment-hint { font-size: 13px; color: #7a6a5a; margin-top: 12px; text-align: right; }
+
+  .tech-intro { background: linear-gradient(135deg, #281e16, #231a15); border: 1px solid #3d2e1a; border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; }
+  .tech-intro h2 { font-size: 20px; font-weight: 700; color: #e8a87c; margin-bottom: 8px; }
+  .tech-intro p { font-size: 15px; color: #a89888; line-height: 1.6; }
+  .tech-intro .stack-summary { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .tech-intro .stack-chip { font-size: 13px; padding: 5px 12px; border-radius: 6px; background: #2c2018; border: 1px solid #3d2e1a; color: #d4c4b4; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════ TAB BAR ══════════════════ -->
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="arch">Architecture</button>
+  <button class="tab-btn" data-tab="tech">Tech Stack</button>
+</div>
+
+<!-- ══════════════════ ARCHITECTURE VIEW ══════════════════ -->
+<div class="view-container active" id="arch-view">
+  <div class="app">
+    <aside class="sidebar">
+      <div class="title-bar">
+        <h1>Forever Fireflies</h1>
+        <p>Architecture Explorer</p>
+      </div>
+      <div class="section">
+        <div class="section-title">View Presets</div>
+        <button class="preset-btn active" data-preset="full">Full System</button>
+        <button class="preset-btn" data-preset="components">Screen &rarr; Components</button>
+        <button class="preset-btn" data-preset="data">Data Flow</button>
+        <button class="preset-btn" data-preset="future">Future Roadmap</button>
+      </div>
+      <div class="section">
+        <div class="section-title">Layers</div>
+        <div id="layer-toggles"></div>
+      </div>
+      <div class="section">
+        <div class="section-title">Connections</div>
+        <div id="conn-toggles"></div>
+      </div>
+      <div class="section" style="flex:1;">
+        <div class="section-title">Comments (<span id="comment-count">0</span>)</div>
+        <div id="comments-list"><p class="no-comments">Click any node to add a comment or question.</p></div>
+      </div>
+    </aside>
+
+    <div class="canvas-area" id="canvas-area">
+      <svg id="diagram" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arrow-nav" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#f59e0b"/></marker>
+          <marker id="arrow-state" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#10b981"/></marker>
+          <marker id="arrow-uses" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#8b5cf6"/></marker>
+          <marker id="arrow-persist" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6b7280"/></marker>
+          <marker id="arrow-hook" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#06b6d4"/></marker>
+          <marker id="arrow-future" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6b7280"/></marker>
+        </defs>
+        <g id="world"></g>
+      </svg>
+
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoomIn()">+</button>
+        <button class="zoom-btn" onclick="zoomOut()">&minus;</button>
+        <button class="zoom-btn" onclick="zoomReset()" style="font-size:11px">fit</button>
+      </div>
+
+      <div class="legend">
+        <div class="legend-title">Connections</div>
+        <div class="legend-row"><span class="legend-line" style="border-color:#f59e0b"></span> Navigation</div>
+        <div class="legend-row"><span class="legend-line" style="border-color:#10b981"></span> State Access</div>
+        <div class="legend-row"><span class="legend-line" style="border-color:#8b5cf6"></span> Component Usage</div>
+        <div class="legend-row"><span class="legend-line" style="border-color:#06b6d4"></span> Hook</div>
+        <div class="legend-row"><span class="legend-line" style="border-color:#6b7280"></span> Persistence</div>
+        <div class="legend-row"><span class="legend-line" style="border-color:#6b7280;border-style:dashed"></span> Future Link</div>
+        <div class="legend-title" style="margin-top:8px">Layers</div>
+        <div class="legend-row"><span class="legend-swatch" style="background:#3d2818"></span> Screens</div>
+        <div class="legend-row"><span class="legend-swatch" style="background:#332418"></span> Components</div>
+        <div class="legend-row"><span class="legend-swatch" style="background:#2a3020"></span> State Stores</div>
+        <div class="legend-row"><span class="legend-swatch" style="background:#3d2e1a"></span> Foundation</div>
+        <div class="legend-row"><span class="legend-swatch" style="background:#252018;border-style:dashed"></span> Future (Planned)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ TECH STACK VIEW ══════════════════ -->
+<div class="view-container" id="tech-view">
+  <div class="tech-view active">
+    <aside class="tech-sidebar" id="tech-sidebar"></aside>
+    <div class="tech-main" id="tech-main"></div>
+  </div>
+</div>
+
+<!-- ══════════════════ PROMPT BAR (shared) ══════════════════ -->
+<div class="prompt-bar">
+  <div class="prompt-text" id="prompt-output">Add comments to architecture nodes or tech stack items to generate a prompt you can paste into Claude.</div>
+  <button class="copy-btn" id="copy-btn" onclick="copyPrompt()">Copy Prompt</button>
+</div>
+
+<!-- ══════════════════ COMMENT MODAL (shared) ══════════════════ -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3 id="modal-title"></h3>
+    <p class="modal-sub" id="modal-sub"></p>
+    <textarea id="modal-input" placeholder="Ask a question, request a change, or leave a note..."></textarea>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="saveComment()">Add Comment</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  ARCHITECTURE DATA (unchanged)
+// ═══════════════════════════════════════════════════════════
+
+const nodes = [
+  { id:'router', label:'Root Router', subtitle:'app/index.tsx + _layout.tsx', x:580, y:20, w:180, h:48, layer:'routing',
+    desc:'Loads fonts, wraps SafeAreaProvider. Checks authStore.hasCompletedOnboarding — redirects to onboarding or home.' },
+  { id:'home', label:'Home Hub', subtitle:'app/(main)/home.tsx', x:20, y:110, w:155, h:50, layer:'screens',
+    desc:'Timeline feed of entries. Child filter tabs at top. Floating mic button. Favorites shortcut. Staggered fadeInUp animations.' },
+  { id:'recording', label:'Recording', subtitle:'app/(main)/recording.tsx', x:215, y:110, w:155, h:50, layer:'screens',
+    desc:'3 shuffled prompt cards. Breathing circle animation. 60s countdown timer. Auto-stop at limit. Saves entry on completion.' },
+  { id:'entry-detail', label:'Entry Detail', subtitle:'app/(main)/entry-detail.tsx', x:410, y:110, w:155, h:50, layer:'screens',
+    desc:'Edit transcript text. Add/remove child pills. Manage tags. Favorite toggle. Delete with confirmation dialog. Audio playback bar.' },
+  { id:'search', label:'Search', subtitle:'app/(main)/search.tsx', x:605, y:110, w:155, h:50, layer:'screens',
+    desc:'Auto-focus text input. Child + tag + date range filter chips. Highlighted search matches. No-results empty state.' },
+  { id:'core-mems', label:'Firefly Jar', subtitle:'app/(main)/core-memories.tsx', x:800, y:110, w:170, h:50, layer:'screens',
+    desc:'Displays only favorited entries. Warm gradient header. Serif title. Larger cards with inline audio playback.' },
+  { id:'settings', label:'Settings', subtitle:'app/(main)/settings.tsx', x:1010, y:110, w:155, h:50, layer:'screens',
+    desc:'Manage children, reminder time, subscription, Recently Deleted, data export, account deletion, about/legal.' },
+  { id:'signin', label:'Sign In', subtitle:'app/(onboarding)/index.tsx', x:30, y:210, w:145, h:48, layer:'onboarding',
+    desc:'Apple / Google / Email sign-in buttons (placeholders). Legal links at bottom.' },
+  { id:'add-child', label:'Add Child', subtitle:'app/(onboarding)/add-child.tsx', x:215, y:210, w:145, h:48, layer:'onboarding',
+    desc:'Name, nickname (optional), birthday via scroll picker. Can add multiple children.' },
+  { id:'permissions', label:'Permissions', subtitle:'mic + location screens', x:400, y:210, w:145, h:48, layer:'onboarding',
+    desc:'Mic permission (required) and location permission (optional). Explains why each is needed.' },
+  { id:'first-rec', label:'First Recording', subtitle:'first-recording + text alt', x:585, y:210, w:160, h:48, layer:'onboarding',
+    desc:'Guided first recording with prompt. Alternative text path. Memory Saved celebration after.' },
+  { id:'welcome', label:'Welcome Preview', subtitle:'welcome-preview.tsx', x:785, y:210, w:160, h:48, layer:'onboarding',
+    desc:'Shows app with months of sample data. Previews what the journal looks like over time.' },
+  { id:'paywall', label:'Paywall', subtitle:'app/(onboarding)/paywall.tsx', x:985, y:210, w:145, h:48, layer:'onboarding',
+    desc:'7-day free trial. $5.99/mo or $49.99/yr. Annual plan pre-selected.' },
+  { id:'topbar', label:'TopBar', subtitle:'components/TopBar.tsx', x:20, y:330, w:130, h:44, layer:'components',
+    desc:'Reusable header. Back button, title (serif or sans), right icon buttons. Safe-area aware.' },
+  { id:'entry-card', label:'EntryCard', subtitle:'components/EntryCard.tsx', x:185, y:330, w:140, h:44, layer:'components',
+    desc:'Memory card in feed. Highlighted text search, favorite toggle, audio indicator, child pills, tag pills.' },
+  { id:'mic-btn', label:'MicButton', subtitle:'components/MicButton.tsx', x:360, y:330, w:140, h:44, layer:'components',
+    desc:'Primary recording button. Two sizes (large/home). Reanimated pulsing glow.' },
+  { id:'primary-btn', label:'PrimaryButton', subtitle:'components/PrimaryButton.tsx', x:535, y:330, w:155, h:44, layer:'components',
+    desc:'Full-width CTA button. Accent (orange) or danger (red) variants.' },
+  { id:'child-pill', label:'ChildPill', subtitle:'components/ChildPill.tsx', x:725, y:330, w:130, h:44, layer:'components',
+    desc:'Colored name badge for a child. 6 color options. Optional remove icon.' },
+  { id:'child-tab', label:'ChildTab', subtitle:'components/ChildTab.tsx', x:890, y:330, w:130, h:44, layer:'components',
+    desc:'Filter tab on Home/Search. Active/inactive states with dot indicator.' },
+  { id:'tag-pill', label:'TagPill', subtitle:'components/TagPill.tsx', x:1055, y:330, w:120, h:44, layer:'components',
+    desc:'Topic/category badge (funny, milestone, bedtime, etc.).' },
+  { id:'confirm-dlg', label:'Confirm Dialog', subtitle:'ConfirmationDialog.tsx', x:20, y:400, w:160, h:44, layer:'components',
+    desc:'Modal overlay for destructive actions. Cancel + confirm buttons.' },
+  { id:'bday-picker', label:'BirthdayPicker', subtitle:'BirthdayPicker.tsx', x:215, y:400, w:155, h:44, layer:'components',
+    desc:'Scroll-wheel date picker for adding children. Returns ISO date string.' },
+  { id:'paper-tex', label:'PaperTexture', subtitle:'PaperTexture.tsx', x:405, y:400, w:150, h:44, layer:'components',
+    desc:'Background paper texture overlay. Simulates analog journal aesthetic.' },
+  { id:'warm-glow', label:'WarmGlow', subtitle:'WarmGlow.tsx', x:590, y:400, w:130, h:44, layer:'components',
+    desc:'Animated glow effect. Uses Reanimated. Respects reduce-motion.' },
+  { id:'error-state', label:'ErrorState', subtitle:'ErrorState.tsx', x:755, y:400, w:140, h:44, layer:'components',
+    desc:'Error message display with icon and text.' },
+  { id:'auth-store', label:'authStore', subtitle:'stores/authStore.ts', x:70, y:510, w:165, h:50, layer:'state',
+    desc:'Tracks onboarding completion. hasCompletedOnboarding boolean. Persisted via AsyncStorage.' },
+  { id:'children-store', label:'childrenStore', subtitle:'stores/childrenStore.ts', x:320, y:510, w:175, h:50, layer:'state',
+    desc:'Child profiles CRUD. Each child: id, name, birthday, nickname?, colorIndex. Persisted.' },
+  { id:'entries-store', label:'entriesStore', subtitle:'stores/entriesStore.ts', x:580, y:510, w:175, h:50, layer:'state',
+    desc:'Memory entries CRUD. Soft delete + restore. Favorite toggle. Future-proofed fields. Persisted.' },
+  { id:'ui-store', label:'uiStore', subtitle:'stores/uiStore.ts', x:840, y:510, w:155, h:50, layer:'state',
+    desc:'Transient UI state. activeChildFilter (null = all). Memory-only — resets on restart.' },
+  { id:'theme', label:'theme.ts', subtitle:'constants/theme.ts', x:80, y:620, w:155, h:46, layer:'foundation',
+    desc:'Design system tokens: colors, typography, spacing, shadows, radii.' },
+  { id:'use-location', label:'useLocation', subtitle:'hooks/useLocation.ts', x:320, y:620, w:155, h:46, layer:'foundation',
+    desc:'Detects device location in background. Returns city/state text. Silent failure.' },
+  { id:'use-motion', label:'useReduceMotion', subtitle:'hooks/useReduceMotion.ts', x:560, y:620, w:175, h:46, layer:'foundation',
+    desc:'Accessibility hook. Checks device "Reduce Motion" setting.' },
+  { id:'async-storage', label:'AsyncStorage', subtitle:'@react-native-async-storage', x:820, y:620, w:185, h:46, layer:'foundation',
+    desc:'Device-local persistence. All stores auto-save here. Replaced by Supabase later.' },
+  { id:'supabase', label:'Supabase', subtitle:'Phase 3 — PostgreSQL + RLS', x:20, y:740, w:160, h:50, layer:'future', version:'V1.0',
+    desc:'PostgreSQL database with Row Level Security. S3 bucket for audio files.' },
+  { id:'auth-providers', label:'Auth Providers', subtitle:'Phase 4 — Apple/Google/Email', x:220, y:740, w:175, h:50, layer:'future', version:'V1.0',
+    desc:'Supabase Auth. Apple Sign-In (mandatory), Google, Email/password.' },
+  { id:'speech-stt', label:'Speech-to-Text', subtitle:'Phase 5 — expo-speech-recognition', x:435, y:740, w:180, h:50, layer:'future', version:'V1.0',
+    desc:'On-device speech recognition. Real-time partial transcript. 60s auto-stop.' },
+  { id:'push-notifs', label:'Push Notifications', subtitle:'Phase 7 — expo-notifications', x:655, y:740, w:185, h:50, layer:'future', version:'V1.0',
+    desc:'Daily personalized prompt with child name + age. Configurable time.' },
+  { id:'revenuecat', label:'RevenueCat', subtitle:'Phase 8 — Payments', x:880, y:740, w:160, h:50, layer:'future', version:'V1.0',
+    desc:'Subscription management. Trial, monthly, annual. Apple Small Business Program.' },
+  { id:'posthog', label:'PostHog', subtitle:'Phase 9 — Analytics', x:1080, y:740, w:145, h:50, layer:'future', version:'V1.0',
+    desc:'Event tracking. Key conversion funnel. 1M free events/mo.' },
+  { id:'ai-features', label:'AI Features', subtitle:'V1.5 — Titles, cleanup, tags', x:20, y:840, w:160, h:50, layer:'future', version:'V1.5',
+    desc:'AI-generated titles. Transcript cleanup. LLM-powered auto-tagging via Claude Haiku.' },
+  { id:'photos', label:'Photo Attach', subtitle:'V1.5 — Up to 3 per entry', x:220, y:840, w:155, h:50, layer:'future', version:'V1.5',
+    desc:'Attach up to 3 photos per entry. Camera or gallery picker.' },
+  { id:'on-this-day', label:'On This Day', subtitle:'V1.5 — Memory resurfacing', x:415, y:840, w:170, h:50, layer:'future', version:'V1.5',
+    desc:'Memory from 1 year ago surfaces at top of feed. Special card treatment.' },
+  { id:'parent-merge', label:'Parent Merge', subtitle:'V2 — Linked accounts', x:625, y:840, w:165, h:50, layer:'future', version:'V2',
+    desc:'Paired parent accounts. Unified feed. Each entry shows who recorded it.' },
+  { id:'ai-search', label:'AI Search', subtitle:'V2 — Semantic queries', x:830, y:840, w:155, h:50, layer:'future', version:'V2',
+    desc:'Natural language queries via pgvector + RAG.' },
+  { id:'time-capsule', label:'Time Capsule', subtitle:'V3+ — Future unlock', x:1025, y:840, w:165, h:50, layer:'future', version:'V3+',
+    desc:'Messages that unlock at a future date — age 18, graduation.' },
+];
+
+const connections = [
+  { from:'router', to:'home', type:'nav', label:'onboarded', presets:['full','nav'] },
+  { from:'router', to:'signin', type:'nav', label:'new user', presets:['full','nav'] },
+  { from:'home', to:'recording', type:'nav', presets:['full','nav'] },
+  { from:'home', to:'entry-detail', type:'nav', presets:['full','nav'] },
+  { from:'home', to:'search', type:'nav', presets:['full','nav'] },
+  { from:'home', to:'core-mems', type:'nav', presets:['full','nav'] },
+  { from:'home', to:'settings', type:'nav', presets:['full','nav'] },
+  { from:'signin', to:'add-child', type:'nav', presets:['full','nav'] },
+  { from:'add-child', to:'permissions', type:'nav', presets:['full','nav'] },
+  { from:'permissions', to:'first-rec', type:'nav', presets:['full','nav'] },
+  { from:'first-rec', to:'welcome', type:'nav', presets:['full','nav'] },
+  { from:'welcome', to:'paywall', type:'nav', presets:['full','nav'] },
+  { from:'paywall', to:'home', type:'nav', label:'done', presets:['full','nav'] },
+  { from:'router', to:'auth-store', type:'state', presets:['full','data'] },
+  { from:'home', to:'entries-store', type:'state', presets:['full','data'] },
+  { from:'home', to:'children-store', type:'state', presets:['full','data'] },
+  { from:'home', to:'ui-store', type:'state', presets:['full','data'] },
+  { from:'recording', to:'entries-store', type:'state', label:'write', presets:['full','data'] },
+  { from:'recording', to:'children-store', type:'state', presets:['data'] },
+  { from:'entry-detail', to:'entries-store', type:'state', presets:['full','data'] },
+  { from:'entry-detail', to:'children-store', type:'state', presets:['data'] },
+  { from:'search', to:'entries-store', type:'state', presets:['full','data'] },
+  { from:'search', to:'children-store', type:'state', presets:['data'] },
+  { from:'core-mems', to:'entries-store', type:'state', presets:['full','data'] },
+  { from:'settings', to:'children-store', type:'state', presets:['full','data'] },
+  { from:'settings', to:'auth-store', type:'state', presets:['data'] },
+  { from:'auth-store', to:'async-storage', type:'persist', presets:['full','data'] },
+  { from:'children-store', to:'async-storage', type:'persist', presets:['full','data'] },
+  { from:'entries-store', to:'async-storage', type:'persist', presets:['full','data'] },
+  { from:'recording', to:'use-location', type:'hook', presets:['full','data'] },
+  { from:'recording', to:'use-motion', type:'hook', presets:['full'] },
+  { from:'home', to:'topbar', type:'uses', presets:['components'] },
+  { from:'home', to:'entry-card', type:'uses', presets:['components'] },
+  { from:'home', to:'child-tab', type:'uses', presets:['components'] },
+  { from:'home', to:'mic-btn', type:'uses', presets:['components'] },
+  { from:'recording', to:'topbar', type:'uses', presets:['components'] },
+  { from:'recording', to:'mic-btn', type:'uses', presets:['components'] },
+  { from:'recording', to:'paper-tex', type:'uses', presets:['components'] },
+  { from:'entry-detail', to:'topbar', type:'uses', presets:['components'] },
+  { from:'entry-detail', to:'child-pill', type:'uses', presets:['components'] },
+  { from:'entry-detail', to:'tag-pill', type:'uses', presets:['components'] },
+  { from:'entry-detail', to:'primary-btn', type:'uses', presets:['components'] },
+  { from:'entry-detail', to:'confirm-dlg', type:'uses', presets:['components'] },
+  { from:'search', to:'topbar', type:'uses', presets:['components'] },
+  { from:'search', to:'entry-card', type:'uses', presets:['components'] },
+  { from:'search', to:'child-tab', type:'uses', presets:['components'] },
+  { from:'search', to:'tag-pill', type:'uses', presets:['components'] },
+  { from:'core-mems', to:'topbar', type:'uses', presets:['components'] },
+  { from:'core-mems', to:'entry-card', type:'uses', presets:['components'] },
+  { from:'settings', to:'topbar', type:'uses', presets:['components'] },
+  { from:'settings', to:'primary-btn', type:'uses', presets:['components'] },
+  { from:'settings', to:'confirm-dlg', type:'uses', presets:['components'] },
+  { from:'settings', to:'bday-picker', type:'uses', presets:['components'] },
+  { from:'entries-store', to:'supabase', type:'future', label:'sync', presets:['future'] },
+  { from:'children-store', to:'supabase', type:'future', label:'sync', presets:['future'] },
+  { from:'auth-store', to:'auth-providers', type:'future', presets:['future'] },
+  { from:'signin', to:'auth-providers', type:'future', label:'real auth', presets:['future'] },
+  { from:'recording', to:'speech-stt', type:'future', label:'transcribe', presets:['future'] },
+  { from:'home', to:'push-notifs', type:'future', label:'daily prompt', presets:['future'] },
+  { from:'paywall', to:'revenuecat', type:'future', label:'subscribe', presets:['future'] },
+  { from:'home', to:'posthog', type:'future', label:'events', presets:['future'] },
+  { from:'entry-detail', to:'ai-features', type:'future', label:'titles', presets:['future'] },
+  { from:'entries-store', to:'ai-features', type:'future', label:'cleanup', presets:['future'] },
+  { from:'entry-detail', to:'photos', type:'future', presets:['future'] },
+  { from:'home', to:'on-this-day', type:'future', label:'resurface', presets:['future'] },
+  { from:'settings', to:'parent-merge', type:'future', label:'invite', presets:['future'] },
+  { from:'search', to:'ai-search', type:'future', label:'semantic', presets:['future'] },
+  { from:'entry-detail', to:'time-capsule', type:'future', label:'lock date', presets:['future'] },
+  { from:'supabase', to:'async-storage', type:'future', label:'replaces', presets:['future'] },
+];
+
+const layerMeta = {
+  routing:    { label:'Routing',    color:'#3a2a1e', bandY:10,  bandH:60 },
+  screens:    { label:'Screens',    color:'#3d2818', bandY:95,  bandH:70 },
+  onboarding: { label:'Onboarding', color:'#382a1a', bandY:195, bandH:68 },
+  components: { label:'Components', color:'#332418', bandY:315, bandH:140 },
+  state:      { label:'State',      color:'#2a3020', bandY:495, bandH:72 },
+  foundation: { label:'Foundation', color:'#3d2e1a', bandY:605, bandH:68 },
+  future:     { label:'Future',     color:'#252018', bandY:722, bandH:180 },
+};
+
+const connMeta = {
+  nav:     { label:'Navigation',   color:'#f59e0b', dash:'' },
+  state:   { label:'State Access', color:'#10b981', dash:'' },
+  uses:    { label:'Component Use',color:'#8b5cf6', dash:'' },
+  persist: { label:'Persistence',  color:'#6b7280', dash:'4,3' },
+  hook:    { label:'Hook',         color:'#06b6d4', dash:'6,3' },
+  future:  { label:'Future Link',  color:'#6b7280', dash:'6,4' },
+};
+
+const presetConfig = {
+  full:       { layers:{ routing:1, screens:1, onboarding:1, components:0, state:1, foundation:1, future:0 }, conns:{ nav:1, state:1, uses:0, persist:1, hook:1, future:0 } },
+  components: { layers:{ routing:0, screens:1, onboarding:0, components:1, state:0, foundation:0, future:0 }, conns:{ nav:0, state:0, uses:1, persist:0, hook:0, future:0 } },
+  data:       { layers:{ routing:1, screens:1, onboarding:0, components:0, state:1, foundation:1, future:0 }, conns:{ nav:0, state:1, uses:0, persist:1, hook:1, future:0 } },
+  future:     { layers:{ routing:0, screens:1, onboarding:1, components:0, state:1, foundation:1, future:1 }, conns:{ nav:0, state:0, uses:0, persist:0, hook:0, future:1 } },
+};
+
+// ═══════════════════════════════════════════════════════════
+//  TECH STACK DATA
+// ═══════════════════════════════════════════════════════════
+
+const techCategories = [
+  { id:'core',      label:'Core Framework',   color:'#3b82f6' },
+  { id:'lang',      label:'Language',          color:'#f59e0b' },
+  { id:'nav',       label:'Navigation',        color:'#8b5cf6' },
+  { id:'state',     label:'State & Storage',   color:'#10b981' },
+  { id:'animation', label:'Animations',        color:'#ec4899' },
+  { id:'assets',    label:'Styling & Assets',  color:'#e8a87c' },
+  { id:'build',     label:'Build Tools',       color:'#6b7280' },
+  { id:'future',    label:'Future Services',   color:'#6b7280' },
+];
+
+const techItems = [
+  // ── Core Framework ──
+  { id:'t-react', cat:'core', name:'React', version:'v19', icon:'\u269B',
+    status:'active',
+    oneliner:'A JavaScript library for building user interfaces out of reusable pieces.',
+    eli5:'Imagine building with LEGO blocks. React lets you create "blocks" (called <strong>components</strong>) that you snap together to build screens. Each block manages its own look and behavior. When data changes, React automatically updates only the blocks that need to change \u2014 like magic LEGO that rebuilds itself. You never have to manually find and update the right piece.',
+    inApp:'Every screen and UI element is a React component \u2014 <code>EntryCard</code>, <code>MicButton</code>, <code>TopBar</code>. When you add a new memory, React re-renders just the timeline list, not the entire screen.' },
+  { id:'t-rn', cat:'core', name:'React Native', version:'v0.81', icon:'\uD83D\uDCF1',
+    status:'active',
+    oneliner:'A framework that turns your React code into real native iOS and Android apps.',
+    eli5:'Normally, to build an iPhone app you\'d use Swift, and for Android you\'d use Kotlin \u2014 two completely different languages. React Native is like a <strong>universal translator</strong>. You write code once in JavaScript, and React Native converts it into real native buttons, text, and scrolling that look and feel like they belong on each platform. One codebase, two app stores.',
+    inApp:'All our UI uses React Native primitives: <code>&lt;View&gt;</code> (like a <code>&lt;div&gt;</code>), <code>&lt;Text&gt;</code> (for words), <code>&lt;ScrollView&gt;</code> (for scrollable lists), <code>&lt;Pressable&gt;</code> (for tappable things). These become real native elements on the phone.' },
+  { id:'t-expo', cat:'core', name:'Expo', version:'SDK 54', icon:'\uD83D\uDE80',
+    status:'active',
+    oneliner:'A platform built on React Native that handles the hard parts so you can focus on features.',
+    eli5:'If React Native is a car engine, Expo is the <strong>full car</strong> with steering wheel, dashboard, and GPS already installed. Without Expo, you\'d need to manually configure Xcode, Android Studio, native modules, and build scripts. Expo handles all that boring setup \u2014 camera access, notifications, app store builds \u2014 so you can focus on building the actual app.',
+    inApp:'Provides our project structure, development server (<code>npx expo start</code>), font loading (<code>expo-google-fonts</code>), location API (<code>expo-location</code>), and will handle production builds via EAS Build.' },
+
+  // ── Language ──
+  { id:'t-ts', cat:'lang', name:'TypeScript', version:'v5.9', icon:'\uD83D\uDCD0',
+    status:'active',
+    oneliner:'JavaScript with added type safety \u2014 catches bugs before you run the code.',
+    eli5:'Regular JavaScript is like writing a recipe that says "add some flour." TypeScript is like writing "add <strong>2 cups of all-purpose flour</strong>." It catches mistakes before you even run the code. If you accidentally try to pass a number where a string is expected, TypeScript raises its hand and says "hey, that doesn\'t look right!" \u2014 before anything breaks.',
+    inApp:'Every file uses <code>.tsx</code> (components) or <code>.ts</code> (logic). Types define the shape of our data \u2014 what fields an Entry has, what a Child looks like, what actions each store supports. Catches bugs at write-time, not at midnight when a user taps something unexpected.' },
+
+  // ── Navigation ──
+  { id:'t-router', cat:'nav', name:'Expo Router', version:'v6', icon:'\uD83D\uDDFA',
+    status:'active',
+    oneliner:'File-based navigation \u2014 your folder structure becomes your app\'s screen structure.',
+    eli5:'Think of it like a <strong>building directory</strong>. Instead of writing complex code to say "when the user taps this, go to that screen," you just create files in folders. A file at <code>app/(main)/home.tsx</code> automatically becomes the <code>/home</code> route. The folder structure IS the navigation structure. Just like how a building directory tells you "Floor 3 = Dentist," your file tree tells the app "this folder = these screens."',
+    inApp:'The <code>app/</code> folder defines all our routes. <code>(main)/</code> group has the 7 main app screens, <code>(onboarding)/</code> has the 9 onboarding screens. Parentheses in folder names <code>(main)</code> mean "group these screens together without adding to the URL." Moving between screens is just <code>router.push(\'/(main)/recording\')</code>.' },
+
+  // ── State & Storage ──
+  { id:'t-zustand', cat:'state', name:'Zustand', version:'v5', icon:'\uD83D\uDCCB',
+    status:'active',
+    oneliner:'A tiny, simple library for sharing data between components.',
+    eli5:'Imagine a <strong>shared whiteboard</strong> in an office. Anyone can walk up, read what\'s on it, or update it. When someone changes the whiteboard, everyone who\'s watching it sees the update instantly. That\'s Zustand \u2014 a shared data store that any screen can read from or write to. The alternative (Redux) is like filling out a form in triplicate just to update the whiteboard. Zustand keeps it simple.',
+    inApp:'We have 4 stores (whiteboards):<br>\u2022 <strong>authStore</strong> \u2014 "Has onboarding been completed?"<br>\u2022 <strong>childrenStore</strong> \u2014 Kid profiles (name, birthday, color)<br>\u2022 <strong>entriesStore</strong> \u2014 All memories (text, date, tags, audio)<br>\u2022 <strong>uiStore</strong> \u2014 "Which child filter is active right now?"<br>Any screen reads data with one line: <code>const entries = useEntriesStore(s =&gt; s.entries)</code>' },
+  { id:'t-async', cat:'state', name:'AsyncStorage', version:'', icon:'\uD83D\uDDC4',
+    status:'active',
+    oneliner:'Simple key-value storage on the device \u2014 like localStorage for mobile.',
+    eli5:'Think of it like a <strong>filing cabinet on the user\'s phone</strong>. You put data in labeled drawers (keys) and pull it out later. It survives app restarts \u2014 so when a parent closes and reopens the app, all their memories are still there. It\'s not fancy (no search, no relationships between data), but it\'s reliable and works offline.',
+    inApp:'Zustand\'s <code>persist</code> middleware automatically saves all store data here after every change. This is why the app works completely offline. When Supabase is added later, AsyncStorage will serve as a local cache while the cloud becomes the source of truth.' },
+
+  // ── Animations ──
+  { id:'t-animated', cat:'animation', name:'React Native Animated', version:'built-in', icon:'\uD83C\uDFAC',
+    status:'active',
+    oneliner:'Built-in animation API for simple, smooth transitions.',
+    eli5:'Like a <strong>flipbook</strong> \u2014 you define a start state and an end state, and Animated smoothly draws all the frames in between. The key trick: it runs on the phone\'s native side (not in JavaScript), so animations stay smooth at 60fps even when the app is doing other work. It\'s perfect for simple things like fading in, sliding up, or scaling.',
+    inApp:'Powers the breathing circle on the Recording screen, the staggered <code>fadeInUp</code> entrance animations on the Home feed, and the heart scale-in celebration on Memory Saved. Simple, one-directional animations.' },
+  { id:'t-reanimated', cat:'animation', name:'Reanimated', version:'v4', icon:'\u2728',
+    status:'active',
+    oneliner:'Advanced animation library for complex, gesture-driven effects.',
+    eli5:'If React Native Animated is a flipbook, Reanimated is a full <strong>animation studio</strong>. It can handle complex sequences, respond to touch gestures in real-time, and loop infinitely without dropping frames. It runs entirely on the native thread \u2014 like having a dedicated animator who never takes a break. You use it when simple fade/slide isn\'t enough.',
+    inApp:'Powers the <strong>MicButton pulsing glow</strong> (infinite loop animation) and the <strong>WarmGlow</strong> component. Used when animations need to loop continuously, respond to gestures, or be more complex than a simple fade. Both respect <code>useReduceMotion</code> for accessibility.' },
+
+  // ── Styling & Assets ──
+  { id:'t-merri', cat:'assets', name:'Merriweather', version:'via expo-google-fonts', icon:'\uD83D\uDDA5',
+    status:'active',
+    oneliner:'A warm serif font that gives the journal its personal, literary feel.',
+    eli5:'Fonts are like <strong>handwriting styles</strong> for your app. Merriweather is a serif font (the kind with little feet on the letters, like in a printed book). It makes text feel warm, readable, and personal \u2014 like a real journal. We load it from Google\'s font library using Expo\'s font system, which makes sure it\'s fully loaded before showing any text (no flash of wrong font).',
+    inApp:'Used for the journal\'s "voice" \u2014 entry body text and the app title. The <strong>system font</strong> (clean, no-serifs) is used for UI controls like buttons and labels. This contrast (serif for content, sans-serif for UI) makes the memories feel distinct from the interface around them.' },
+  { id:'t-icons', cat:'assets', name:'Expo Vector Icons', version:'', icon:'\u2B50',
+    status:'active',
+    oneliner:'Thousands of pre-made icons (Ionicons, Material, FontAwesome) ready to use.',
+    eli5:'Instead of drawing every little icon yourself (back arrow, heart, settings gear), this library gives you a huge <strong>icon catalog</strong>. Just say "give me a heart icon, size 24, color red" and it renders a crisp vector icon that scales perfectly on any screen size. Vectors never get blurry no matter how big you make them, unlike regular images.',
+    inApp:'Used everywhere \u2014 back arrows in TopBar, heart icons for favorites, mic icon on the record button, gear icon for settings, search icon, X buttons for removing pills. One import line gives you access to thousands of icons.' },
+  { id:'t-theme', cat:'assets', name:'Design Token System', version:'theme.ts', icon:'\uD83C\uDFA8',
+    status:'active',
+    oneliner:'A single file that defines every color, font size, spacing value, and shadow in the app.',
+    eli5:'Imagine painting a house where every room needs the same shade of blue. Instead of mixing paint each time and hoping it matches, you create a <strong>color swatch book</strong> and always pick from it. That\'s our theme file \u2014 one source of truth for all visual values. Want to change the accent color? Change it in one place and every button, card, and icon updates automatically.',
+    inApp:'<code>constants/theme.ts</code> defines 16 semantic colors, 6 per-child colors, 14 typography presets (serif + sans, sizes 11\u201328px), 8 spacing values (4px grid), 4 border radius tiers, and warm brown-based shadows. Every component imports from here \u2014 no hardcoded hex values allowed.' },
+
+  // ── Build Tools ──
+  { id:'t-metro', cat:'build', name:'Metro Bundler', version:'', icon:'\uD83D\uDCE6',
+    status:'active',
+    oneliner:'Packages all your code and assets into a bundle the phone can run.',
+    eli5:'Imagine you\'re <strong>packing for a trip</strong>. Metro takes all your JavaScript files, images, and fonts \u2014 hundreds of separate pieces \u2014 and packs them into one efficient suitcase that the phone can open and run. During development, it also watches for changes and re-packs instantly (hot reload), so you see updates in seconds without restarting the app.',
+    inApp:'Runs automatically when you start the dev server with <code>npx expo start</code>. You rarely interact with it directly \u2014 it just works in the background, bundling all our TypeScript, components, and assets.' },
+  { id:'t-eas', cat:'build', name:'EAS Build', version:'Expo', icon:'\uD83C\uDFD7',
+    status:'future',
+    oneliner:'Cloud build service that compiles your app for the App Store and Play Store.',
+    eli5:'Building an app for the App Store is like <strong>manufacturing a product in a factory</strong>. You can\'t just send JavaScript to Apple \u2014 it needs to be compiled into a proper iOS binary with signing certificates, provisioning profiles, and specific build settings. EAS Build is a cloud factory that handles all of this. You run one command and it produces a ready-to-submit app.',
+    inApp:'Not yet in use (Phase 10). Will compile the app for TestFlight beta testing and final App Store/Play Store submission. Costs $15/mo if you exceed the 30 free builds.' },
+
+  // ── Future Services ──
+  { id:'t-supa', cat:'future', name:'Supabase', version:'', icon:'\u26A1',
+    status:'future',
+    oneliner:'Open-source backend with PostgreSQL database, auth, and file storage.',
+    eli5:'Right now, all data lives on the phone \u2014 like a <strong>diary you carry around</strong>. If you lose the phone, the diary is gone. Supabase is like a <strong>secure safety deposit box in the cloud</strong>. Your diary gets backed up there, so if you lose your phone, your memories are safe. It also lets multiple devices (and eventually both parents) see the same data.',
+    inApp:'Will replace AsyncStorage as the primary data store in Phase 3. Provides:<br>\u2022 <strong>PostgreSQL database</strong> with Row Level Security (each user only sees their own data)<br>\u2022 <strong>Auth</strong> (Apple/Google/Email sign-in)<br>\u2022 <strong>Storage bucket</strong> for audio recording files<br>\u2022 <strong>Real-time sync</strong> for future parent merge feature' },
+  { id:'t-rc', cat:'future', name:'RevenueCat', version:'', icon:'\uD83D\uDCB3',
+    status:'future',
+    oneliner:'Subscription management service that handles payments on iOS and Android.',
+    eli5:'Handling payments on iOS and Android is like <strong>doing taxes in two countries</strong> \u2014 each has different rules, receipt formats, and gotchas. RevenueCat is like hiring an accountant who handles both. You tell it your plans ($5.99/mo, $49.99/yr), and it manages trials, renewals, refunds, and reporting. It also gives you a dashboard to see how much money you\'re making.',
+    inApp:'Will power the subscription paywall (Phase 8). Manages the 7-day free trial, monthly and annual plans, and post-trial access control. Free until $2,500/mo revenue, then percentage-based.' },
+  { id:'t-ph', cat:'future', name:'PostHog', version:'', icon:'\uD83D\uDCCA',
+    status:'future',
+    oneliner:'Product analytics \u2014 see what users actually do (not what they say they do).',
+    eli5:'It\'s like a <strong>silent observer</strong> in your app, watching what users do (not what they type \u2014 just which buttons they tap and screens they visit). It helps answer questions like "Are people actually using search?" or "Where do users give up during onboarding?" Without analytics, you\'re building blind. With them, you know exactly what to improve.',
+    inApp:'Will track the key conversion funnel in Phase 9:<br>install \u2192 account \u2192 first child \u2192 first entry \u2192 day 7 retention \u2192 subscription converted<br>Also tracks: 60s cap hit rate, voice vs. text ratio, Firefly Jar usage, notification tap-through. Free up to 1M events/month.' },
+  { id:'t-stt', cat:'future', name:'expo-speech-recognition', version:'', icon:'\uD83C\uDF99',
+    status:'future',
+    oneliner:'On-device speech-to-text \u2014 turns voice recordings into written transcripts.',
+    eli5:'Your phone has a built-in <strong>stenographer</strong> \u2014 it can listen to speech and type out what it hears, right on the device without sending audio to the internet. This library gives us access to that capability. The key word is "on-device" \u2014 the parent\'s recordings never leave the phone for transcription, which is important for privacy.',
+    inApp:'Will power the core recording flow in Phase 5. When a parent taps record, it captures audio AND produces a real-time transcript that appears word-by-word as they speak. Uses <code>persist: true</code> mode for accuracy and <code>requiresOnDeviceRecognition: true</code> for privacy.' },
+];
+
+// ═══════════════════════════════════════════════════════════
+//  SHARED STATE
+// ═══════════════════════════════════════════════════════════
+
+const nodesById = {};
+nodes.forEach(n => nodesById[n.id] = n);
+
+const state = {
+  activeTab: 'arch',
+  // Architecture state
+  preset: 'full',
+  layers: { routing:1, screens:1, onboarding:1, components:0, state:1, foundation:1, future:0 },
+  conns: { nav:1, state:1, uses:0, persist:1, hook:1, future:0 },
+  zoom: 1, panX: 0, panY: 0,
+  selectedNode: null,
+  // Tech stack state
+  activeCat: 'all',
+  // Shared
+  comments: [],
+  modalNode: null,
+  modalSource: null, // 'arch' or 'tech'
+};
+
+// ═══════════════════════════════════════════════════════════
+//  TAB SWITCHING
+// ═══════════════════════════════════════════════════════════
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.activeTab = btn.dataset.tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+    document.getElementById('arch-view').classList.toggle('active', state.activeTab === 'arch');
+    document.getElementById('tech-view').classList.toggle('active', state.activeTab === 'tech');
+    updatePrompt();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
+//  ARCHITECTURE RENDERING (unchanged logic)
+// ═══════════════════════════════════════════════════════════
+
+function render() {
+  renderSVG();
+  renderArchSidebar();
+  renderTechStack();
+  updatePrompt();
+}
+
+function renderSVG() {
+  const world = document.getElementById('world');
+  let svg = '';
+
+  for (const [key, meta] of Object.entries(layerMeta)) {
+    if (!state.layers[key]) continue;
+    svg += `<rect x="0" y="${meta.bandY}" width="1300" height="${meta.bandH}" rx="6" fill="${meta.color}" opacity="0.25"/>`;
+    svg += `<text x="1280" y="${meta.bandY + 16}" text-anchor="end" fill="#8a7a6a" font-size="12" font-weight="700" letter-spacing="1.5" font-family="system-ui">${meta.label.toUpperCase()}</text>`;
+  }
+
+  const activePreset = state.preset;
+  connections.forEach(c => {
+    const fromN = nodesById[c.from]; const toN = nodesById[c.to];
+    if (!fromN || !toN) return;
+    if (!state.layers[fromN.layer] || !state.layers[toN.layer]) return;
+    if (!state.conns[c.type]) return;
+    if (!c.presets.includes(activePreset)) return;
+    const meta = connMeta[c.type];
+    const path = getPath(fromN, toN);
+    const isHighlighted = state.selectedNode && (c.from === state.selectedNode || c.to === state.selectedNode);
+    const isDimmed = state.selectedNode && !isHighlighted;
+    const opacity = isDimmed ? 0.08 : (c.type === 'future' ? 0.5 : 0.6);
+    svg += `<path d="${path}" fill="none" stroke="${meta.color}" stroke-width="${isHighlighted ? 2.5 : 1.5}" stroke-dasharray="${meta.dash}" marker-end="url(#arrow-${c.type})" opacity="${opacity}"/>`;
+    if (c.label && !isDimmed) {
+      const mx = (fromN.x + fromN.w/2 + toN.x + toN.w/2) / 2;
+      const my = (fromN.y + fromN.h/2 + toN.y + toN.h/2) / 2;
+      svg += `<text x="${mx}" y="${my - 4}" text-anchor="middle" fill="${meta.color}" font-size="11" opacity="0.8" font-family="system-ui">${c.label}</text>`;
+    }
+  });
+
+  nodes.forEach(n => {
+    if (!state.layers[n.layer]) return;
+    const isFuture = n.layer === 'future';
+    const hasComment = state.comments.some(c => c.target === n.id);
+    const isSelected = state.selectedNode === n.id;
+    const isConnected = state.selectedNode && connections.some(c =>
+      (c.from === state.selectedNode && c.to === n.id) || (c.to === state.selectedNode && c.from === n.id));
+    const isDimmed = state.selectedNode && !isSelected && !isConnected;
+    const fill = isFuture ? '#231a15' : layerMeta[n.layer]?.color || '#2c2018';
+    const strokeColor = hasComment ? '#e8a87c' : (isSelected ? '#e8a87c' : (isFuture ? '#4a3a2a' : '#5a4a3a'));
+    const strokeW = hasComment || isSelected ? 2.5 : 1;
+    const strokeDash = isFuture ? '5,3' : '';
+    const opacity = isDimmed ? 0.15 : 1;
+    svg += `<g class="node" data-id="${n.id}" transform="translate(${n.x},${n.y})" opacity="${opacity}" style="cursor:pointer">`;
+    svg += `<rect width="${n.w}" height="${n.h}" rx="8" fill="${fill}" stroke="${strokeColor}" stroke-width="${strokeW}" stroke-dasharray="${strokeDash}"/>`;
+    if (isFuture && n.version) {
+      const vColors = { 'V1.0':'#f59e0b', 'V1.5':'#8b5cf6', 'V2':'#06b6d4', 'V3+':'#6b7280' };
+      svg += `<rect x="${n.w - 36}" y="4" width="32" height="14" rx="3" fill="${vColors[n.version]||'#6a5a4a'}" opacity="0.25"/>`;
+      svg += `<text x="${n.w - 20}" y="14" text-anchor="middle" fill="${vColors[n.version]||'#a89888'}" font-size="9" font-weight="700" font-family="system-ui">${n.version}</text>`;
+    }
+    svg += `<text x="${n.w/2}" y="${n.h/2 - 3}" text-anchor="middle" fill="#f0e6dc" font-size="13" font-weight="600" font-family="system-ui">${n.label}</text>`;
+    svg += `<text x="${n.w/2}" y="${n.h/2 + 12}" text-anchor="middle" fill="#9a8a7a" font-size="10" font-family="system-ui">${n.subtitle}</text>`;
+    if (hasComment) {
+      svg += `<circle cx="${n.w - 8}" cy="8" r="5" fill="#e8a87c"/>`;
+      svg += `<text x="${n.w - 8}" y="11" text-anchor="middle" fill="#1a1210" font-size="8" font-weight="700" font-family="system-ui">${state.comments.filter(c => c.target === n.id).length}</text>`;
+    }
+    svg += `</g>`;
+  });
+
+  world.innerHTML = svg;
+  applyTransform();
+
+  document.querySelectorAll('.node').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      const id = el.dataset.id;
+      if (state.selectedNode === id) { openModal(id, 'arch'); }
+      else { state.selectedNode = id; render(); }
+    });
+    el.addEventListener('dblclick', e => { e.stopPropagation(); openModal(el.dataset.id, 'arch'); });
+  });
+}
+
+function getPath(from, to) {
+  const sameRow = Math.abs(from.y - to.y) < 15;
+  if (sameRow) {
+    const goRight = to.x > from.x;
+    const x1 = goRight ? from.x + from.w : from.x;
+    const y1 = from.y + from.h / 2;
+    const x2 = goRight ? to.x : to.x + to.w;
+    const y2 = to.y + to.h / 2;
+    const dist = Math.abs(x2 - x1);
+    if (dist < 100) return `M${x1},${y1} L${x2},${y2}`;
+    const arcY = Math.min(y1, y2) - 20 - dist * 0.03;
+    return `M${x1},${y1} Q${(x1+x2)/2},${arcY} ${x2},${y2}`;
+  }
+  const goDown = to.y > from.y;
+  const x1 = from.x + from.w / 2;
+  const y1 = goDown ? from.y + from.h : from.y;
+  const x2 = to.x + to.w / 2;
+  const y2 = goDown ? to.y : to.y + to.h;
+  const dy = Math.abs(y2 - y1);
+  const cy1 = goDown ? y1 + dy * 0.4 : y1 - dy * 0.4;
+  const cy2 = goDown ? y2 - dy * 0.4 : y2 + dy * 0.4;
+  return `M${x1},${y1} C${x1},${cy1} ${x2},${cy2} ${x2},${y2}`;
+}
+
+function renderArchSidebar() {
+  document.getElementById('layer-toggles').innerHTML = Object.entries(layerMeta).map(([key, meta]) =>
+    `<label class="check-row"><input type="checkbox" ${state.layers[key]?'checked':''} onchange="toggleLayer('${key}',this.checked)"><span class="check-dot" style="background:${meta.color}"></span>${meta.label}</label>`
+  ).join('');
+
+  document.getElementById('conn-toggles').innerHTML = Object.entries(connMeta).map(([key, meta]) =>
+    `<label class="check-row"><input type="checkbox" ${state.conns[key]?'checked':''} onchange="toggleConn('${key}',this.checked)"><span class="check-dot" style="background:${meta.color}"></span>${meta.label}</label>`
+  ).join('');
+
+  document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.preset === state.preset));
+
+  const commEl = document.getElementById('comments-list');
+  document.getElementById('comment-count').textContent = state.comments.length;
+  if (state.comments.length === 0) {
+    commEl.innerHTML = '<p class="no-comments">Click any node to add a comment or question.</p>';
+  } else {
+    commEl.innerHTML = state.comments.map((c, i) => `
+      <div class="comment-item">
+        <button class="del-btn" onclick="deleteComment(${i})">&times;</button>
+        <div class="target">${escHtml(c.targetLabel)}</div>
+        <div class="file">${escHtml(c.targetFile)}</div>
+        <div class="text">${escHtml(c.text)}</div>
+      </div>`).join('');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TECH STACK RENDERING
+// ═══════════════════════════════════════════════════════════
+
+function renderTechStack() {
+  // Sidebar
+  const sb = document.getElementById('tech-sidebar');
+  const allCount = techItems.length;
+  let shtml = `<div style="padding:16px 16px 8px"><div style="font-size:18px;font-weight:700;color:#e8a87c">Tech Stack</div><div style="font-size:13px;color:#9a8a7a;margin-top:4px">What each tool does & why</div></div>`;
+  shtml += `<button class="cat-btn ${state.activeCat==='all'?'active':''}" onclick="filterCat('all')"><span class="cat-dot" style="background:#e8a87c"></span>All Technologies<span class="cat-count">${allCount}</span></button>`;
+  techCategories.forEach(cat => {
+    const count = techItems.filter(t => t.cat === cat.id).length;
+    shtml += `<button class="cat-btn ${state.activeCat===cat.id?'active':''}" onclick="filterCat('${cat.id}')"><span class="cat-dot" style="background:${cat.color}"></span>${cat.label}<span class="cat-count">${count}</span></button>`;
+  });
+  sb.innerHTML = shtml;
+
+  // Main cards
+  const main = document.getElementById('tech-main');
+  const filtered = state.activeCat === 'all' ? techItems : techItems.filter(t => t.cat === state.activeCat);
+  const grouped = {};
+  filtered.forEach(t => { if (!grouped[t.cat]) grouped[t.cat] = []; grouped[t.cat].push(t); });
+
+  let html = `<div class="tech-intro">
+    <h2>Your Tech Stack, Explained</h2>
+    <p>Every technology in Forever Fireflies, broken down in plain English. Click any card to ask a question or leave a note \u2014 it feeds into the same prompt builder as the Architecture tab.</p>
+    <div class="stack-summary">
+      <span class="stack-chip">Expo + React Native</span>
+      <span class="stack-chip">TypeScript</span>
+      <span class="stack-chip">Zustand</span>
+      <span class="stack-chip">Expo Router</span>
+      <span class="stack-chip">Reanimated</span>
+      <span class="stack-chip" style="border-style:dashed;color:#7a6a5a">+ 5 future services</span>
+    </div>
+  </div>`;
+
+  const catOrder = techCategories.map(c => c.id);
+  catOrder.forEach(catId => {
+    if (!grouped[catId]) return;
+    const cat = techCategories.find(c => c.id === catId);
+    html += `<div class="tech-section-header"><span class="tech-section-dot" style="background:${cat.color}"></span>${cat.label}</div>`;
+    grouped[catId].forEach(t => {
+      const hasComment = state.comments.some(c => c.target === t.id);
+      const commentCount = state.comments.filter(c => c.target === t.id).length;
+      html += `
+        <div class="tech-card ${hasComment ? 'has-comment' : ''}" onclick="openModal('${t.id}','tech')">
+          <div class="tech-card-bar" style="background:${cat.color}"></div>
+          <div class="tech-card-body">
+            <div class="tech-card-head">
+              <span class="tech-card-icon">${t.icon}</span>
+              <span class="tech-card-title">${t.name}</span>
+              ${t.version ? `<span class="tech-card-version">${t.version}</span>` : ''}
+              <span class="tech-card-status ${t.status === 'active' ? 'status-active' : 'status-future'}">${t.status === 'active' ? 'IN USE' : 'PLANNED'}</span>
+              ${hasComment ? `<span style="background:#e8a87c;color:#1a1210;font-size:12px;font-weight:700;padding:3px 8px;border-radius:8px;margin-left:4px">${commentCount}</span>` : ''}
+            </div>
+            <div class="tech-card-oneliner">${t.oneliner}</div>
+            <div class="eli5-box">
+              <div class="eli5-label">Explain Like I'm Five</div>
+              <div class="eli5-text">${t.eli5}</div>
+            </div>
+            <div>
+              <div class="in-app-label">In Forever Fireflies</div>
+              <div class="in-app-text">${t.inApp}</div>
+            </div>
+            <div class="tech-card-comment-hint">Click to ask a question about ${t.name}</div>
+          </div>
+        </div>`;
+    });
+  });
+
+  main.innerHTML = html;
+}
+
+function filterCat(catId) {
+  state.activeCat = catId;
+  renderTechStack();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ZOOM / PAN
+// ═══════════════════════════════════════════════════════════
+
+function applyTransform() {
+  document.getElementById('world').setAttribute('transform', `translate(${state.panX},${state.panY}) scale(${state.zoom})`);
+}
+function zoomIn() { state.zoom = Math.min(state.zoom * 1.2, 3); applyTransform(); }
+function zoomOut() { state.zoom = Math.max(state.zoom / 1.2, 0.3); applyTransform(); }
+function zoomReset() { state.zoom = 1; state.panX = 0; state.panY = 0; applyTransform(); }
+
+(function setupPanZoom() {
+  const area = document.getElementById('canvas-area');
+  let dragging = false, lastX, lastY;
+  area.addEventListener('wheel', e => {
+    e.preventDefault();
+    state.zoom = Math.min(Math.max(state.zoom * (e.deltaY < 0 ? 1.08 : 1/1.08), 0.3), 3);
+    applyTransform();
+  }, { passive: false });
+  area.addEventListener('mousedown', e => {
+    if (e.target.closest('.node')) return;
+    dragging = true; lastX = e.clientX; lastY = e.clientY;
+    area.classList.add('grabbing');
+    state.selectedNode = null; render();
+  });
+  window.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    state.panX += e.clientX - lastX; state.panY += e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY; applyTransform();
+  });
+  window.addEventListener('mouseup', () => { dragging = false; area.classList.remove('grabbing'); });
+})();
+
+// ═══════════════════════════════════════════════════════════
+//  INTERACTIONS
+// ═══════════════════════════════════════════════════════════
+
+function applyPreset(key) {
+  const cfg = presetConfig[key]; if (!cfg) return;
+  state.preset = key;
+  for (const [k,v] of Object.entries(cfg.layers)) state.layers[k] = v;
+  for (const [k,v] of Object.entries(cfg.conns)) state.conns[k] = v;
+  state.selectedNode = null; render();
+}
+function toggleLayer(key, on) { state.layers[key] = on?1:0; render(); }
+function toggleConn(key, on) { state.conns[key] = on?1:0; render(); }
+document.querySelectorAll('.preset-btn').forEach(btn => btn.addEventListener('click', () => applyPreset(btn.dataset.preset)));
+
+// ═══════════════════════════════════════════════════════════
+//  COMMENT MODAL (shared between both tabs)
+// ═══════════════════════════════════════════════════════════
+
+function openModal(id, source) {
+  state.modalSource = source;
+  state.modalNode = id;
+  let title, sub;
+  if (source === 'arch') {
+    const n = nodesById[id]; if (!n) return;
+    title = n.label;
+    sub = n.subtitle + (n.desc ? ' \u2014 ' + n.desc : '');
+  } else {
+    const t = techItems.find(x => x.id === id); if (!t) return;
+    title = t.name + (t.version ? ' ' + t.version : '');
+    sub = t.oneliner;
+  }
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-sub').textContent = sub;
+  document.getElementById('modal-input').value = '';
+  document.getElementById('modal').classList.add('open');
+  setTimeout(() => document.getElementById('modal-input').focus(), 50);
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  state.modalNode = null; state.modalSource = null;
+}
+
+function saveComment() {
+  const text = document.getElementById('modal-input').value.trim();
+  if (!text || !state.modalNode) return;
+  let label, file;
+  if (state.modalSource === 'arch') {
+    const n = nodesById[state.modalNode];
+    label = n.label; file = n.subtitle;
+  } else {
+    const t = techItems.find(x => x.id === state.modalNode);
+    label = t.name + (t.version ? ' ' + t.version : '');
+    file = 'Tech Stack';
+  }
+  state.comments.push({ id: Date.now(), target: state.modalNode, targetLabel: label, targetFile: file, text, source: state.modalSource });
+  closeModal(); render();
+}
+
+function deleteComment(index) { state.comments.splice(index, 1); render(); }
+
+document.getElementById('modal').addEventListener('click', e => { if (e.target === document.getElementById('modal')) closeModal(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+  if (e.key === 'Enter' && e.ctrlKey && document.getElementById('modal').classList.contains('open')) saveComment();
+});
+
+// ═══════════════════════════════════════════════════════════
+//  PROMPT GENERATION (shared)
+// ═══════════════════════════════════════════════════════════
+
+function updatePrompt() {
+  const el = document.getElementById('prompt-output');
+  if (state.comments.length === 0) {
+    el.textContent = 'Add comments to architecture nodes or tech stack items to generate a prompt you can paste into Claude.';
+    return;
+  }
+
+  const archComments = state.comments.filter(c => c.source === 'arch');
+  const techComments = state.comments.filter(c => c.source === 'tech');
+
+  let prompt = 'Looking at the Forever Fireflies codebase:\n\n';
+
+  if (archComments.length) {
+    const presetLabel = { full:'Full System', components:'Screen \u2192 Components', data:'Data Flow', future:'Future Roadmap' }[state.preset] || 'Full System';
+    prompt += `Architecture (${presetLabel} view):\n\n`;
+    archComments.forEach(c => { prompt += `**${c.targetLabel}** (${c.targetFile}):\n${c.text}\n\n`; });
+  }
+
+  if (techComments.length) {
+    prompt += `Tech Stack questions:\n\n`;
+    techComments.forEach(c => { prompt += `**${c.targetLabel}**:\n${c.text}\n\n`; });
+  }
+
+  prompt += 'Please address each comment above in the context of the Forever Fireflies codebase. Explain in simple terms since I\'m learning.';
+  el.textContent = prompt;
+}
+
+function copyPrompt() {
+  navigator.clipboard.writeText(document.getElementById('prompt-output').textContent).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = 'Copied!'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy Prompt'; btn.classList.remove('copied'); }, 1500);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  HELPERS & INIT
+// ═══════════════════════════════════════════════════════════
+
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+render();
+</script>
+</body>
+</html>

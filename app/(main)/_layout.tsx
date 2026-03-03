@@ -16,7 +16,6 @@ export default function MainLayout() {
       <Stack.Screen name="home" />
       <Stack.Screen name="recording" />
       <Stack.Screen name="entry-detail" />
-      <Stack.Screen name="search" />
       <Stack.Screen name="core-memories" />
       <Stack.Screen name="settings" />
       <Stack.Screen name="empty-state" />

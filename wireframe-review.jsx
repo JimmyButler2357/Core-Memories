@@ -140,7 +140,7 @@ const SCREEN_INFO = {
   home: {
     label: "Home", mode: "main",
     purpose: "Central hub. Browse entries, filter by child, launch recording or text entry.",
-    features: ["Heart icon in top bar navigates to Core Memories", "Multi-child: tab filters (All + per-child)", "Single-child: warm pill with age + memory count", "First-entry: celebration banner + single glowing card (post-onboarding payoff)", "Entry cards (date / child pills / tags / preview)", "Gradient fade bottom area", "Record mic button + \"or write\" text entry option"],
+    features: ["Heart icon in top bar navigates to Firefly Jar", "Multi-child: tab filters (All + per-child)", "Single-child: warm pill with age + memory count", "First-entry: celebration banner + single glowing card (post-onboarding payoff)", "Entry cards (date / child pills / tags / preview)", "Gradient fade bottom area", "Record mic button + \"or write\" text entry option"],
     states: [
       { id: "multi-child", purpose: "Default — child tabs across top for filtering (All, Emma, Liam, Nora)" },
       { id: "single-child", purpose: "Only one child registered — no tabs, shows warm pill with age + memory count" },
@@ -172,7 +172,7 @@ const SCREEN_INFO = {
       "Editable transcript (Georgia serif, paper texture)",
       "Tag row with add/remove + tag editor panel",
       "Audio playback bar with scrub",
-      "Heart toggle (Core Memory)",
+      "Heart toggle (Firefly)",
       "Soft delete with 30-day recovery confirmation dialog",
       "Post-recording \"Memory saved\" banner (auto-dismisses)",
     ],
@@ -196,7 +196,7 @@ const SCREEN_INFO = {
     connects: ["home", "detail"],
   },
   corememories: {
-    label: "♡ Core Memories", mode: "main",
+    label: "♡ Firefly Jar", mode: "main",
     purpose: "The app's emotional centerpiece — a curated treasure box of the parent's most meaningful moments. Visually elevated from Home.",
     features: [
       "Warm gradient background (#F9F2EB → cream) — distinct from Home's flat background",
@@ -207,7 +207,7 @@ const SCREEN_INFO = {
       "Warm amber glow border on cards",
       "Inline audio play button on each card (plays without navigating to Detail)",
       "Play button has stopPropagation — tapping audio area stays on this screen",
-      "Empty state in serif: \"Tap the heart on any entry to save it as a Core Memory\"",
+      "Empty state in serif: \"Tap the heart on any entry to save it as a Firefly\"",
     ],
     connects: ["home", "detail"],
   },
@@ -321,7 +321,7 @@ function OB_SignIn({ onNav }) {
   return <Phone label="Sign In">
     <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "0 30px" }}>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-        <h1 style={{ fontSize: 28, fontWeight: 800, color: C.text, fontFamily: "'Georgia', serif", margin: "0 0 12px", letterSpacing: -0.5 }}>Core Memories</h1>
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: C.text, fontFamily: "'Georgia', serif", margin: "0 0 12px", letterSpacing: -0.5 }}>Forever Fireflies</h1>
         <p style={{ fontSize: 15, color: C.textSoft, fontFamily: "'Georgia', serif", fontStyle: "italic", margin: 0 }}>You'll never forget the little things.</p>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 12, paddingBottom: 16 }}>
@@ -415,7 +415,7 @@ function OB_Mic({ onNav }) {
     <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 30px", textAlign: "center" }}>
       <div style={{ marginBottom: 28 }}><I.MicSoft sz={56} /></div>
       <h2 style={{ fontSize: 18, fontWeight: 700, color: C.text, fontFamily: "'Georgia', serif", margin: "0 0 16px" }}>One tap to capture a memory</h2>
-      <p style={{ fontSize: 14, color: C.textSoft, lineHeight: 1.6, margin: "0 0 36px" }}>Core Memories uses your microphone to record your voice. Nothing is ever recorded without you pressing the button — and your recordings stay private.</p>
+      <p style={{ fontSize: 14, color: C.textSoft, lineHeight: 1.6, margin: "0 0 36px" }}>Forever Fireflies uses your microphone to record your voice. Nothing is ever recorded without you pressing the button — and your recordings stay private.</p>
       <Btn label="Allow microphone" onClick={() => onNav("ob_notif")} />
     </div>
   </Phone>;
@@ -449,7 +449,7 @@ function OB_Record({ onNav }) {
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
       <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "radial-gradient(ellipse at 50% 40%, rgba(244,226,214,0.45) 0%, rgba(250,248,245,0) 70%)" }} />
       <div style={{ padding: "6px 20px 0", display: "flex", alignItems: "center", position: "relative" }}>
-        <span style={{ fontSize: 22, fontWeight: 800, color: C.text, letterSpacing: -0.5, fontFamily: "'Georgia', serif" }}>Core Memories</span>
+        <span style={{ fontSize: 22, fontWeight: 800, color: C.text, letterSpacing: -0.5, fontFamily: "'Georgia', serif" }}>Forever Fireflies</span>
       </div>
       <div style={{ position: "relative", padding: "40px 28px 0", display: "flex", flexDirection: "column", alignItems: "center", animation: "fadeInUp 0.6s ease both" }}>
         <div style={{ background: C.card, backgroundImage: paperTex, border: `1px solid ${C.border}`, borderRadius: 14, padding: "20px 24px", fontSize: 18, color: C.text, lineHeight: 1.5, fontFamily: "'Georgia', serif", fontWeight: 500, boxShadow: "0 2px 12px rgba(44,36,32,0.06)", width: "100%", textAlign: "center", marginBottom: 28 }}>
@@ -554,7 +554,7 @@ function EmptyState({ onNav }) {
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
       <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "radial-gradient(ellipse at 50% 40%, rgba(244,226,214,0.45) 0%, rgba(250,248,245,0) 70%)" }} />
       <div style={{ padding: "6px 20px 0", display: "flex", justifyContent: "space-between", alignItems: "center", position: "relative" }}>
-        <span style={{ fontSize: 22, fontWeight: 800, color: C.text, letterSpacing: -0.5, fontFamily: "'Georgia', serif" }}>Core Memories</span>
+        <span style={{ fontSize: 22, fontWeight: 800, color: C.text, letterSpacing: -0.5, fontFamily: "'Georgia', serif" }}>Forever Fireflies</span>
         <div style={{ cursor: "pointer" }}><I.Gear /></div>
       </div>
       <div style={{ position: "relative", padding: "40px 28px 0", display: "flex", flexDirection: "column", alignItems: "center", animation: "fadeInUp 0.6s ease both" }}>
@@ -581,7 +581,7 @@ function Home({ onNav, subState }) {
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
       {/* Top bar — title + search pill / heart / gear */}
       <div style={{ padding: "6px 20px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: 22, fontWeight: 800, color: C.text, letterSpacing: -0.5, fontFamily: "'Georgia', serif" }}>Core Memories</span>
+        <span style={{ fontSize: 22, fontWeight: 800, color: C.text, letterSpacing: -0.5, fontFamily: "'Georgia', serif" }}>Forever Fireflies</span>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           {!firstEntry && <div onClick={() => onNav("search")} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 20, background: C.tag, border: `1px solid ${C.border}` }}>
             <I.Search />
@@ -877,14 +877,14 @@ function CoreMem({ onNav }) {
   const [tab, setTab] = useState("All");
   const loved = ENTRIES.filter(e => e.loved);
   const f = tab === "All" ? loved : loved.filter(e => e.children.includes(tab));
-  return <Phone label="♡ Core Memories">
+  return <Phone label="♡ Firefly Jar">
     <style>{gs}</style>
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: `linear-gradient(180deg, #F9F2EB 0%, ${C.bg} 35%)` }}>
       {/* Header with warm glow */}
       <div style={{ padding: "6px 20px 12px", display: "flex", flexDirection: "column", alignItems: "center", position: "relative" }}>
         <div style={{ display: "flex", alignItems: "center", width: "100%", marginBottom: 8 }}>
           <div style={{ cursor: "pointer" }} onClick={() => onNav("home")}><I.Back /></div>
-          <span style={{ flex: 1, textAlign: "center", fontSize: 17, fontWeight: 700, color: C.text, fontFamily: "'Georgia', serif", letterSpacing: 0.3 }}>Core Memories</span>
+          <span style={{ flex: 1, textAlign: "center", fontSize: 17, fontWeight: 700, color: C.text, fontFamily: "'Georgia', serif", letterSpacing: 0.3 }}>Firefly Jar</span>
           <div style={{ width: 22 }} />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
@@ -918,7 +918,7 @@ function CoreMem({ onNav }) {
         </div></FadeUp>
       )) : <div style={{ textAlign: "center", padding: "60px 20px" }}>
         <div style={{ marginBottom: 12 }}><I.Heart filled={false} sz={32} /></div>
-        <div style={{ color: C.textMuted, fontSize: 14, lineHeight: 1.6, fontFamily: "'Georgia', serif" }}>Tap the heart on any entry<br/>to save it as a Core Memory.</div>
+        <div style={{ color: C.textMuted, fontSize: 14, lineHeight: 1.6, fontFamily: "'Georgia', serif" }}>Tap the heart on any entry<br/>to save it as a Firefly.</div>
       </div>}</div>
     </div>
   </Phone>;
@@ -928,7 +928,7 @@ function Settings({ onNav }) {
   const secs = [
     { t: "Children", i: [{ label: "Emma — Born Oct 15, 2023" }, { label: "Liam — Born Jan 3, 2022" }, { label: "Nora — Born Jun 20, 2025" }, { label: "+ Add Child", accent: true }] },
     { t: "Reminder", i: [{ label: "Time: 8:30 PM" }, { label: "Enabled: On" }] },
-    { t: "Subscription", i: [{ label: "Plan: Core Memories Premium" }, { label: "Manage Subscription" }] },
+    { t: "Subscription", i: [{ label: "Plan: Forever Fireflies Premium" }, { label: "Manage Subscription" }] },
     { t: "Recently Deleted", i: [{ label: "View deleted memories", sublabel: "Entries are kept for 30 days", accent: true }] },
     { t: "Data & Privacy", i: [{ label: "Export All Entries" }, { label: "Delete Account", danger: true }] },
     { t: "About", i: [{ label: "Version 1.0.0" }, { label: "Privacy Policy" }, { label: "Terms of Service" }, { label: "Contact Support" }] },
@@ -953,7 +953,7 @@ function Notif({ onNav }) {
   return <Phone label="Push Notification">
     <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, background: `linear-gradient(180deg, ${C.bg} 0%, #F5F0EB 100%)` }}>
       <div style={{ width: "100%", background: "rgba(255,255,255,0.94)", backdropFilter: "blur(20px)", borderRadius: 20, padding: "16px 18px", boxShadow: "0 4px 24px rgba(44,36,32,0.12)", border: `1px solid ${C.border}` }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}><div style={{ width: 32, height: 32, borderRadius: 8, background: C.accent, display: "flex", alignItems: "center", justifyContent: "center" }}><I.Mic sz={16} /></div><div><div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Core Memories</div><div style={{ fontSize: 11, color: C.textMuted }}>now</div></div></div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}><div style={{ width: 32, height: 32, borderRadius: 8, background: C.accent, display: "flex", alignItems: "center", justifyContent: "center" }}><I.Mic sz={16} /></div><div><div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Forever Fireflies</div><div style={{ fontSize: 11, color: C.textMuted }}>now</div></div></div>
         <p style={{ fontSize: 14, color: C.text, margin: "0 0 4px", lineHeight: 1.4, fontWeight: 500 }}>What made Emma smile today?</p>
         <p style={{ fontSize: 11.5, color: C.textMuted, margin: "0 0 14px" }}>She's 2 years, 4 months old — these days go fast.</p>
         <div style={{ display: "flex", gap: 8 }}>

@@ -1,5 +1,5 @@
 /**
- * Core Memories — Design Tokens
+ * Forever Fireflies — Design Tokens
  *
  * Single source of truth for all visual values.
  * Never hardcode hex values in components — always import from here.
@@ -31,11 +31,16 @@ export const colors = {
   overlay: 'rgba(44,36,32,0.45)',
   general: '#B5AAA0',
   cardPressed: '#F7F4F1',
+  // Gold glow — secondary accent for firefly magic moments
+  glow: '#F2C94C',
+  glowSoft: '#FDF6E3',
+  glowGlow: 'rgba(242,201,76,0.12)',
+  glowShadow: 'rgba(242,201,76,0.35)',
 } as const;
 
 // Screen-specific colors
 export const screenColors = {
-  coreMemoriesBg: '#F9F2EB',
+  fireflyJarBg: '#FDF6E3',
   notificationBg: '#F5F0EB',
   recordingBackdrop: 'rgba(244,226,214,0.45)',
 } as const;
@@ -117,8 +122,8 @@ export const typography = {
     fontSize: 18,
     lineHeight: 27,
   },
-  // Core Memories screen title
-  coreMemoriesTitle: {
+  // Firefly Jar screen title
+  fireflyJarTitle: {
     fontFamily: fonts.serifBold,
     fontSize: 17,
     letterSpacing: 0.3,
@@ -134,8 +139,8 @@ export const typography = {
     fontSize: 15,
     lineHeight: 24.75, // 15 * 1.65
   },
-  // Core Memories card preview text
-  coreMemoriesPreview: {
+  // Firefly Jar card preview text
+  fireflyJarPreview: {
     fontFamily: fonts.serif,
     fontSize: 15,
     lineHeight: 24, // 15 * 1.6
@@ -221,7 +226,7 @@ export const radii = {
   sm: 8,     // Tags, small badges
   md: 12,    // Child pills, inputs, banners
   card: 14,  // Entry cards, form cards, primary buttons, pickers
-  lg: 16,    // Large cards (Core Memories, first-entry glow), modals, confirm dialogs
+  lg: 16,    // Large cards (Firefly Jar, first-entry glow), modals, confirm dialogs
   full: 9999, // Circular elements, filter chips
   pill: 20,  // Child tabs (rendered as 20px)
 } as const;

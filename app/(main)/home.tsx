@@ -1,12 +1,20 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
+  TextInput,
   FlatList,
   ScrollView,
   Pressable,
+  Keyboard,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+} from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,92 +28,136 @@ import {
   childColors,
   childColorWithOpacity,
 } from '@/constants/theme';
-import { useChildrenStore, type Child } from '@/stores/childrenStore';
-import { useEntriesStore, type Entry } from '@/stores/entriesStore';
+import { useChildrenStore, mapSupabaseChild, type Child } from '@/stores/childrenStore';
+import { useEntriesStore, mapSupabaseEntry } from '@/stores/entriesStore';
 import { useUIStore } from '@/stores/uiStore';
-import { SEED_CHILDREN, SEED_ENTRIES } from '@/constants/seedData';
+import { useAuthStore } from '@/stores/authStore';
+import { childrenService } from '@/services/children.service';
+import { entriesService } from '@/services/entries.service';
+import { useSearchFilter, collectTags } from '@/hooks/useSearchFilter';
+import { useReduceMotion } from '@/hooks/useReduceMotion';
+import { getAge } from '@/lib/dateUtils';
+import { buildChildMap, entryToCard } from '@/lib/entryHelpers';
 import TopBar from '@/components/TopBar';
 import ChildTab from '@/components/ChildTab';
 import EntryCard from '@/components/EntryCard';
+import MicButton from '@/components/MicButton';
+import SearchBar from '@/components/SearchBar';
+import FilterChips from '@/components/FilterChips';
+import DateRangePicker from '@/components/DateRangePicker';
 
-// ─── Helpers ──────────────────────────────────────────────
+// ─── Animation duration ──────────────────────────────────
 
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-}
-
-function formatTime(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-}
-
-function getAge(birthday: string): string {
-  const b = new Date(birthday);
-  const now = new Date();
-  let years = now.getFullYear() - b.getFullYear();
-  let months = now.getMonth() - b.getMonth();
-  if (months < 0) {
-    years--;
-    months += 12;
-  }
-  if (years < 1) return `${months}mo`;
-  if (months === 0) return `${years}y`;
-  return `${years}y ${months}m`;
-}
-
-// ─── Search Pill ─────────────────────────────────────────
-
-function SearchPill({ onPress }: { onPress: () => void }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.searchPill,
-        pressed && { opacity: 0.7 },
-      ]}
-    >
-      <Ionicons name="search-outline" size={14} color={colors.textMuted} />
-      <Text style={styles.searchPillText}>Search</Text>
-    </Pressable>
-  );
-}
+const ANIM_DURATION = 250;
 
 // ─── Home Screen ──────────────────────────────────────────
 
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const reduceMotion = useReduceMotion();
   const children = useChildrenStore((s) => s.children);
+  const setChildren = useChildrenStore((s) => s.setChildren);
   const entries = useEntriesStore((s) => s.entries);
+  const setEntries = useEntriesStore((s) => s.setEntries);
   const activeFilter = useUIStore((s) => s.activeChildFilter);
   const setFilter = useUIStore((s) => s.setActiveChildFilter);
+  const familyId = useAuthStore((s) => s.familyId);
 
-  // One-time cleanup: wipe old numeric-ID data from before the uid() fix,
-  // then seed fresh data for development.
+  // Loading & error state for the initial fetch
+  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+
+  // Search state
+  const [isSearchActive, setIsSearchActive] = useState(false);
+  const searchBarRef = useRef<TextInput>(null);
+  const searchFilter = useSearchFilter();
+
+  // Animated expand/collapse for the search area
+  const searchAreaOpacity = useSharedValue(0);
+  const searchAreaHeight = useSharedValue(0);
+
+  const searchAreaStyle = useAnimatedStyle(() => ({
+    opacity: searchAreaOpacity.value,
+    maxHeight: searchAreaHeight.value,
+    overflow: 'hidden' as const,
+  }));
+
+  const toggleSearchMode = useCallback(() => {
+    if (isSearchActive) {
+      // Collapse search
+      const duration = reduceMotion ? 0 : ANIM_DURATION;
+      searchAreaOpacity.value = withTiming(0, { duration });
+      searchAreaHeight.value = withTiming(0, { duration });
+      Keyboard.dismiss();
+      searchFilter.clearAll();
+      setIsSearchActive(false);
+    } else {
+      // Expand search
+      setIsSearchActive(true);
+      const duration = reduceMotion ? 0 : ANIM_DURATION;
+      searchAreaOpacity.value = withTiming(1, { duration });
+      // 200 is enough for search bar + filter chips + date picker when open
+      searchAreaHeight.value = withTiming(200, { duration });
+      setTimeout(() => searchBarRef.current?.focus(), reduceMotion ? 50 : 280);
+    }
+  }, [isSearchActive, reduceMotion]);
+
+  // ─── Fetch real data from Supabase on mount ──────────────
+  //
+  // This replaces the old seed data logic. On mount, we:
+  // 1. Fetch children from the children table
+  // 2. Fetch timeline entries (newest first, with joined children + tags)
+  // 3. Map the snake_case rows to our camelCase UI shapes
+  // 4. Update the local stores
+  //
+  // Think of it like opening a filing cabinet when you arrive
+  // at work — you pull out what you need and put copies on
+  // your desk (local store) for quick reference.
+
   useEffect(() => {
-    const hasOldIds = children.some((c) => /^\d+$/.test(c.id));
-    if (hasOldIds) {
-      // Clear stale data that used the old counter-based IDs
-      useChildrenStore.setState({ children: [] });
-      useEntriesStore.setState({ entries: [] });
+    if (!familyId) {
+      setIsLoadingData(false);
+      return;
     }
 
-    const currentChildren = useChildrenStore.getState().children;
-    const currentEntries = useEntriesStore.getState().entries;
+    let cancelled = false;
 
-    if (currentChildren.length === 0) {
-      const addChild = useChildrenStore.getState().addChild;
-      SEED_CHILDREN.forEach((c) => addChild({ name: c.name, birthday: c.birthday }));
-    }
-    if (currentEntries.length === 0) {
-      const store = useEntriesStore.getState();
-      SEED_ENTRIES.forEach((e) => {
-        const { id, ...rest } = e;
-        store.addEntry(rest);
-      });
-    }
-  }, []);
+    const fetchData = async () => {
+      setIsLoadingData(true);
+      setLoadError(null);
+      try {
+        // Fetch children and entries in parallel — they don't
+        // depend on each other, so running them at the same time
+        // is faster than running one after the other.
+        const [childRows, entryRows] = await Promise.all([
+          childrenService.getChildren(),
+          entriesService.getTimeline(familyId),
+        ]);
+
+        if (cancelled) return;
+
+        // Map server rows to UI shapes and update local stores
+        setChildren(childRows.map(mapSupabaseChild));
+        setEntries(entryRows.map(mapSupabaseEntry));
+      } catch (error) {
+        if (cancelled) return;
+        const message = error instanceof Error ? error.message : 'Could not load data';
+        setLoadError(message);
+        console.warn('Home data fetch failed:', error);
+      } finally {
+        if (!cancelled) setIsLoadingData(false);
+      }
+    };
+
+    fetchData();
+
+    // Cleanup — if the component unmounts before the fetch
+    // finishes (e.g. user navigates away fast), we set a flag
+    // so we don't try to update state on an unmounted component.
+    return () => { cancelled = true; };
+  }, [familyId, retryCount]);
 
   // Active (non-deleted) entries, reverse chronological
   const activeEntries = useMemo(
@@ -113,63 +165,117 @@ export default function HomeScreen() {
     [entries],
   );
 
-  // Filtered entries by child tab
-  const filteredEntries = useMemo(() => {
+  // Step 1: Filter by child tab
+  const childFiltered = useMemo(() => {
     if (!activeFilter) return activeEntries;
     return activeEntries.filter((e) => e.childIds.includes(activeFilter));
   }, [activeEntries, activeFilter]);
+
+  // Step 2: Apply search + tag + date filters on top
+  const displayedEntries = useMemo(() => {
+    if (!isSearchActive) return childFiltered;
+    return searchFilter.filterEntries(childFiltered);
+  }, [childFiltered, isSearchActive, searchFilter.filterEntries, searchFilter.query, searchFilter.selectedTags, searchFilter.dateRangeIndex]);
+
+  // Unique tags from all entries (for filter chips)
+  const allTags = useMemo(() => collectTags(entries), [entries]);
 
   const isMultiChild = children.length >= 2;
   const isSingleChild = children.length === 1;
   const isFirstEntry = activeEntries.length === 1;
 
   // Build child lookup for fast access
-  const childMap = useMemo(() => {
-    const map: Record<string, Child> = {};
-    children.forEach((c) => (map[c.id] = c));
-    return map;
-  }, [children]);
-
-  // Map an Entry to EntryCard's display format
-  const entryToCard = (entry: Entry) => {
-    const childNames = entry.childIds.map((id) => childMap[id]?.name ?? 'Unknown');
-    const entryChildColors = entry.childIds.map(
-      (id) => childColors[childMap[id]?.colorIndex ?? 0]?.hex ?? colors.textMuted,
-    );
-    return {
-      childNames,
-      childColors: entryChildColors,
-      date: formatDate(entry.date),
-      time: formatTime(entry.date),
-      preview: entry.text,
-      tags: entry.tags,
-      isFavorited: entry.isFavorited,
-      hasAudio: entry.hasAudio,
-    };
-  };
+  const childMap = useMemo(() => buildChildMap(children), [children]);
 
   const childColor = childColors[children[0]?.colorIndex ?? 0]?.hex ?? childColors[0].hex;
+
+  // ─── Loading state ──────────────────────────────────────
+  // Show a spinner while we're fetching data for the first time.
+  // This prevents showing an empty screen briefly before data loads.
+
+  if (isLoadingData) {
+    return (
+      <View style={styles.container}>
+        <TopBar title="Forever Fireflies" titleStyle="serif" />
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={colors.accent} />
+        </View>
+      </View>
+    );
+  }
+
+  // ─── Error state ────────────────────────────────────────
+  // If the data fetch failed, show an error with a retry button.
+
+  if (loadError) {
+    return (
+      <View style={styles.container}>
+        <TopBar title="Forever Fireflies" titleStyle="serif" />
+        <View style={styles.centered}>
+          <Ionicons name="cloud-offline-outline" size={48} color={colors.textMuted} />
+          <Text style={styles.emptyHeading}>Couldn't load memories</Text>
+          <Text style={styles.emptyBody}>{loadError}</Text>
+          <Pressable
+            onPress={() => {
+              setLoadError(null);
+              setRetryCount((c) => c + 1);
+            }}
+            style={({ pressed }) => [
+              styles.retryButton,
+              pressed && { opacity: 0.8 },
+            ]}
+          >
+            <Text style={styles.retryText}>Try Again</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       {/* Top bar */}
       <TopBar
-        title="Core Memories"
+        title="Forever Fireflies"
         titleStyle="serif"
-        rightContent={
-          !isFirstEntry ? (
-            <SearchPill onPress={() => router.push('/(main)/search')} />
-          ) : undefined
-        }
         rightIcons={
           isFirstEntry
             ? [{ icon: 'settings-outline' as const, onPress: () => router.push('/(main)/settings') }]
             : [
+                {
+                  icon: (isSearchActive ? 'close-outline' : 'search-outline') as keyof typeof Ionicons.glyphMap,
+                  onPress: toggleSearchMode,
+                },
                 { icon: 'heart-outline' as const, onPress: () => router.push('/(main)/core-memories') },
                 { icon: 'settings-outline' as const, onPress: () => router.push('/(main)/settings') },
               ]
         }
       />
+
+      {/* Collapsible search area */}
+      <Animated.View style={searchAreaStyle}>
+        <SearchBar
+          ref={searchBarRef}
+          value={searchFilter.query}
+          onChangeText={searchFilter.setQuery}
+          onClear={() => searchFilter.setQuery('')}
+        />
+        <FilterChips
+          allTags={allTags}
+          selectedTags={searchFilter.selectedTags}
+          onToggleTag={searchFilter.toggleTag}
+          dateRangeIndex={searchFilter.dateRangeIndex}
+          onToggleDatePicker={() => searchFilter.setShowDatePicker(!searchFilter.showDatePicker)}
+          hasActiveFilters={searchFilter.hasActiveFilters}
+          onClearAll={searchFilter.clearAll}
+        />
+        {searchFilter.showDatePicker && (
+          <DateRangePicker
+            activeIndex={searchFilter.dateRangeIndex}
+            onSelect={searchFilter.toggleDateRange}
+          />
+        )}
+      </Animated.View>
 
       {/* First-entry celebration banner */}
       {isFirstEntry && (
@@ -249,59 +355,74 @@ export default function HomeScreen() {
 
       {/* Entry list */}
       <FlatList
-        data={filteredEntries}
+        data={displayedEntries}
         keyExtractor={(item) => item.id}
         style={styles.listContainer}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         renderItem={({ item, index }) => (
           <EntryCard
-            entry={entryToCard(item)}
+            entry={entryToCard(item, childMap)}
             index={index}
-            onPress={() => router.push('/(main)/entry-detail')}
-            showTags={false}
+            onPress={() => router.push({ pathname: '/(main)/entry-detail', params: { entryId: item.id } })}
+            showTags={isSearchActive}
+            highlightQuery={isSearchActive ? searchFilter.query.trim() : undefined}
           />
         )}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Ionicons name="book-outline" size={48} color={colors.textMuted} />
-            <Text style={styles.emptyHeading}>No memories yet</Text>
-            <Text style={styles.emptyBody}>
-              Tap the mic button to record your first memory.
-            </Text>
-          </View>
+          isSearchActive ? (
+            <View style={styles.empty}>
+              <Ionicons name="search-outline" size={48} color={colors.textMuted} />
+              <Text style={styles.emptyHeading}>No memories found</Text>
+              <Text style={styles.emptyBody}>
+                Try different keywords or filters.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.empty}>
+              <Ionicons name="book-outline" size={48} color={colors.textMuted} />
+              <Text style={styles.emptyHeading}>No memories yet</Text>
+              <Text style={styles.emptyBody}>
+                Tap the mic button to record your first memory.
+              </Text>
+            </View>
+          )
         }
       />
 
-      {/* Bottom gradient fade */}
-      <LinearGradient
-        colors={['transparent', 'rgba(250,248,245,0.55)', colors.bg]}
-        locations={[0, 0.55, 1]}
-        style={styles.bottomFade}
-        pointerEvents="none"
-      />
+      {/* Result count pill (when searching with results) */}
+      {isSearchActive && searchFilter.hasActiveFilters && displayedEntries.length > 0 && (
+        <View style={[styles.resultCount, { bottom: insets.bottom + spacing(6) + 120 }]}>
+          <Text style={styles.resultCountText}>
+            {displayedEntries.length} {displayedEntries.length === 1 ? 'memory' : 'memories'} found
+          </Text>
+        </View>
+      )}
 
-      {/* Bottom action area */}
-      <View style={[styles.bottomArea, { paddingBottom: insets.bottom + spacing(8) }]}>
-        {/* Simple mic button — no Reanimated */}
-        <Pressable
-          onPress={() => router.push('/(main)/recording')}
-          style={({ pressed }) => [
-            styles.micButton,
-            pressed && { opacity: 0.85 },
-          ]}
-        >
-          <Ionicons name="mic" size={28} color={colors.card} />
-        </Pressable>
-
-        <Pressable
-          onPress={() => router.push('/(main)/entry-detail')}
-          style={styles.writeLink}
-        >
-          <Ionicons name="pencil-outline" size={12} color={colors.textSoft} />
-          <Text style={styles.writeLinkText}>or write instead</Text>
-        </Pressable>
+      {/* Floating bottom area — gradient fade + mic + write link */}
+      <View style={styles.bottomWrapper} pointerEvents="box-none">
+        <LinearGradient
+          colors={['transparent', 'rgba(250,248,245,0.55)', colors.bg]}
+          locations={[0, 0.55, 1]}
+          style={styles.bottomFade}
+          pointerEvents="none"
+        />
+        <View style={[styles.bottomArea, { paddingBottom: insets.bottom + spacing(5) }]}>
+          <MicButton
+            size="home"
+            onPress={() => router.push('/(main)/recording')}
+          />
+          <Pressable
+            onPress={() => router.push({ pathname: '/(main)/entry-detail', params: { transcript: '' } })}
+            style={styles.writeLink}
+          >
+            <Ionicons name="pencil-outline" size={12} color={colors.textSoft} />
+            <Text style={styles.writeLinkText}>or write instead</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -312,22 +433,24 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
-  // ─── Search Pill ──────────────────
-  searchPill: {
-    flexDirection: 'row',
+  // ─── Loading / Error ─────────────
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.tag,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.pill,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    gap: spacing(3),
+    paddingHorizontal: spacing(8),
   },
-  searchPillText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: colors.textMuted,
+  retryButton: {
+    marginTop: spacing(2),
+    paddingVertical: spacing(3),
+    paddingHorizontal: spacing(6),
+    backgroundColor: colors.accent,
+    borderRadius: radii.md,
+  },
+  retryText: {
+    ...typography.buttonLabel,
+    color: colors.card,
   },
   // ─── Banner ────────────────────────
   banner: {
@@ -415,7 +538,7 @@ const styles = StyleSheet.create({
   list: {
     flexGrow: 1,
     paddingHorizontal: spacing(5),
-    paddingBottom: spacing(40), // room for bottom area
+    paddingBottom: 140, // room for bottom floating area
   },
   // ─── Empty State ───────────────────
   empty: {
@@ -432,35 +555,36 @@ const styles = StyleSheet.create({
     color: colors.textSoft,
     textAlign: 'center',
   },
+  // ─── Result Count ──────────────────
+  resultCount: {
+    position: 'absolute',
+    alignSelf: 'center',
+    backgroundColor: colors.text,
+    paddingVertical: spacing(2),
+    paddingHorizontal: spacing(4),
+    borderRadius: radii.full,
+    ...shadows.md,
+  },
+  resultCountText: {
+    ...typography.caption,
+    color: colors.card,
+    fontWeight: '600',
+  },
   // ─── Bottom Area ───────────────────
-  bottomFade: {
+  bottomWrapper: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
+  },
+  bottomFade: {
     height: 70,
   },
   bottomArea: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    backgroundColor: colors.bg,
     alignItems: 'center',
-    paddingBottom: spacing(8),
+    paddingTop: spacing(1),
     gap: spacing(2),
-  },
-  micButton: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    elevation: 4,
   },
   writeLink: {
     flexDirection: 'row',

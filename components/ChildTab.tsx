@@ -12,7 +12,7 @@ interface ChildTabProps {
 
 /**
  * Horizontal scrollable filter tab for child selection.
- * Used on Home and Core Memories screens.
+ * Used on Home and Firefly Jar screens.
  * "All" tab uses colors.general (#B5AAA0) and showDot={false}.
  */
 export default function ChildTab({ label, color, active, onPress, showDot = true }: ChildTabProps) {

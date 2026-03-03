@@ -8,6 +8,7 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,22 +21,35 @@ import {
   shadows,
   childColors,
 } from '@/constants/theme';
-import { useChildrenStore } from '@/stores/childrenStore';
+import { useChildrenStore, mapSupabaseChild } from '@/stores/childrenStore';
+import { childrenService } from '@/services/children.service';
 import PrimaryButton from '@/components/PrimaryButton';
 import ChildPill from '@/components/ChildPill';
 import PaperTexture from '@/components/PaperTexture';
 import BirthdayPicker, { formatBirthdayDisplay } from '@/components/BirthdayPicker';
 
 // ─── Add Child Screen ─────────────────────────────────────
+//
+// This screen writes to Supabase, not just local state.
+// The flow:
+// 1. User fills in name + birthday (+ optional nickname)
+// 2. We call childrenService.createChild() → saves to the database
+// 3. The server returns the saved row (with a real UUID)
+// 4. We map it to the UI shape and add it to the local store
+//
+// If the network call fails, we show an error and DON'T add
+// anything locally — we never want local and server data to
+// get out of sync.
 
 export default function AddChildScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { children, addChild, removeChild } = useChildrenStore();
+  const { children, addChildLocal, removeChildLocal } = useChildrenStore();
 
   const [name, setName] = useState('');
   const [nickname, setNickname] = useState('');
   const [birthday, setBirthday] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const hasChildren = children.length > 0;
   const nameEntered = name.trim().length > 0;
@@ -51,45 +65,79 @@ export default function AddChildScreen() {
 
   // Button label
   const getButtonLabel = () => {
+    if (isLoading) return 'Saving...';
     if (!nameEntered) return 'Enter a name to continue';
     if (!birthdaySet) return 'Add a birthday to continue';
     if (hasChildren) return `Add ${name.trim()} & continue`;
     return `Add ${name.trim()}`;
   };
 
-  const handleAddChild = () => {
-    if (!formReady) return;
-    addChild({
-      name: name.trim(),
-      birthday,
-      nickname: nickname.trim() || undefined,
-    });
-    // Reset form for potential next child
-    setName('');
-    setNickname('');
-    setBirthday('');
-  };
-
-  const handleContinue = () => {
-    if (formReady) {
-      // Add this child then continue
-      addChild({
+  // Save a child to Supabase, then update local store.
+  // Returns true if successful, false if it failed.
+  const saveChildToSupabase = async (): Promise<boolean> => {
+    setIsLoading(true);
+    try {
+      // Send to Supabase. The `color_index` auto-increments based
+      // on how many children we already have (0, 1, 2... up to 5,
+      // then wraps around). `display_order` works the same way.
+      const row = await childrenService.createChild({
         name: name.trim(),
         birthday,
-        nickname: nickname.trim() || undefined,
+        nickname: nickname.trim() || null,
+        color_index: children.length % 6,
+        display_order: children.length,
       });
+
+      // Convert the snake_case database row to our camelCase UI shape
+      // and add it to the local store for instant display.
+      addChildLocal(mapSupabaseChild(row));
+
+      // Reset form for potential next child
+      setName('');
+      setNickname('');
+      setBirthday('');
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Something went wrong';
+      Alert.alert('Could not save', message);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Remove a child — deletes from Supabase, then removes locally
+  const handleRemoveChild = async (id: string) => {
+    try {
+      await childrenService.deleteChild(id);
+      removeChildLocal(id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not remove child';
+      Alert.alert('Error', message);
+    }
+  };
+
+  const handleAddChild = async () => {
+    if (!formReady) return;
+    await saveChildToSupabase();
+  };
+
+  const handleContinue = async () => {
+    if (formReady) {
+      const success = await saveChildToSupabase();
+      if (!success) return; // Don't navigate if save failed
     }
     router.push('/(onboarding)/mic-permission');
   };
 
-  const handleButtonPress = () => {
+  const handleButtonPress = async () => {
     if (!formReady) return;
     if (hasChildren) {
       // "Add [name] & continue" — add the child and move on
-      handleContinue();
+      await handleContinue();
     } else {
       // "Add [name]" — add first child, form resets, heading changes to "Anyone else?"
-      handleAddChild();
+      await handleAddChild();
     }
   };
 
@@ -117,7 +165,7 @@ export default function AddChildScreen() {
                   name={`${child.name} · ${formatBirthdayDisplay(child.birthday)}`}
                   color={color}
                   showRemove
-                  onRemove={() => removeChild(child.id)}
+                  onRemove={() => handleRemoveChild(child.id)}
                 />
               );
             })}
@@ -137,6 +185,7 @@ export default function AddChildScreen() {
               onChangeText={setName}
               placeholder="Child's name"
               placeholderTextColor={colors.textMuted}
+              editable={!isLoading}
             />
             <View style={styles.fieldDivider} />
           </View>
@@ -160,6 +209,7 @@ export default function AddChildScreen() {
               onChangeText={setNickname}
               placeholder="Used for voice auto-detection"
               placeholderTextColor={colors.textMuted}
+              editable={!isLoading}
             />
           </View>
         </View>
@@ -169,19 +219,22 @@ export default function AddChildScreen() {
           <PrimaryButton
             label={getButtonLabel()}
             onPress={handleButtonPress}
-            disabled={!formReady}
+            disabled={!formReady || isLoading}
           />
 
           {/* "Continue" button when children exist and form is empty */}
           {hasChildren && !formReady && (
-            <Pressable onPress={() => router.push('/(onboarding)/mic-permission')}>
+            <Pressable
+              onPress={() => router.push('/(onboarding)/mic-permission')}
+              disabled={isLoading}
+            >
               <Text style={styles.continueBtn}>Continue</Text>
             </Pressable>
           )}
 
           {/* "Add another child" link when children exist */}
           {hasChildren && formReady && (
-            <Pressable onPress={handleAddChild}>
+            <Pressable onPress={handleAddChild} disabled={isLoading}>
               <Text style={styles.addAnotherLink}>Add another child</Text>
             </Pressable>
           )}

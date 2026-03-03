@@ -1,4 +1,4 @@
-# Core-Memories — Full Product Specification (v2)
+# Forever Fireflies — Full Product Specification (v2)
 ## Voice-First Memory Journal for Parents
 
 Updated to reflect wireframe iterations through v13. Sections covering the core user experience (2.1–2.5), onboarding (2.2), and notification design (4) have been revised to match the current wireframe. Backend, roadmap, and future feature sections remain intact with minor alignment updates.
@@ -21,7 +21,7 @@ Updated to reflect wireframe iterations through v13. Sections covering the core 
 
 > **Detailed screen-by-screen specifications:** See [`app-workflow.md`](../design/app-workflow.md) for the complete App Workflow (v4) — 8 onboarding screens + 7 main app screens + push notification, with full layout descriptions, states, interaction details, and navigation flows.
 
-### 2.1 Capture Flow — Two Paths
+### 2.1 Capture Flow — Three Paths (+ Re-record)
 
 **Path A: Notification Capture (60 seconds)**
 1. Push notification at user-selected time (set during onboarding)
@@ -45,6 +45,15 @@ Updated to reflect wireframe iterations through v13. Sections covering the core 
 2. App opens a blank Entry Detail screen (no audio, just text editor)
 3. Type the memory, select child via pills, add tags
 4. Auto-saved
+
+**Path D: Re-record (from Entry Detail)**
+1. View existing voice entry on Entry Detail screen
+2. Tap mic icon on audio playback bar
+3. Confirmation dialog: "Re-record this memory?"
+4. Tap "Re-record" → Recording screen opens in re-record mode (single context card instead of prompts)
+5. Record new audio → stop
+6. New transcript replaces old, audio file overwritten at same storage path, returns to Entry Detail
+7. All metadata preserved (children, tags, location, date, favorite status)
 
 **Recording duration:**
 - 60 seconds is the default auto-stop. "Just 60 seconds" is the core marketing message — it keeps perceived commitment minimal and maximizes nightly habit formation
@@ -85,14 +94,14 @@ Ship native on-device transcription for MVP. Monitor these signals to decide whe
 
 The onboarding flow is 9 screens, designed to get the parent to their first saved entry in under 90 seconds while establishing the emotional tone.
 
-1. **Sign In** — Apple Sign-In, Google Sign-In, or Email. Georgia serif title "Core Memories" with tagline "You'll never forget the little things." Legal links below auth buttons.
+1. **Sign In** — Apple Sign-In, Google Sign-In, or Email. Georgia serif title "Forever Fireflies" with tagline "You'll never forget the little things." Legal links below auth buttons.
 2. **Add Child** — Name (required), birthday (required — powers age stamps on every entry), nickname (optional — used for voice auto-detection). All fields visible upfront, no progressive disclosure. Birthday uses an inline styled scroll wheel picker (Month/Day/Year) within the card to maintain the app's warm aesthetic. Parents can add multiple children before proceeding — added children appear as colored pills above the form.
 3. **Mic Permission** — Pre-permission primer explaining *why* before iOS system prompt. "Nothing is ever recorded without you pressing the button."
 4. **Notifications** — Set nightly reminder time. Scrollable time picker with 30-minute increments, 8:30 PM default. Framed as "a gentle nudge at bedtime," not a notification. Skip option available.
 5. **First Recording** — Personalized prompt with child's name, pulsing mic button with warm radial gradient backdrop. "Or write instead" text fallback. 60-second limit.
 6. **First Memory (Text)** — Alternative to voice for step 5. Georgia serif text area with child pre-populated.
 7. **Memory Saved** — Emotional payoff. Heart animation, "[Child name]'s first memory, saved." and "Your voice and your words — kept forever." Intentionally minimal — do not add to this screen.
-8. **Welcome Preview** — Shows what the app looks like with months of data: a populated Home feed with multiple entries, the Core Memories screen with favorites, and the Search screen finding a specific moment. Gives the parent a vision of what they're building toward before being asked to subscribe. Static mockup with sample data — not the user's actual entries.
+8. **Welcome Preview** — Shows what the app looks like with months of data: a populated Home feed with multiple entries, the Firefly Jar screen with favorites, and the Search screen finding a specific moment. Gives the parent a vision of what they're building toward before being asked to subscribe. Static mockup with sample data — not the user's actual entries.
 9. **Paywall** — Convert to trial subscriber after experiencing core value. Annual/monthly pricing (annual pre-selected), 7-day free trial, visible dismiss button, restore purchase link. Exits to Home in the first-entry celebration state.
 
 **Key changes from earlier design:**
@@ -104,25 +113,28 @@ The onboarding flow is 9 screens, designed to get the parent to their first save
 ### 2.3 Browse & Relive
 
 **Primary view: Home screen with per-child tabs**
-- Top bar with app title (Georgia serif), search icon (→ Search), heart icon (→ Core Memories), settings gear. In first-entry state, only settings icon is shown — search and heart are hidden
+- Top bar with app title (Georgia serif), search icon (toggles inline search mode), heart icon (→ Firefly Jar), settings gear. In first-entry state, only settings icon is shown — search and heart are hidden
 - Horizontal scrollable child tabs below the top bar: "All" (default, shows every child's entries) plus one tab per child, color-coded with the child's assigned color
 - Single-child variant: when only one child is registered, tabs are replaced by a warm pill showing the child's name, age, and memory count
 - Entry cards in reverse-chronological order: child name pills (colored dot + name), date, time, 2-line transcript preview, tag pills. Favorited entries get a warm orange glow border and filled heart
 - Gradient fade at the bottom transitioning to the mic button and "or write instead" link
 
-**Core Memories screen (favorites):**
+**Firefly Jar screen (favorites):**
 - A visually elevated view of favorited entries — warmer gradient background, Georgia serif title, memory count, larger cards with 3-line serif transcript previews, inline audio play buttons on each card. This screen should feel like opening a treasure box, not filtering a list. See App Workflow v4 for full specification.
 
-**Search:**
-- Full-text keyword search across all transcripts with auto-focus
-- Filter chips: child name (multi-select, colored), tags, date range (presets: Last 7 days, Last 30 days, Last 3 months, All time)
-- Result cards with highlighted search matches
+**Inline search (on Home screen):**
+- Search is integrated directly into the Home feed — no separate screen. Tapping the search icon in the top bar toggles a collapsible search area below the top bar
+- Full-text keyword search with auto-focus when search mode opens
+- Filter chips: tags (multi-select), date range (presets: Last 7 days, Last 30 days, Last 3 months, All time). Child filtering uses the existing child tabs (single-select)
+- Result cards with highlighted search matches. Tags shown on cards while searching
+- Floating result count pill ("X memories found") when filters are active
+- Search mode dismisses via the X icon or "Clear" chip. All filters reset when exiting search
 - Natural language query support ("When did Emma first walk?") — V2 via AI-powered semantic search
 - Warm empty state when no results match
 
 ### 2.4 Entry Detail View
 
-The Entry Detail screen serves both new entries (from recording or text input) and existing entries (from Home, Search, or Core Memories). All edits auto-save — no save button.
+The Entry Detail screen serves both new entries (from recording or text input) and existing entries (from Home, Search, or Firefly Jar). All edits auto-save — no save button.
 
 **Layout (always stacked — four metadata lines):**
 
@@ -138,13 +150,13 @@ Line 4: Age line — each child's age at the time of the entry in muted text (e.
 
 **Auto-detection:** When an entry arrives from a recording, the app analyzes the transcript and pre-fills child pills. If multiple children are detected (lower confidence), a subtle "Auto-detected · tap × to remove or + to add" hint appears. This hint is only shown for low-confidence auto-detection.
 
-**Tags row:** Small tag pills with × for removal, + to add. Tag editor panel shows text input and "Your Frequent Tags" section.
+**Tags row:** Small tag pills with × for removal, + to add. Tag editor panel shows text input with **autocomplete** — as the user types, matching existing tags (system + family custom) appear as tappable suggestions below the input. This is the primary defense against typos: if "swimming" already exists, the user sees it after typing "swim" and taps it instead of typing "swiming." Below the autocomplete, a "Your Frequent Tags" section shows the family's most-used tags for one-tap access. If the user finishes typing a new tag name that doesn't match any existing tag, a new `user_created` tag is created — but only after checking that no system or AI tag with the same slug already exists (see database-schema.md §3.8, Tag Deduplication Rules).
 
 **Transcript:** Editable text area styled with Georgia serif font, paper texture background, and warm border. Full transcription for voice entries; placeholder text for new text entries.
 
 **Audio playback:** Mini-player bar at the bottom with play button and scrub bar. Hidden for text-only entries.
 
-**Heart toggle:** Tap to mark/unmark as a Core Memory (stays on this screen).
+**Heart toggle:** Tap to mark/unmark as a Firefly (stays on this screen).
 
 **Delete:** Trash icon in top bar → confirmation dialog. Always a soft delete with 30-day recovery. "Entries are kept for 30 days" note in the dialog. Recently Deleted section in Settings shows soft-deleted entries with a "Delete forever" option for manual permanent deletion and a "Restore" option.
 
@@ -154,7 +166,7 @@ Line 4: Age line — each child's age at the time of the entry in muted text (e.
 
 **Text-first, audio-second:** Daily browsing happens through transcriptions — faster to scan than listening to sequential recordings. The original audio is always one tap away for the emotional deep-dive. Parents won't sit and listen to 15 recordings back-to-back, but they will tap play on a specific entry that catches their eye in text form.
 
-**Core Memories as audio browse:** The Core Memories (favorites) screen includes inline audio play buttons on each card, allowing parents to listen to their best memories without opening Entry Detail. This creates a more immersive browsing experience for the curated collection. Tapping the play button area stays on the Core Memories screen (stopPropagation); tapping the card text navigates to Detail.
+**Firefly Jar as audio browse:** The Firefly Jar (favorites) screen includes inline audio play buttons on each card, allowing parents to listen to their best memories without opening Entry Detail. This creates a more immersive browsing experience for the curated collection. Tapping the play button area stays on the Firefly Jar screen (stopPropagation); tapping the card text navigates to Detail.
 
 **Family contributor recordings change the equation:** A parent's own voice narrating is reflective and valuable, but hearing grandma describe meeting the baby or uncle Dave's reaction to the first steps — that's content parents actively seek out and replay. The record request feature (V2) transforms the archive from "just me talking" into a chorus of family voices, which is far more compelling to consume and becomes irreplaceable over time.
 
@@ -173,6 +185,8 @@ Line 4: Age line — each child's age at the time of the entry in muted text (e.
 When LLM tagging is active, the model can suggest NEW tags beyond the base taxonomy if none of the existing tags fit well. Over time, each user's tag library grows organically based on their content. For example, if a parent records frequently about swimming lessons, the AI creates a "swimming" tag.
 
 **Data model implication:** Tags are stored in a database table (not hardcoded) with a `source` field: `system` (base taxonomy), `ai-generated`, or `user-created`. This allows the taxonomy to expand per-user without code changes.
+
+**Deduplication requirement:** Before the AI creates a new tag, the app must check if a tag with the same slug already exists (system, AI, or user-created). If it does, reuse the existing tag. This prevents the AI from creating "humor" when the system tag "humor" already exists, or "swimming" when the user already created that tag manually. See database-schema.md §3.8, "Tag Deduplication Rules" for the full logic.
 
 ### 3.2 AI Boundaries (Core Principle)
 - AI NEVER rewrites, paraphrases, or summarizes parent's words
@@ -253,7 +267,7 @@ Small, intentional touches that give the app warmth and make key moments feel sp
 
 ### First Entry Celebration (Implemented in Wireframe)
 
-After completing onboarding, the parent lands on a "first-entry" state of the Home screen. A gradient celebration banner reads "Your first memory is saved" with encouraging body text. Below, the single entry appears in a card with a warm glow border. Search and Core Memories icons are hidden to keep the focus on the moment. This state is reached directly from the paywall exit.
+After completing onboarding, the parent lands on a "first-entry" state of the Home screen. A gradient celebration banner reads "Your first memory is saved" with encouraging body text. Below, the single entry appears in a card with a warm glow border. Search and Firefly Jar icons are hidden to keep the focus on the moment. This state is reached directly from the paywall exit.
 
 The earlier onboarding flow also includes a dedicated "Memory Saved" screen (step 7) — heart animation, child's name, "kept forever" — as the immediate emotional payoff before the paywall.
 
@@ -267,7 +281,7 @@ When an old memory resurfaces (one year ago today), it gets a special card treat
 
 ### Milestone Badge
 
-When the AI detects a milestone entry ("first steps," "first word," "slept through the night"), the entry card gets a small illustrated star badge (~16–22px) near the tags. Warm orange/gold toned, line-art style matching the app's illustration language. Subtle enough that a timeline with many entries doesn't look cluttered. Also applies to Core Memory (favorited) entries — a Core Memory that is also a milestone gets both the warm glow border and the star badge.
+When the AI detects a milestone entry ("first steps," "first word," "slept through the night"), the entry card gets a small illustrated star badge (~16–22px) near the tags. Warm orange/gold toned, line-art style matching the app's illustration language. Subtle enough that a timeline with many entries doesn't look cluttered. Also applies to Firefly (favorited) entries — a Firefly that is also a milestone gets both the warm glow border and the star badge.
 
 **Phase:** V1.5 (see roadmap item — milestone celebrations)
 
@@ -356,6 +370,27 @@ If someone hasn't recorded in 7+ days and opens the app, a gentle interstitial a
 - Potential: read-only sharing for family members who just want to browse
 - Seasonal/holiday invites: around major holidays, prompt the parent to send record request links to family with one tap — builds holiday-tagged collections that become annual traditions
 
+### Contributor Management
+
+The parent is the sole owner of contributor identities. Contributors never type their own name — the parent defines it once and can edit it anytime. This prevents name inconsistencies across recordings (e.g., "Grandma Sarah" vs "Gramma Sara") that would fragment search and filtering.
+
+**Adding a contributor (part of the share link flow):**
+1. Parent taps "Invite Family Member" (in Settings → Family Contributors, or from a dedicated share button)
+2. Parent enters the contributor's display name (e.g., "Grandma Sarah") — this creates a `family_members` row with `role = 'contributor'`
+3. Parent optionally scopes the link to specific children (e.g., only Emma)
+4. Parent selects link expiration (never, 24h, 7d, or 30d)
+5. App generates a unique share link and opens the system share sheet (text, email, WhatsApp, etc.)
+6. Contributor opens the link on any device → sees a simple web recording page branded "Record a memory for the Butler family" with their name displayed (e.g., "Recording as: Grandma Sarah") → taps record → speaks → submits
+7. Parent receives a notification: "Grandma Sarah recorded a memory about Emma" → [Approve] / [Reject]
+
+**Managing contributors in Settings:**
+- **Settings → Family Contributors** section (V2) — lists all contributors with their display name and status (active / revoked)
+- Tap a contributor to: edit their display name (fixes typos across all past entries instantly), view their recordings, revoke their access, or generate a new link
+- Revoking a contributor deactivates all their links but preserves their existing approved entries in the timeline
+- Deleting a contributor removes their `family_members` row — parent is prompted to decide what happens to their entries (keep with name preserved as text, or remove)
+
+**Design rationale:** The contributor's display name is stored once in `family_members.label` and referenced by ID from `contributor_links` and `contributed_entries`. This normalization means search, filtering, and the "recorded by" display on entries all resolve to one canonical name. See database-schema.md §5, "Contributor Identity — Design Decision."
+
 ---
 
 ## 7. Feature Roadmap
@@ -373,7 +408,7 @@ If someone hasn't recorded in 7+ days and opens the app, a gentle interstitial a
 - [ ] Single-child variant (warm pill with age + memory count when only one child)
 - [ ] Entry Detail view (always-stacked metadata, ×/+ child pills, inline child picker with swap mode, tag row, transcript editor, audio playback, heart toggle, soft delete with 30-day recovery)
 - [ ] Auto-detect child from transcript (pre-fills pills on Entry Detail)
-- [ ] Core Memories screen (favorites — elevated visual treatment, larger serif cards, inline audio play)
+- [ ] Firefly Jar screen (favorites — elevated visual treatment, larger serif cards, inline audio play)
 - [ ] Push notification with personalized child name + age prompt
 - [ ] Notification actions: Record (→ Recording) and Remind Me Later (30-min snooze)
 - [ ] Full-text keyword search with child/tag/date range filters
@@ -385,7 +420,7 @@ If someone hasn't recorded in 7+ days and opens the app, a gentle interstitial a
 - [ ] Backdating entries (date picker on in-app capture path; notification path defaults to today)
 - [ ] "First memory" badge per child (permanent marker on the first entry)
 - [ ] Prompt cards on Recording screen (age-bracketed, shuffled from curated bank)
-- [ ] Welcome preview page — new onboarding screen before paywall showing what the app looks like with months of data (full feed, search, Core Memories) so parents see what they're subscribing to
+- [ ] Welcome preview page — new onboarding screen before paywall showing what the app looks like with months of data (full feed, search, Firefly Jar) so parents see what they're subscribing to
 - [ ] Location capture — auto-detect device location as readable text label (e.g., "Tampa, FL") + manual override field. Stored on each entry for future search. No map/GPS complexity — just a text field
 - [ ] Schema future-proofing — add `title`, `recorded_by`, and `location_text` fields to entry table during backend setup, even though full features ship later
 
@@ -403,17 +438,28 @@ If someone hasn't recorded in 7+ days and opens the app, a gentle interstitial a
 - [ ] **Add photos (cap 3)** — attach up to 3 photos per entry via camera or gallery picker. Photos display in Entry Detail below the transcript. Keeps the focus on voice/text (the differentiator) while letting parents add visual context. Photos stored in Supabase Storage alongside audio files
 - [ ] **Birthday quiz** — on a child's birthday, app sends a special push notification or shows an in-app interstitial with guided questions ("What's their favorite food right now?" "What word do they say funny?" "What are they obsessed with?"). Responses saved as a structured text entry tagged with the child and a "birthday" tag. Creates an annual snapshot tradition. Overlaps with Keepsakes' core workflow, validating demand
 - [ ] **Help / menu section** — expandable dropdown or dedicated screen accessible from the top bar. Includes: FAQ, "Ways to Use Your Memories" (4 articles linking to website — e.g., "Share with Grandparents," "Create a Birthday Tradition," "Build a Bedtime Routine," "Make a Keepsake Book"), Contact Us, mission/about, and a deeper dive into family connection. Content links to external website rather than living in-app
-- [ ] Share individual entries — tap share to generate a read-only link with entry text, child name, date, and audio playback; shareable via native share sheet
+- [ ] **Shareable memory cards** — tap a "Share" button on any entry card (Home, Firefly Jar, or Entry Detail) to generate a branded quote-card image. The card displays: transcript text (truncated to ~3 lines for readability), child's name + age at time of entry, entry date, and a subtle "Forever Fireflies" watermark at the bottom. Card uses the app's warm visual language (cream background, Georgia serif for the quote, warm brown text). Image generated client-side via `react-native-view-shot` or similar. Opens native share sheet — works with iMessage, Instagram Stories, Facebook, text, email, etc. Static image format ensures universal compatibility (no audio, no link required). Organic growth loop: every shared card is a branded touchpoint
+- [ ] **Memory of the Day** — daily featured memory banner at the top of the Home screen. Shows one past entry each day — prioritizes "on this day" (same date, previous year) when available, otherwise picks a random entry. Banner includes: child dot + name, short transcript preview (2 lines, Georgia serif), entry date, and a prominent "Share" button that generates the branded quote card (same flow as above). Banner is dismissible for the day. If no past entries exist (new users), banner doesn't appear. Drives daily re-engagement + sharing without guilt or streaks
 - [ ] In-app feedback — "Contact Us" in Settings opens email compose with device info + app version auto-attached
 - [ ] Family recap emails — weekly text digest + monthly audio highlight reel with "voices this month" section (see Section 4)
 - [ ] Quick-react mood/emotion tags — after recording, one-tap mood icon (laughing, crying, proud, exhausted, grateful); filterable later
 - [ ] Quiet mode / whisper detection — auto gain adjustment for low-volume environments
-- [ ] Audio playback on Home entry cards (port inline play from Core Memories to standard cards if validated)
+- [ ] Audio playback on Home entry cards (port inline play from Firefly Jar to standard cards if validated)
 
 ### V2 (Month 6-12) — Growth & Expansion
 - [ ] **Parent merge (linked accounts)** — replaces "partner sharing (two parents, one account)." Each parent has their own account with their own login. Parents pair accounts via an invitation flow (one sends invite, other accepts). Both see a unified feed of shared children and entries. Each entry stores a `recorded_by` field showing which parent recorded it. Second parent can add their own recording/perspective to an existing memory — the entry then has two voice recordings and two transcript sections. UI needs to handle dual-perspective entries (either two text blocks within one entry, or a tabbed "Mom's version / Dad's version" view — to be designed). Included in base subscription, no premium tier. Partner must approve invitation (no unilateral access)
 - [ ] **Memory view filtering** — new filter axis on Home and Search screens. Toggle between: "My memories," "Partner's memories," "Both," and "Others" (grandparents/family who contributed via share links). Works alongside the existing child tab filter. Depends on parent merge infrastructure being in place
 - [ ] **Search scroll (Google Photos style)** — as you scroll the entry feed (Home or Search), a floating date indicator shows your position in time. Fast-scrolling accelerates through months and years with snap points at date boundaries. Uses section list headers that stick as you scroll. Becomes essential once a user has hundreds of entries — a "success problem" worth solving when retention is strong
+- [ ] **Memory Calendar** — a month-by-month calendar grid view as an alternative way to browse entries. Think Google Calendar meets baby journal. Designed for the parent who thinks in dates ("What did Emma say that day at the park last month?") rather than scrolling a feed.
+  - **Grid view:** Standard month calendar grid. Days with entries show colored dots matching each tagged child's color (e.g., one blue dot for Emma, one amber dot for Liam). Multiple dots if multiple children have entries that day. Days with no entries are plain.
+  - **Photo indicators:** If an entry for a day includes photos (V1.5+), the day cell shows a small thumbnail instead of (or alongside) the child dot. When multiple photos exist, show just the first one — a visual hint that something visual lives there.
+  - **Tap a day:** Opens that day's entries. Exact interaction TBD — either inline expansion below the calendar grid, or a dedicated day-detail sheet showing all entries for that date as a mini-timeline. Day-detail approach likely better for days with multiple entries.
+  - **Month navigation:** Swipe left/right to move between months. Year label shown above the grid. Optionally: pinch-to-zoom from month → year overview (showing 12 mini-month grids at once, like iOS Calendar's year view).
+  - **Child filtering:** Respects the active child tab filter. When viewing "Emma" tab, only Emma's entries appear as dots on the calendar. "All" tab shows all children's dots.
+  - **Empty months:** Months with no entries still render but feel lighter — no dots, just the date grid. No guilt messaging.
+  - **Access point (TBD):** Two possible approaches: (1) A list/calendar toggle icon on the Home screen header — tapping switches between the current card timeline and the calendar grid of the same data. (2) A dedicated tab in a bottom navigation bar if the app eventually adopts a tab bar layout (Home, Calendar, Firefly Jar, Settings). Decision depends on whether the app moves to bottom-nav — revisit during implementation.
+  - **"On this day" integration:** Pairs naturally with the V1.5 "On this day" resurfacing card — the calendar could highlight today's date with a glow or badge when a same-date memory exists from a previous year.
+  - **No new schema needed:** Queries existing entries by `created_at` date. Photos depend on the V1.5 photo attachment feature being shipped first.
 - [ ] **Start/stop recording** — pause and resume during a 60-second recording. Audio segments stitched together seamlessly. Transcript handles the gap gracefully. Lets parents collect their thoughts mid-recording without wasting time. Recording timer pauses during breaks
 - [ ] **Location search + recaps** — search and filter entries by location using simple text matching, not geo-queries (e.g., type "Italy" and find all entries where location contains "Italy"). Location-based recaps (e.g., "Your Tampa trip, Summer 2025" — auto-grouped entries from the same location and time period). Builds on location capture from V1.0
 - [ ] "Memory Sparks" — import photo from camera roll, app prompts "What was happening here?"
@@ -421,7 +467,7 @@ If someone hasn't recorded in 7+ days and opens the app, a gentle interstitial a
 - [ ] Keepsake book builder + print-on-demand integration
 - [ ] Extended family sharing via invite links
 - [ ] Shared entry management — view all shared entries, revoke links from settings
-- [ ] Shared entry web page includes subtle Core-Memories branding + "Capture your family's memories" CTA (organic acquisition loop)
+- [ ] Shared entry web page includes subtle Forever Fireflies branding + "Capture your family's memories" CTA (organic acquisition loop)
 - [ ] Referral program — invite a parent friend, both get a free month; built into Settings
 - [ ] Yearly recap — "Year in Memories" email with curated audio, growth stats, month-by-month highlights, year-end letter prompt; timed near renewal (see Section 4)
 - [ ] Titled record requests via link — parent sends a named, themed recording link to family; recipient records on simple web page, no app/account needed
@@ -601,7 +647,7 @@ Zero-effort decisions during development that prevent expensive rework at scale.
 - Time to first entry (target: < 90 seconds from install)
 - Audio vs. text entry ratio (validates voice-first thesis)
 - Search usage (validates that users come back to browse)
-- Core Memories usage (validates that parents curate favorites)
+- Firefly Jar usage (validates that parents curate favorites)
 - Notification tap-through rate (validates personalized prompts)
 - 60-second cap hit rate (informs whether to add "Keep Going" extension)
 
@@ -609,7 +655,7 @@ Zero-effort decisions during development that prevent expensive rework at scale.
 
 ## 14. Open Questions
 
-- [ ] **Name:** "Core-Memories" is a working title — explore alternatives
+- [ ] **Name:** "Forever Fireflies" is a working title — explore alternatives
 - [ ] **Free trial length:** 7 vs. 14 days — A/B test once live
 - [ ] **COPPA compliance:** Legal review needed for storing data about children
 - [ ] **Audio storage costs:** Model the per-user storage cost at scale (1 entry/day x 60 seconds x 1,000 users)
@@ -650,5 +696,5 @@ Features that came up in discovery but aren't prioritized yet:
 | Sibling comparison | Side-by-side view of Child A at age 3 vs. Child B at age 3 | Low | Fun but niche |
 | Letter to future child | Special recording mode — parent speaks directly to their child for them to hear someday; distinct UI | Medium | Strong marketing content; distinct from Time Capsule |
 | Text-based printed journal | Clean paperback diary: dated transcriptions, age stamps, optional photos, QR codes linking to original audio | Medium | Design data model to support now; implement V2+. Complements keepsake book |
-| Audio playback on Home cards | Port inline play from Core Memories to standard entry cards on Home | Medium | Validate on Core Memories first; add to Home in V1.5 if engagement is high |
+| Audio playback on Home cards | Port inline play from Firefly Jar to standard entry cards on Home | Medium | Validate on Firefly Jar first; add to Home in V1.5 if engagement is high |
 | Merge two memories (drag & drop) | Combine two separate entries into one by dragging one onto the other | Low | Parked — UX is unclear (what happens to two audio files, two transcripts, different child tags?). Rare edge case. Simpler workaround: copy-paste text between entries and delete the duplicate |

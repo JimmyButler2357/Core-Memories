@@ -34,7 +34,7 @@ export default function NotificationPreview({
           <View style={styles.appIcon}>
             <Ionicons name="mic" size={16} color={colors.card} />
           </View>
-          <Text style={styles.appName}>Core Memories</Text>
+          <Text style={styles.appName}>Forever Fireflies</Text>
           <Text style={styles.timestamp}>now</Text>
         </View>
 

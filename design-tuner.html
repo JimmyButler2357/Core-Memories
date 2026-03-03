@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Core Memories — Design Tuner</title>
+  <title>Forever Fireflies — Design Tuner</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,500;0,700;1,400&family=Merriweather:ital,wght@0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
@@ -163,7 +163,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 44px 16px 10px;
+      padding: 20px 16px 10px;
     }
 
     .mock-topbar-left { display: flex; align-items: center; gap: 8px; flex: 1; }
@@ -188,6 +188,7 @@
       box-shadow: var(--shadow-card);
       position: relative;
       overflow: hidden;
+      flex-shrink: 0;
     }
 
     /* Texture overlays */
@@ -259,7 +260,7 @@
       border-radius: var(--radius-tab);
       font-size: 12px;
       font-weight: 700;
-      cursor: default;
+      cursor: pointer;
     }
 
     .mock-tab.active { border: 2px solid; }
@@ -282,7 +283,7 @@
     .card-preview {
       font-family: var(--serif);
       font-style: var(--voice-style);
-      font-size: 13.5px;
+      font-size: var(--preview-size, 13.5px);
       font-weight: 400;
       line-height: 1.55;
       color: var(--text);
@@ -431,7 +432,7 @@
     .detail-transcript-text {
       font-family: var(--serif);
       font-style: var(--voice-style);
-      font-size: 14px;
+      font-size: calc(var(--preview-size, 13.5px) + 0.5px);
       font-weight: 400;
       line-height: 1.65;
       color: var(--text);
@@ -518,7 +519,7 @@
     .recording-close {
       font-size: 18px;
       color: var(--text);
-      padding: 44px 16px 10px;
+      padding: 20px 16px 10px;
       cursor: default;
       position: relative;
     }
@@ -581,6 +582,34 @@
       letter-spacing: 1.2px;
       color: #B5AAA0;
       margin-bottom: 14px;
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .section-label::after {
+      content: '▾';
+      font-size: 18px;
+      font-weight: 900;
+      color: #2C2420;
+      transition: transform 0.2s ease;
+      transform: rotate(-90deg);
+    }
+
+    .section-label.expanded::after {
+      transform: rotate(0deg);
+    }
+
+    .section-label:hover::after { color: #2C2420; }
+
+    .section-content {
+      display: none;
+    }
+
+    .section-label.expanded + .section-content {
+      display: block;
     }
 
     .section-divider {
@@ -852,8 +881,10 @@
       border: 1px solid #EDE8E3;
       border-radius: 8px;
       padding: 14px;
-      white-space: pre;
-      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-y: auto;
+      max-height: 60vh;
       margin-bottom: 14px;
       color: #2C2420;
     }
@@ -957,6 +988,8 @@
       color: var(--accent);
       box-shadow: 0 2px 12px rgba(44,36,32,0.08);
     }
+    .mock-mic-btn.mic-outlined svg,
+    .mock-mic-btn-large.mic-outlined svg { stroke: var(--accent); }
 
     .mock-mic-btn.mic-soft,
     .mock-mic-btn-large.mic-soft {
@@ -964,6 +997,8 @@
       color: var(--accent);
       box-shadow: 0 2px 8px rgba(44,36,32,0.06);
     }
+    .mock-mic-btn.mic-soft svg,
+    .mock-mic-btn-large.mic-soft svg { stroke: var(--accent); }
 
     .mock-mic-btn.mic-pill,
     .mock-mic-btn-large.mic-pill {
@@ -1082,29 +1117,235 @@
     }
     .tabs-chip .mock-tab-dot { display: inline-block; }
 
-    /* --- Text + Dot --- */
-    .tabs-text-dot .mock-tab {
-      background: transparent !important;
-      border: none !important;
-      box-shadow: none !important;
+
+
+    /* ═══ Header Icon Button Styles ═══ */
+    .mock-icon-btn {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: transparent;
+      cursor: default;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
       position: relative;
-      padding-bottom: calc(var(--tab-pad-v) + 10px);
     }
-    .tabs-text-dot .mock-tab.active::after {
+
+    .mock-icon-btn svg {
+      width: 16px;
+      height: 16px;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+
+    .mock-icon-btn.icon-search svg,
+    .mock-icon-btn.icon-settings svg,
+    .mock-icon-btn.icon-delete svg { stroke: var(--text-muted); }
+    .mock-icon-btn.icon-heart svg { stroke: var(--accent); fill: none; }
+
+    /* Bare — no container (default) */
+    .icon-style-bare .mock-icon-btn { background: transparent; border: none; border-radius: 0; }
+
+    /* Rounded Squares */
+    .icon-style-rounded-sq .mock-icon-btn {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 1px 3px rgba(44,36,32,0.06);
+    }
+    .icon-style-rounded-sq .mock-icon-btn:hover {
+      box-shadow: 0 2px 6px rgba(44,36,32,0.10);
+      transform: translateY(-1px);
+    }
+
+    /* Circles */
+    .icon-style-circles .mock-icon-btn {
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      background: transparent;
+    }
+    .icon-style-circles .mock-icon-btn.icon-heart { border-color: var(--accent); }
+    .icon-style-circles .mock-icon-btn.icon-search { border-color: var(--text-muted); }
+    .icon-style-circles .mock-icon-btn.icon-settings { border-color: var(--text-muted); }
+    .icon-style-circles .mock-icon-btn:hover { transform: rotate(12deg) scale(1.05); }
+
+    /* Shared Tray */
+    .icon-style-tray .mock-topbar-right {
+      background: var(--tag);
+      border-radius: 14px;
+      padding: 4px;
+      gap: 2px !important;
+    }
+    .icon-style-tray .mock-icon-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+    }
+    .icon-style-tray .mock-icon-btn:hover {
+      background: var(--card);
+      box-shadow: 0 1px 4px rgba(44,36,32,0.06);
+    }
+
+    /* Ghost */
+    .icon-style-ghost .mock-icon-btn { opacity: 0.5; }
+    .icon-style-ghost .mock-icon-btn:hover {
+      opacity: 1;
+    }
+    .icon-style-ghost .mock-icon-btn.icon-heart { opacity: 0.7; }
+
+    /* Glass */
+    .icon-style-glass .mock-icon-btn {
+      border-radius: 12px;
+      background: rgba(255,255,255,0.35);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.5);
+      box-shadow: 0 2px 8px rgba(44,36,32,0.06);
+    }
+    .icon-style-glass .mock-icon-btn:hover {
+      background: rgba(255,255,255,0.55);
+      transform: translateY(-1px);
+    }
+
+    /* ═══ Header Accent Styles ═══ */
+    .header-accent-band .mock-topbar {
+      position: relative;
+    }
+    .header-accent-band .mock-topbar::after {
       content: '';
       position: absolute;
-      bottom: 2px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 6px;
-      height: 6px;
+      bottom: 0;
+      left: 16px;
+      right: 16px;
+      height: 3px;
+      background: var(--accent);
+      border-radius: 2px 2px 0 0;
+    }
+
+    .header-accent-topline .phone::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 24px;
+      right: 24px;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      border-radius: 0 0 2px 2px;
+      z-index: 10;
+    }
+
+    .header-accent-glow .phone {
+      background: linear-gradient(180deg, var(--accent-soft) 0%, var(--bg) 25%, var(--bg) 100%);
+    }
+
+    .header-accent-bookmark .phone::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 28px;
+      width: 22px;
+      height: 44px;
+      background: var(--accent);
+      clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+      z-index: 10;
+    }
+
+    /* ═══ Header Divider Styles ═══ */
+    .header-divider-solid .mock-tabs {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+    }
+    .header-divider-ruled .mock-tabs {
+      border-bottom: 1.5px dashed var(--border);
+      padding-bottom: 10px;
+    }
+    .header-divider-fade .mock-tabs {
+      padding-bottom: 10px;
+      position: relative;
+    }
+    .header-divider-fade .mock-tabs::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 16px;
+      right: 16px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+    }
+
+    /* Divider spacing — gap between divider line and first card */
+    .header-divider-solid .home-scroll,
+    .header-divider-ruled .home-scroll,
+    .header-divider-fade .home-scroll {
+      padding-top: 8px;
+    }
+
+    /* ═══ Top Gradient Overlay ═══ */
+    .top-gradient-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 120px;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      border-radius: 32px 32px 0 0;
+    }
+
+
+
+    /* ═══ Accent Heart ═══ */
+    .accent-heart .mock-icon-btn.icon-heart {
+      background: var(--accent-soft);
       border-radius: 50%;
-      background: currentColor;
     }
-    .tabs-text-dot .mock-tab.inactive {
-      color: var(--text-muted);
+    .accent-heart .mock-icon-btn.icon-heart svg {
+      fill: var(--accent);
+      stroke: var(--accent);
     }
-    .tabs-text-dot .mock-tab-dot { display: none; }
+
+    /* ═══ Page Decoration Styles ═══ */
+    .page-deco-spine .home-scroll {
+      padding-left: calc(var(--screen-pad) + 14px) !important;
+    }
+    .page-deco-spine .phone-spine {
+      display: block;
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 14px;
+      background: var(--tag);
+      border-right: 1px solid var(--border);
+      z-index: 1;
+    }
+    .page-deco-spine .phone-spine-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      position: absolute;
+      left: 5px;
+    }
+    .page-deco-spine .phone-spine-dot.accent { background: var(--accent); }
+
+    .page-deco-ruled .home-scroll {
+      background-image: repeating-linear-gradient(
+        transparent,
+        transparent 39px,
+        var(--border) 39px,
+        var(--border) 40px
+      );
+    }
+
+    .phone-spine { display: none; }
 
     /* ═══ Reviewer Notes ═══ */
     .notes-textarea {
@@ -1157,7 +1398,7 @@
 
 <!-- ═══ Header ═══ -->
 <div class="header">
-  <h1>Core Memories <span>— Design Tuner</span></h1>
+  <h1>Forever Fireflies <span>— Design Tuner</span></h1>
   <button class="btn-reset" onclick="resetAll()">Reset All</button>
 </div>
 
@@ -1170,21 +1411,33 @@
   <div class="mockup-wrapper">
     <div class="mockup-label">HOME</div>
     <div class="phone" id="phone-home">
+      <div class="top-gradient-overlay"></div>
+      <div class="phone-spine">
+        <div class="phone-spine-dot" style="top:25%"></div>
+        <div class="phone-spine-dot" style="top:38%"></div>
+        <div class="phone-spine-dot accent" style="top:50%"></div>
+        <div class="phone-spine-dot" style="top:62%"></div>
+        <div class="phone-spine-dot" style="top:75%"></div>
+      </div>
       <div class="mock-topbar">
         <div class="mock-topbar-left">
-          <div class="home-title">Core Memories</div>
+          <div class="home-title">Forever Fireflies</div>
         </div>
         <div class="mock-topbar-right">
-          <div class="mock-search-pill">
-            <span style="font-size:11px">&#x1F50D;</span> Search
+          <div class="mock-icon-btn icon-search">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
           </div>
-          <span class="mock-icon">&hearts;</span>
-          <span class="mock-icon-muted">&#x2699;</span>
+          <div class="mock-icon-btn icon-heart">
+            <svg viewBox="0 0 24 24"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+          </div>
+          <div class="mock-icon-btn icon-settings">
+            <svg viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          </div>
         </div>
       </div>
 
       <div class="mock-tabs tabs-pills" id="home-tabs">
-        <div class="mock-tab active" data-color="#B5AAA0" style="background:rgba(181,170,160,0.12); border-color:#B5AAA0; color:#B5AAA0;">
+        <div class="mock-tab active tab-all" data-color="#B5AAA0" style="background:rgba(181,170,160,0.12); border-color:#B5AAA0; color:#B5AAA0;">
           All
         </div>
         <div class="mock-tab inactive" data-color="#7BAFD4">
@@ -1308,7 +1561,7 @@
 
       <div class="home-bottom-fade"></div>
       <div class="home-bottom">
-        <div class="mock-mic-btn">&#x1F399;<span class="mic-pill-label">Record</span></div>
+        <div class="mock-mic-btn"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="1" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/></svg><span class="mic-pill-label">Record</span></div>
         <div class="home-write-link">&#x270E; or write instead</div>
       </div>
     </div>
@@ -1318,13 +1571,18 @@
   <div class="mockup-wrapper">
     <div class="mockup-label">ENTRY DETAIL</div>
     <div class="phone" id="phone-detail">
+      <div class="top-gradient-overlay"></div>
       <div class="mock-topbar">
         <div class="mock-topbar-left">
           <span class="mock-icon">&#x2039;</span>
         </div>
         <div class="mock-topbar-right">
-          <span class="mock-icon" style="color:var(--accent);">&hearts;</span>
-          <span class="mock-icon-muted">&#x1F5D1;</span>
+          <div class="mock-icon-btn icon-heart">
+            <svg viewBox="0 0 24 24"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+          </div>
+          <div class="mock-icon-btn icon-delete">
+            <svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+          </div>
         </div>
       </div>
 
@@ -1374,6 +1632,7 @@
   <div class="mockup-wrapper">
     <div class="mockup-label">RECORDING</div>
     <div class="phone" id="phone-recording">
+      <div class="top-gradient-overlay"></div>
       <div class="recording-backdrop"></div>
       <div class="recording-close">&times;</div>
 
@@ -1395,7 +1654,7 @@
 
         <div class="recording-bottom">
           <div class="recording-hint">Tap to start recording</div>
-          <div class="mock-mic-btn-large">&#x1F399;<span class="mic-pill-label-large">Record</span></div>
+          <div class="mock-mic-btn-large"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="1" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/></svg><span class="mic-pill-label-large">Record</span></div>
         </div>
       </div>
     </div>
@@ -1415,6 +1674,10 @@
       <button class="chip" data-value="warm-journal" onclick="applyPreset('warm-journal')">Warm Journal</button>
       <button class="chip" data-value="playful-pop" onclick="applyPreset('playful-pop')">Playful Pop</button>
       <button class="chip" data-value="minimal-calm" onclick="applyPreset('minimal-calm')">Minimal Calm</button>
+      <button class="chip" data-value="nightstand" onclick="applyPreset('nightstand')">Nightstand</button>
+      <button class="chip" data-value="golden-warmth" onclick="applyPreset('golden-warmth')">Golden Warmth</button>
+      <button class="chip" data-value="frosted" onclick="applyPreset('frosted')">Frosted</button>
+      <button class="chip" data-value="coral-ribbon" onclick="applyPreset('coral-ribbon')">Coral Ribbon</button>
     </div>
   </div>
 
@@ -1426,8 +1689,8 @@
   <div class="control-group">
     <div class="control-label">Serif Font</div>
     <select class="ctrl-select" id="ctrl-font" onchange="updateFont(this.value)">
-      <option value="Georgia">Georgia (original)</option>
-      <option value="Merriweather" selected>Merriweather</option>
+      <option value="Georgia" selected>Georgia (default)</option>
+      <option value="Merriweather">Merriweather</option>
       <option value="Lora">Lora</option>
       <option value="Libre Baskerville">Libre Baskerville</option>
       <option value="Crimson Text">Crimson Text</option>
@@ -1440,6 +1703,12 @@
       <button class="toggle" id="ctrl-italic" onclick="toggleItalic()"></button>
       <span class="toggle-desc" id="italic-label">Off — normal style</span>
     </div>
+  </div>
+
+  <div class="control-group">
+    <div class="control-label">Voice Text Size</div>
+    <input type="range" style="width:100%;" min="12" max="16" step="0.5" value="13.5" id="ctrl-font-size" oninput="updateFontSize(+this.value)">
+    <div class="scale-label-value" id="font-size-label">13.5px — Standard</div>
   </div>
 
   <div class="section-divider"></div>
@@ -1469,6 +1738,19 @@
     <div class="swatch-label" id="card-color-label">#FFFFFF — Current</div>
   </div>
 
+  <div class="control-group">
+    <div class="control-label">Top Gradient</div>
+    <div class="toggle-row">
+      <button class="toggle" id="ctrl-top-gradient" onclick="toggleTopGradient()"></button>
+      <span class="toggle-desc" id="top-gradient-label">Off — warm accent wash at top</span>
+    </div>
+    <div class="opacity-row" id="top-gradient-wrap" style="display:none;">
+      <span class="opacity-label">Intensity:</span>
+      <input type="range" class="opacity-slider" min="10" max="80" step="5" value="40" id="ctrl-top-gradient-opacity" oninput="updateTopGradientOpacity(+this.value)">
+      <span class="opacity-value" id="top-gradient-opacity-value">40%</span>
+    </div>
+  </div>
+
   <div class="section-divider"></div>
 
   <!-- ─── Child Tabs ─── -->
@@ -1481,7 +1763,73 @@
       <button class="chip" data-value="underline" onclick="selectTabStyle('underline')">Underline</button>
       <button class="chip" data-value="segmented" onclick="selectTabStyle('segmented')">Segmented</button>
       <button class="chip" data-value="chip" onclick="selectTabStyle('chip')">Chip</button>
-      <button class="chip" data-value="text-dot" onclick="selectTabStyle('text-dot')">Text + Dot</button>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <div class="control-label">Tab Tinting</div>
+    <div class="chip-group" id="ctrl-tab-tinting">
+      <button class="chip selected" data-value="standard" onclick="selectTabTinting('standard')">Standard</button>
+      <button class="chip" data-value="ringed" onclick="selectTabTinting('ringed')">Ringed</button>
+      <button class="chip" data-value="glow" onclick="selectTabTinting('glow')">Glow</button>
+    </div>
+  </div>
+
+  <div class="section-divider"></div>
+
+  <!-- ─── Header ─── -->
+  <div class="section-label">Header</div>
+
+  <div class="control-group">
+    <div class="control-label">Icon Set</div>
+    <div class="chip-group" id="ctrl-icon-set">
+      <button class="chip selected" data-value="standard" onclick="selectIconSet('standard')">Standard</button>
+      <button class="chip" data-value="bold" onclick="selectIconSet('bold')">Bold</button>
+      <button class="chip" data-value="duo-tone" onclick="selectIconSet('duo-tone')">Duo-tone</button>
+      <button class="chip" data-value="sparkle" onclick="selectIconSet('sparkle')">Sparkle</button>
+      <button class="chip" data-value="minimal" onclick="selectIconSet('minimal')">Minimal</button>
+      <button class="chip" data-value="warm" onclick="selectIconSet('warm')">Warm</button>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <div class="control-label">Icon Buttons</div>
+    <div class="chip-group" id="ctrl-icon-style">
+      <button class="chip selected" data-value="bare" onclick="selectIconButtonStyle('bare')">Bare</button>
+      <button class="chip" data-value="rounded-sq" onclick="selectIconButtonStyle('rounded-sq')">Rounded</button>
+      <button class="chip" data-value="circles" onclick="selectIconButtonStyle('circles')">Circles</button>
+      <button class="chip" data-value="tray" onclick="selectIconButtonStyle('tray')">Tray</button>
+      <button class="chip" data-value="ghost" onclick="selectIconButtonStyle('ghost')">Ghost</button>
+      <button class="chip" data-value="glass" onclick="selectIconButtonStyle('glass')">Glass</button>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <div class="control-label">Header Accent</div>
+    <div class="chip-group" id="ctrl-header-accent">
+      <button class="chip selected" data-value="none" onclick="selectHeaderAccent('none')">None</button>
+      <button class="chip" data-value="band" onclick="selectHeaderAccent('band')">Bottom Band</button>
+      <button class="chip" data-value="topline" onclick="selectHeaderAccent('topline')">Top Line</button>
+      <button class="chip" data-value="glow" onclick="selectHeaderAccent('glow')">Warm Glow</button>
+      <button class="chip" data-value="bookmark" onclick="selectHeaderAccent('bookmark')">Bookmark</button>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <div class="control-label">Header Divider</div>
+    <div class="chip-group" id="ctrl-header-divider">
+      <button class="chip selected" data-value="none" onclick="selectHeaderDivider('none')">None</button>
+      <button class="chip" data-value="solid" onclick="selectHeaderDivider('solid')">Solid Line</button>
+      <button class="chip" data-value="ruled" onclick="selectHeaderDivider('ruled')">Ruled</button>
+      <button class="chip" data-value="fade" onclick="selectHeaderDivider('fade')">Fade</button>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <div class="control-label">Accent Heart</div>
+    <div class="toggle-row">
+      <button class="toggle" id="ctrl-accent-heart" onclick="toggleAccentHeart()"></button>
+      <span class="toggle-desc" id="accent-heart-label">Off — heart gets accent highlight</span>
     </div>
   </div>
 
@@ -1506,6 +1854,15 @@
       <span>Flat</span><span>Whisper</span><span>Standard</span><span>Raised</span>
     </div>
     <div class="scale-label-value" id="shadow-label">Standard</div>
+  </div>
+
+  <div class="control-group">
+    <div class="control-label">Shadow Style</div>
+    <div class="chip-group" id="ctrl-shadow-style">
+      <button class="chip selected" data-value="standard" onclick="selectShadowStyle('standard')">Standard</button>
+      <button class="chip" data-value="stacked" onclick="selectShadowStyle('stacked')">Stacked</button>
+      <button class="chip" data-value="glow" onclick="selectShadowStyle('glow')">Glow</button>
+    </div>
   </div>
 
   <div class="section-divider"></div>
@@ -1603,6 +1960,15 @@
       <button class="chip" data-value="top-band" onclick="selectCardAccent('top-band')">Top Band</button>
       <button class="chip" data-value="corner-dot" onclick="selectCardAccent('corner-dot')">Corner Dot</button>
       <button class="chip" data-value="gradient-edge" onclick="selectCardAccent('gradient-edge')">Gradient</button>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <div class="control-label">Page Decoration</div>
+    <div class="chip-group" id="ctrl-page-deco">
+      <button class="chip selected" data-value="none" onclick="selectPageDecoration('none')">None</button>
+      <button class="chip" data-value="spine" onclick="selectPageDecoration('spine')">Spine Dots</button>
+      <button class="chip" data-value="ruled" onclick="selectPageDecoration('ruled')">Ruled Lines</button>
     </div>
   </div>
 
@@ -1880,6 +2246,44 @@ const SPACING_MODES = {
   cozy:     { cardPadV: 16, cardPadH: 18, cardGap: 14, tabPadV: 7, tabPadH: 14, tabGap: 8, tagPadV: 3, tagPadH: 9, transcriptPad: 18, promptPadV: 18, promptPadH: 20, screenPad: 20, sectionGap: 14 },
 };
 
+// ═══ Icon Sets ═══
+// Each set defines SVG innerHTML for search, heart, settings, and delete icons.
+// Non-standard sets use style="" to override the base CSS coloring.
+// Standard is null — signals "restore original HTML".
+const ICON_SETS = {
+  standard: null,
+  bold: {
+    search: '<svg viewBox="0 0 24 24" style="stroke:var(--text);stroke-width:2.5;fill:none;stroke-linecap:round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>',
+    heart: '<svg viewBox="0 0 24 24" style="stroke:var(--text);stroke-width:2.5;fill:none;stroke-linecap:round;stroke-linejoin:round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>',
+    settings: '<svg viewBox="0 0 24 24" style="stroke:var(--text);stroke-width:2.5;fill:none;stroke-linecap:round;stroke-linejoin:round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>',
+    delete: '<svg viewBox="0 0 24 24" style="stroke:var(--text);stroke-width:2.5;fill:none;stroke-linecap:round;stroke-linejoin:round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>',
+  },
+  'duo-tone': {
+    search: '<svg viewBox="0 0 24 24" style="fill:none;stroke-linecap:round"><circle cx="11" cy="11" r="7" style="stroke:var(--text-muted);stroke-width:2"/><line x1="16.5" y1="16.5" x2="21" y2="21" style="stroke:var(--accent);stroke-width:2.5"/></svg>',
+    heart: '<svg viewBox="0 0 24 24" style="stroke:var(--accent);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>',
+    settings: '<svg viewBox="0 0 24 24" style="fill:none;stroke:var(--text-muted);stroke-width:2;stroke-linecap:round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="8" cy="6" r="2.5" style="fill:var(--card);stroke-width:2"/><circle cx="16" cy="12" r="2.5" style="fill:var(--card);stroke-width:2"/><circle cx="11" cy="18" r="2.5" style="fill:var(--card);stroke-width:2"/></svg>',
+    delete: '<svg viewBox="0 0 24 24" style="stroke:var(--text-muted);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>',
+  },
+  sparkle: {
+    search: '<svg viewBox="0 0 28 26" style="fill:none"><circle cx="11" cy="13" r="7" style="stroke:var(--text-muted);stroke-width:2"/><line x1="16.5" y1="18.5" x2="21" y2="23" style="stroke:var(--text-muted);stroke-width:2;stroke-linecap:round"/><path d="M22 4l.6 1.5 1.5.6-1.5.6-.6 1.5-.6-1.5-1.5-.6 1.5-.6z" style="fill:var(--accent)"/><path d="M25 9l.4 1 1 .4-1 .4-.4 1-.4-1-1-.4 1-.4z" style="fill:var(--accent);opacity:0.5"/></svg>',
+    heart: '<svg viewBox="0 0 30 26" style="fill:none"><path d="M21.84 3.61a5.5 5.5 0 00-7.78 0L13 4.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L13 20.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" style="stroke:var(--heart-empty);stroke-width:2;stroke-linecap:round;stroke-linejoin:round"/><path d="M24 2l.7 1.8L26.5 4.5l-1.8.7L24 7l-.7-1.8-1.8-.7 1.8-.7z" style="fill:var(--accent)"/><path d="M27 7l.4 1 1 .4-1 .4-.4 1-.4-1-1-.4 1-.4z" style="fill:var(--accent);opacity:0.5"/></svg>',
+    settings: '<svg viewBox="0 0 24 24" style="stroke:var(--text-muted);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>',
+    delete: '<svg viewBox="0 0 24 24" style="stroke:var(--text-muted);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>',
+  },
+  minimal: {
+    search: '<svg viewBox="0 0 24 24" width="18" height="18" style="stroke:var(--text-muted);stroke-width:1.5;fill:none;stroke-linecap:round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>',
+    heart: '<svg viewBox="0 0 24 24" width="18" height="18" style="stroke:var(--heart-empty);stroke-width:1.5;fill:none;stroke-linecap:round;stroke-linejoin:round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>',
+    settings: '<svg viewBox="0 0 24 24" style="fill:var(--text-muted)"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>',
+    delete: '<svg viewBox="0 0 24 24" width="18" height="18" style="stroke:var(--text-muted);stroke-width:1.5;fill:none;stroke-linecap:round;stroke-linejoin:round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>',
+  },
+  warm: {
+    search: '<svg viewBox="0 0 24 24" style="fill:none;stroke-linecap:round"><circle cx="11" cy="11" r="7" style="stroke:var(--text-muted);stroke-width:2;fill:rgba(232,114,74,0.08)"/><line x1="16.5" y1="16.5" x2="21" y2="21" style="stroke:var(--text-muted);stroke-width:2"/></svg>',
+    heart: '<svg viewBox="0 0 24 24" style="fill:rgba(232,114,74,0.15);stroke:var(--accent);stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>',
+    settings: '<svg viewBox="0 0 24 24" style="fill:none;stroke:var(--text-muted);stroke-width:2;stroke-linecap:round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="8" cy="6" r="2.5" style="fill:var(--card);stroke-width:2"/><circle cx="16" cy="12" r="2.5" style="fill:var(--card);stroke-width:2"/><circle cx="11" cy="18" r="2.5" style="fill:var(--card);stroke-width:2"/></svg>',
+    delete: '<svg viewBox="0 0 24 24" style="stroke:var(--text-muted);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>',
+  },
+};
+
 // ═══ Mood Presets ═══
 const PRESETS = {
   'modern-clean': {
@@ -1890,6 +2294,11 @@ const PRESETS = {
     cardAccent: 'none', micStyle: 'solid',
     tabStyle: 'pills', cardTitleStyle: 'none',
     previewLines: 2, spacingMode: 'standard', pillStyle: 'flat',
+    iconSet: 'standard', iconButtonStyle: 'bare', headerAccent: 'none', headerDivider: 'none',
+    shadowStyle: 'standard', tabTinting: 'standard',
+    topGradient: false, topGradientOpacity: 40,
+    accentHeart: false, pageDecoration: 'none',
+    fontSize: 13.5,
   },
   'warm-journal': {
     name: 'Warm Journal',
@@ -1899,6 +2308,11 @@ const PRESETS = {
     cardAccent: 'left-bar', micStyle: 'solid',
     tabStyle: 'underline', cardTitleStyle: 'serif',
     previewLines: 2, spacingMode: 'cozy', pillStyle: 'textured',
+    iconSet: 'warm', iconButtonStyle: 'bare', headerAccent: 'none', headerDivider: 'none',
+    shadowStyle: 'standard', tabTinting: 'standard',
+    topGradient: false, topGradientOpacity: 40,
+    accentHeart: false, pageDecoration: 'none',
+    fontSize: 14,
   },
   'playful-pop': {
     name: 'Playful Pop',
@@ -1908,6 +2322,11 @@ const PRESETS = {
     cardAccent: 'corner-dot', micStyle: 'gradient',
     tabStyle: 'segmented', cardTitleStyle: 'bold',
     previewLines: 2, spacingMode: 'standard', pillStyle: 'warmer',
+    iconSet: 'sparkle', iconButtonStyle: 'bare', headerAccent: 'none', headerDivider: 'none',
+    shadowStyle: 'standard', tabTinting: 'standard',
+    topGradient: false, topGradientOpacity: 40,
+    accentHeart: false, pageDecoration: 'none',
+    fontSize: 13.5,
   },
   'minimal-calm': {
     name: 'Minimal Calm',
@@ -1915,15 +2334,78 @@ const PRESETS = {
     textureOn: false, textureOpacity: 50,
     borderStyle: 'none', borderWidth: 10,
     cardAccent: 'none', micStyle: 'outlined',
-    tabStyle: 'text-dot', cardTitleStyle: 'none',
+    tabStyle: 'underline', cardTitleStyle: 'none',
     previewLines: 1, spacingMode: 'compact', pillStyle: 'outlined',
+    iconSet: 'minimal', iconButtonStyle: 'ghost', headerAccent: 'none', headerDivider: 'none',
+    shadowStyle: 'standard', tabTinting: 'standard',
+    topGradient: false, topGradientOpacity: 40,
+    accentHeart: false, pageDecoration: 'none',
+    fontSize: 13,
+  },
+  // ── New presets from design explorations ──
+  'nightstand': {
+    name: 'Nightstand',
+    radiusScale: 2, shadowLevel: 1,
+    textureOn: true, textureOpacity: 60,
+    borderStyle: 'solid', borderWidth: 10,
+    cardAccent: 'left-bar', micStyle: 'outlined',
+    tabStyle: 'underline', cardTitleStyle: 'serif',
+    previewLines: 2, spacingMode: 'cozy', pillStyle: 'textured',
+    iconSet: 'minimal', iconButtonStyle: 'ghost', headerAccent: 'bookmark', headerDivider: 'ruled',
+    shadowStyle: 'standard', tabTinting: 'standard',
+    topGradient: false, topGradientOpacity: 40,
+    accentHeart: false, pageDecoration: 'none',
+    fontSize: 14.5,
+  },
+  'golden-warmth': {
+    name: 'Golden Warmth',
+    radiusScale: 3, shadowLevel: 2,
+    textureOn: false, textureOpacity: 50,
+    borderStyle: 'none', borderWidth: 10,
+    cardAccent: 'gradient-edge', micStyle: 'gradient',
+    tabStyle: 'pills', cardTitleStyle: 'bold',
+    previewLines: 2, spacingMode: 'standard', pillStyle: 'warmer',
+    iconSet: 'duo-tone', iconButtonStyle: 'circles', headerAccent: 'glow', headerDivider: 'none',
+    shadowStyle: 'stacked', tabTinting: 'glow',
+    topGradient: true, topGradientOpacity: 40,
+    accentHeart: true, pageDecoration: 'none',
+    fontSize: 14,
+  },
+  'frosted': {
+    name: 'Frosted',
+    radiusScale: 3, shadowLevel: 1,
+    textureOn: false, textureOpacity: 50,
+    borderStyle: 'gradient', borderWidth: 10,
+    cardAccent: 'none', micStyle: 'soft',
+    tabStyle: 'segmented', cardTitleStyle: 'none',
+    previewLines: 2, spacingMode: 'standard', pillStyle: 'outlined',
+    iconSet: 'bold', iconButtonStyle: 'glass', headerAccent: 'none', headerDivider: 'none',
+    shadowStyle: 'glow', tabTinting: 'glow',
+    topGradient: true, topGradientOpacity: 25,
+    accentHeart: false, pageDecoration: 'none',
+    fontSize: 13.5,
+  },
+  'coral-ribbon': {
+    name: 'Coral Ribbon',
+    radiusScale: 2, shadowLevel: 2,
+    textureOn: false, textureOpacity: 50,
+    borderStyle: 'solid', borderWidth: 10,
+    cardAccent: 'top-band', micStyle: 'solid',
+    tabStyle: 'segmented', cardTitleStyle: 'bold',
+    previewLines: 2, spacingMode: 'standard', pillStyle: 'flat',
+    iconSet: 'duo-tone', iconButtonStyle: 'ghost', headerAccent: 'topline', headerDivider: 'solid',
+    shadowStyle: 'standard', tabTinting: 'ringed',
+    topGradient: false, topGradientOpacity: 40,
+    accentHeart: false, pageDecoration: 'none',
+    fontSize: 13.5,
   },
 };
 
 // ═══ State ═══
 let state = {
-  font: 'Merriweather',
+  font: 'Georgia',
   italic: false,
+  fontSize: 13.5,      // 12–16 in 0.5 steps (px)
   themeColorIndex: 0,
   bgHex: '#FAF8F5',   // selected background color
   cardHex: '#FFFFFF',  // selected card surface color
@@ -1937,10 +2419,21 @@ let state = {
   cardAccent: 'none',  // none / left-bar / top-band / corner-dot / gradient-edge
   micStyle: 'solid',   // solid / gradient / outlined / soft / pill
   borderWidth: 10,     // 5–30 (displayed as 0.5–3.0px, stored as tenths)
-  tabStyle: 'pills',   // pills / underline / segmented / chip / text-dot
+  tabStyle: 'pills',   // pills / underline / segmented / chip
   cardTitleStyle: 'none', // none / bold / serif / smallcaps
   previewLines: 2,     // 1, 2, or 3
   reviewNotes: '',     // free text for reviewer
+  // New controls from design explorations
+  iconSet: 'standard',        // standard / bold / duo-tone / sparkle / minimal / warm
+  iconButtonStyle: 'bare',    // bare / rounded-sq / circles / tray / ghost / glass
+  headerAccent: 'none',       // none / band / topline / glow / bookmark
+  headerDivider: 'none',      // none / solid / ruled / fade
+  shadowStyle: 'standard',    // standard / stacked / glow
+  tabTinting: 'standard',     // standard / ringed / glow
+  topGradient: false,
+  topGradientOpacity: 40,     // 10–80 (displayed as %)
+  accentHeart: false,
+  pageDecoration: 'none',     // none / spine / ruled
 };
 
 // ═══ Helpers ═══
@@ -2067,6 +2560,7 @@ function applyState() {
   // Typography
   root.style.setProperty('--serif', FONT_MAP[state.font]);
   root.style.setProperty('--voice-style', state.italic ? 'italic' : 'normal');
+  root.style.setProperty('--preview-size', state.fontSize + 'px');
 
   // Texture
   root.style.setProperty('--texture-opacity', state.textureOn ? (state.textureOpacity / 1000) : 0);
@@ -2124,8 +2618,32 @@ function applyState() {
 
   // ── Shadows ──
   const sl = SHADOW_LEVELS[state.shadowLevel];
-  root.style.setProperty('--shadow-card', sl.card);
-  root.style.setProperty('--shadow-prompt', sl.prompt);
+  let cardShadow = sl.card;
+  let promptShadow = sl.prompt;
+
+  if (state.shadowStyle === 'stacked') {
+    const stackedLevels = [
+      'none',
+      '0 1px 0 rgba(44,36,32,0.02), 0 2px 0 -1px rgba(44,36,32,0.02), 0 4px 12px rgba(44,36,32,0.04)',
+      '0 1px 0 rgba(44,36,32,0.04), 0 4px 0 -2px rgba(44,36,32,0.03), 0 8px 24px rgba(44,36,32,0.08)',
+      '0 1px 0 rgba(44,36,32,0.06), 0 6px 0 -3px rgba(44,36,32,0.04), 0 12px 32px rgba(44,36,32,0.12)',
+    ];
+    cardShadow = stackedLevels[state.shadowLevel];
+    promptShadow = stackedLevels[state.shadowLevel];
+  } else if (state.shadowStyle === 'glow') {
+    const { r, g, b } = hexToRgb(themeColor);
+    const glowLevels = [
+      'none',
+      `0 2px 12px rgba(${r},${g},${b},0.04)`,
+      `0 4px 20px rgba(${r},${g},${b},0.08)`,
+      `0 6px 28px rgba(${r},${g},${b},0.12)`,
+    ];
+    cardShadow = glowLevels[state.shadowLevel];
+    promptShadow = glowLevels[state.shadowLevel];
+  }
+
+  root.style.setProperty('--shadow-card', cardShadow);
+  root.style.setProperty('--shadow-prompt', promptShadow);
   // Mic shadow uses accent color — replace placeholders
   const micShadow = sl.mic
     .replace('{accentShadow}', accent.accentShadow)
@@ -2169,7 +2687,7 @@ function applyState() {
   // ── Tab Style ──
   const homeTabs = document.getElementById('home-tabs');
   if (homeTabs) {
-    const tabStyles = ['tabs-pills', 'tabs-underline', 'tabs-segmented', 'tabs-chip', 'tabs-text-dot'];
+    const tabStyles = ['tabs-pills', 'tabs-underline', 'tabs-segmented', 'tabs-chip'];
     tabStyles.forEach(cls => homeTabs.classList.remove(cls));
     homeTabs.classList.add('tabs-' + state.tabStyle);
 
@@ -2186,17 +2704,31 @@ function applyState() {
       const rgb = hexToRgb(color);
 
       if (tab.classList.contains('active')) {
-        if (state.tabStyle === 'pills') {
-          tab.style.background = `rgba(${rgb.r},${rgb.g},${rgb.b},0.12)`;
+        // Apply tab tinting based on tinting mode
+        if (state.tabTinting === 'ringed') {
+          // Ringed: colored border, transparent bg
+          tab.style.background = 'transparent';
           tab.style.borderColor = color;
           tab.style.color = color;
-        } else if (state.tabStyle === 'underline' || state.tabStyle === 'text-dot' || state.tabStyle === 'segmented') {
+        } else if (state.tabTinting === 'glow') {
+          // Glow: normal coloring + glow shadow
           tab.style.color = color;
-        } else if (state.tabStyle === 'chip') {
-          tab.style.borderColor = color;
           tab.style.background = `rgba(${rgb.r},${rgb.g},${rgb.b},0.08)`;
-          tab.style.color = color;
-          tab.style.boxShadow = `0 0 8px rgba(${rgb.r},${rgb.g},${rgb.b},0.20)`;
+          tab.style.boxShadow = `0 2px 12px rgba(${rgb.r},${rgb.g},${rgb.b},0.30)`;
+        } else {
+          // Standard tinting — varies by tab style
+          if (state.tabStyle === 'pills') {
+            tab.style.background = `rgba(${rgb.r},${rgb.g},${rgb.b},0.12)`;
+            tab.style.borderColor = color;
+            tab.style.color = color;
+          } else if (state.tabStyle === 'underline' || state.tabStyle === 'segmented') {
+            tab.style.color = color;
+          } else if (state.tabStyle === 'chip') {
+            tab.style.borderColor = color;
+            tab.style.background = `rgba(${rgb.r},${rgb.g},${rgb.b},0.08)`;
+            tab.style.color = color;
+            tab.style.boxShadow = `0 0 8px rgba(${rgb.r},${rgb.g},${rgb.b},0.20)`;
+          }
         }
       }
     });
@@ -2213,6 +2745,55 @@ function applyState() {
     // ── Preview Lines ──
     homeScroll.classList.remove('preview-1', 'preview-2', 'preview-3');
     homeScroll.classList.add('preview-' + state.previewLines);
+  }
+
+  // ── Icon Set ──
+  const iconSetData = ICON_SETS[state.iconSet];
+  document.querySelectorAll('.mock-icon-btn').forEach(btn => {
+    const type = ['icon-search','icon-heart','icon-settings','icon-delete']
+      .find(cls => btn.classList.contains(cls));
+    if (!type) return;
+    const key = type.replace('icon-', '');
+    if (iconSetData && iconSetData[key]) {
+      btn.innerHTML = iconSetData[key];
+    } else if (ORIGINAL_ICONS[type]) {
+      btn.innerHTML = ORIGINAL_ICONS[type];
+    }
+  });
+
+  // ── Icon Button Style ──
+  const iconStyles = ['icon-style-bare', 'icon-style-rounded-sq', 'icon-style-circles', 'icon-style-tray', 'icon-style-ghost', 'icon-style-glass'];
+  iconStyles.forEach(cls => mockups.classList.remove(cls));
+  mockups.classList.add('icon-style-' + state.iconButtonStyle);
+
+  // ── Header Accent ──
+  const headerAccents = ['header-accent-band', 'header-accent-topline', 'header-accent-glow', 'header-accent-bookmark'];
+  headerAccents.forEach(cls => mockups.classList.remove(cls));
+  if (state.headerAccent !== 'none') {
+    mockups.classList.add('header-accent-' + state.headerAccent);
+  }
+
+  // ── Header Divider ──
+  const headerDividers = ['header-divider-solid', 'header-divider-ruled', 'header-divider-fade'];
+  headerDividers.forEach(cls => mockups.classList.remove(cls));
+  if (state.headerDivider !== 'none') {
+    mockups.classList.add('header-divider-' + state.headerDivider);
+  }
+
+  // ── Top Gradient ──
+  document.querySelectorAll('.top-gradient-overlay').forEach(el => {
+    el.style.opacity = state.topGradient ? (state.topGradientOpacity / 100) : 0;
+    el.style.background = `linear-gradient(180deg, ${accent.accentSoft} 0%, ${accent.accentSoft} 15%, transparent 70%)`;
+  });
+
+  // ── Accent Heart ──
+  mockups.classList.toggle('accent-heart', state.accentHeart);
+
+  // ── Page Decoration ──
+  const pageDecoClasses = ['page-deco-spine', 'page-deco-ruled'];
+  pageDecoClasses.forEach(cls => mockups.classList.remove(cls));
+  if (state.pageDecoration !== 'none') {
+    mockups.classList.add('page-deco-' + state.pageDecoration);
   }
 
   // ── Clear preset selection on manual change ──
@@ -2240,6 +2821,14 @@ function toggleItalic() {
   label.textContent = state.italic
     ? "On — parent's words in italic"
     : "Off — normal style";
+  applyState();
+}
+
+function updateFontSize(val) {
+  state.fontSize = val;
+  const label = document.getElementById('font-size-label');
+  const names = { 12: 'Small', 12.5: 'Small', 13: 'Compact', 13.5: 'Standard', 14: 'Medium', 14.5: 'Large', 15: 'Large', 15.5: 'Larger', 16: 'XL' };
+  label.textContent = val + 'px — ' + (names[val] || '');
   applyState();
 }
 
@@ -2372,19 +2961,104 @@ function selectPreviewLines(val) {
   applyState();
 }
 
+// ═══ New Control Handlers ═══
+
+function selectIconSet(val) {
+  state.iconSet = val;
+  document.querySelectorAll('#ctrl-icon-set .chip').forEach(c => {
+    c.classList.toggle('selected', c.dataset.value === val);
+  });
+  applyState();
+}
+
+function selectIconButtonStyle(val) {
+  state.iconButtonStyle = val;
+  document.querySelectorAll('#ctrl-icon-style .chip').forEach(c => {
+    c.classList.toggle('selected', c.dataset.value === val);
+  });
+  applyState();
+}
+
+function selectHeaderAccent(val) {
+  state.headerAccent = val;
+  document.querySelectorAll('#ctrl-header-accent .chip').forEach(c => {
+    c.classList.toggle('selected', c.dataset.value === val);
+  });
+  applyState();
+}
+
+function selectHeaderDivider(val) {
+  state.headerDivider = val;
+  document.querySelectorAll('#ctrl-header-divider .chip').forEach(c => {
+    c.classList.toggle('selected', c.dataset.value === val);
+  });
+  applyState();
+}
+
+function selectShadowStyle(val) {
+  state.shadowStyle = val;
+  document.querySelectorAll('#ctrl-shadow-style .chip').forEach(c => {
+    c.classList.toggle('selected', c.dataset.value === val);
+  });
+  applyState();
+}
+
+function selectTabTinting(val) {
+  state.tabTinting = val;
+  document.querySelectorAll('#ctrl-tab-tinting .chip').forEach(c => {
+    c.classList.toggle('selected', c.dataset.value === val);
+  });
+  applyState();
+}
+
+function toggleTopGradient() {
+  state.topGradient = !state.topGradient;
+  const btn = document.getElementById('ctrl-top-gradient');
+  const label = document.getElementById('top-gradient-label');
+  const wrap = document.getElementById('top-gradient-wrap');
+  btn.classList.toggle('active', state.topGradient);
+  label.textContent = state.topGradient ? 'On — warm wash visible' : 'Off — warm accent wash at top';
+  wrap.style.display = state.topGradient ? 'flex' : 'none';
+  applyState();
+}
+
+function updateTopGradientOpacity(val) {
+  state.topGradientOpacity = val;
+  document.getElementById('top-gradient-opacity-value').textContent = val + '%';
+  applyState();
+}
+
+function toggleAccentHeart() {
+  state.accentHeart = !state.accentHeart;
+  const btn = document.getElementById('ctrl-accent-heart');
+  const label = document.getElementById('accent-heart-label');
+  btn.classList.toggle('active', state.accentHeart);
+  label.textContent = state.accentHeart ? 'On — heart highlighted' : 'Off — heart gets accent highlight';
+  applyState();
+}
+
+function selectPageDecoration(val) {
+  state.pageDecoration = val;
+  document.querySelectorAll('#ctrl-page-deco .chip').forEach(c => {
+    c.classList.toggle('selected', c.dataset.value === val);
+  });
+  applyState();
+}
+
 // ═══ Sync Controls to State ═══
 // Used by presets to update all panel UI after batch-changing state
 function syncControlsToState() {
-  // Font dropdown
   document.getElementById('ctrl-font').value = state.font;
 
-  // Italic toggle
   const italicBtn = document.getElementById('ctrl-italic');
   italicBtn.classList.toggle('active', state.italic);
   document.getElementById('italic-label').textContent = state.italic
     ? "On — parent's words in italic" : "Off — normal style";
 
-  // Texture toggle
+  document.getElementById('ctrl-font-size').value = state.fontSize;
+  const sizeNames = { 12: 'Small', 12.5: 'Small', 13: 'Compact', 13.5: 'Standard', 14: 'Medium', 14.5: 'Large', 15: 'Large', 15.5: 'Larger', 16: 'XL' };
+  document.getElementById('font-size-label').textContent = state.fontSize + 'px — ' + (sizeNames[state.fontSize] || '');
+
   const textureBtn = document.getElementById('ctrl-texture');
   textureBtn.classList.toggle('active', state.textureOn);
   document.getElementById('texture-label').textContent = state.textureOn
@@ -2393,22 +3067,18 @@ function syncControlsToState() {
   document.getElementById('ctrl-opacity').value = state.textureOpacity;
   document.getElementById('opacity-value').textContent = (state.textureOpacity / 10).toFixed(1) + '%';
 
-  // Radius slider
   document.getElementById('ctrl-radius').value = state.radiusScale;
-  const rs = RADIUS_SCALES[state.radiusScale];
-  document.getElementById('radius-label').textContent = rs.name + ' — card: ' + rs.card + 'px';
+  document.getElementById('radius-label').textContent =
+    RADIUS_SCALES[state.radiusScale].name + ' — card: ' + RADIUS_SCALES[state.radiusScale].card + 'px';
 
-  // Shadow slider
   document.getElementById('ctrl-shadow').value = state.shadowLevel;
   document.getElementById('shadow-label').textContent = SHADOW_LEVELS[state.shadowLevel].name;
 
-  // Border width slider
   document.getElementById('ctrl-border-width').value = state.borderWidth;
   document.getElementById('border-width-value').textContent = (state.borderWidth / 10).toFixed(1) + 'px';
   document.getElementById('border-width-wrap').style.display =
     (state.borderStyle === 'gradient' || state.borderStyle === 'none') ? 'none' : 'flex';
 
-  // All chip groups
   const chipMappings = [
     { id: 'ctrl-borders', value: state.borderStyle },
     { id: 'ctrl-pills', value: state.pillStyle },
@@ -2418,6 +3088,14 @@ function syncControlsToState() {
     { id: 'ctrl-tab-style', value: state.tabStyle },
     { id: 'ctrl-card-title', value: state.cardTitleStyle },
     { id: 'ctrl-preview-lines', value: String(state.previewLines) },
+    // New controls
+    { id: 'ctrl-icon-set', value: state.iconSet },
+    { id: 'ctrl-icon-style', value: state.iconButtonStyle },
+    { id: 'ctrl-header-accent', value: state.headerAccent },
+    { id: 'ctrl-header-divider', value: state.headerDivider },
+    { id: 'ctrl-shadow-style', value: state.shadowStyle },
+    { id: 'ctrl-tab-tinting', value: state.tabTinting },
+    { id: 'ctrl-page-deco', value: state.pageDecoration },
   ];
 
   chipMappings.forEach(({ id, value }) => {
@@ -2425,6 +3103,20 @@ function syncControlsToState() {
       c.classList.toggle('selected', c.dataset.value === value);
     });
   });
+
+  // New toggles
+  const topGradBtn = document.getElementById('ctrl-top-gradient');
+  topGradBtn.classList.toggle('active', state.topGradient);
+  document.getElementById('top-gradient-label').textContent = state.topGradient
+    ? 'On — warm wash visible' : 'Off — warm accent wash at top';
+  document.getElementById('top-gradient-wrap').style.display = state.topGradient ? 'flex' : 'none';
+  document.getElementById('ctrl-top-gradient-opacity').value = state.topGradientOpacity;
+  document.getElementById('top-gradient-opacity-value').textContent = state.topGradientOpacity + '%';
+
+  const heartBtn = document.getElementById('ctrl-accent-heart');
+  heartBtn.classList.toggle('active', state.accentHeart);
+  document.getElementById('accent-heart-label').textContent = state.accentHeart
+    ? 'On — heart highlighted' : 'Off — heart gets accent highlight';
 }
 
 // ═══ Presets ═══
@@ -2432,14 +3124,12 @@ function applyPreset(presetKey) {
   const preset = PRESETS[presetKey];
   if (!preset) return;
 
-  // Copy preset values into state (but NOT color properties)
   Object.keys(preset).forEach(key => {
     if (key !== 'name' && state.hasOwnProperty(key)) {
       state[key] = preset[key];
     }
   });
 
-  // Sync all control UI to new state
   syncControlsToState();
   applyState();
 
@@ -2451,8 +3141,9 @@ function applyPreset(presetKey) {
 
 function resetAll() {
   state = {
-    font: 'Merriweather',
+    font: 'Georgia',
     italic: false,
+    fontSize: 13.5,
     themeColorIndex: 0,
     bgHex: '#FAF8F5',
     cardHex: '#FFFFFF',
@@ -2470,10 +3161,22 @@ function resetAll() {
     cardTitleStyle: 'none',
     previewLines: 2,
     reviewNotes: '',
+    iconSet: 'standard',
+    iconButtonStyle: 'bare',
+    headerAccent: 'none',
+    headerDivider: 'none',
+    shadowStyle: 'standard',
+    tabTinting: 'standard',
+    topGradient: false,
+    topGradientOpacity: 40,
+    accentHeart: false,
+    pageDecoration: 'none',
   };
 
   // Reset form controls
-  document.getElementById('ctrl-font').value = 'Merriweather';
+  document.getElementById('ctrl-font').value = 'Georgia';
+  document.getElementById('ctrl-font-size').value = 13.5;
+  document.getElementById('font-size-label').textContent = '13.5px — Standard';
   document.getElementById('ctrl-italic').classList.remove('active');
   document.getElementById('italic-label').textContent = "Off — normal style";
   document.getElementById('ctrl-texture').classList.remove('active');
@@ -2532,6 +3235,38 @@ function resetAll() {
     c.classList.remove('selected');
   });
 
+  // Reset new chip groups
+  document.querySelectorAll('#ctrl-icon-set .chip').forEach(c => {
+    c.classList.toggle('selected', c.dataset.value === 'standard');
+  });
+  document.querySelectorAll('#ctrl-icon-style .chip').forEach(c => {
+    c.classList.toggle('selected', c.dataset.value === 'bare');
+  });
+  document.querySelectorAll('#ctrl-header-accent .chip').forEach(c => {
+    c.classList.toggle('selected', c.dataset.value === 'none');
+  });
+  document.querySelectorAll('#ctrl-header-divider .chip').forEach(c => {
+    c.classList.toggle('selected', c.dataset.value === 'none');
+  });
+  document.querySelectorAll('#ctrl-shadow-style .chip').forEach(c => {
+    c.classList.toggle('selected', c.dataset.value === 'standard');
+  });
+  document.querySelectorAll('#ctrl-tab-tinting .chip').forEach(c => {
+    c.classList.toggle('selected', c.dataset.value === 'standard');
+  });
+  document.querySelectorAll('#ctrl-page-deco .chip').forEach(c => {
+    c.classList.toggle('selected', c.dataset.value === 'none');
+  });
+
+  // Reset new toggles
+  document.getElementById('ctrl-top-gradient').classList.remove('active');
+  document.getElementById('top-gradient-label').textContent = 'Off — warm accent wash at top';
+  document.getElementById('top-gradient-wrap').style.display = 'none';
+  document.getElementById('ctrl-top-gradient-opacity').value = 40;
+  document.getElementById('top-gradient-opacity-value').textContent = '40%';
+  document.getElementById('ctrl-accent-heart').classList.remove('active');
+  document.getElementById('accent-heart-label').textContent = 'Off — heart gets accent highlight';
+
   // Reset notes
   document.getElementById('ctrl-notes').value = '';
 
@@ -2573,6 +3308,7 @@ function showExport() {
     `// Font`,
     `serif: '${state.font}',`,
     `italic: ${state.italic},`,
+    `voiceTextSize: ${state.fontSize},  // px`,
     ``,
     `// Surface`,
     `textureOpacity: ${opacity},`,
@@ -2597,7 +3333,25 @@ function showExport() {
     `// Cards`,
     `cardTitleStyle: '${state.cardTitleStyle}',`,
     `previewLines: ${state.previewLines},`,
-  ];
+    ``,
+    `// Header`,
+    `iconSet: '${state.iconSet}',`,
+    `iconButtonStyle: '${state.iconButtonStyle}',`,
+    `headerAccent: '${state.headerAccent}',`,
+    `headerDivider: '${state.headerDivider}',`,
+    `accentHeart: ${state.accentHeart},`,
+    `topGradient: ${state.topGradient},`,
+    state.topGradient ? `topGradientOpacity: ${state.topGradientOpacity},` : null,
+    ``,
+    `// Shadows`,
+    `shadowStyle: '${state.shadowStyle}',`,
+    ``,
+    `// Tabs`,
+    `tabTinting: '${state.tabTinting}',`,
+    ``,
+    `// Page`,
+    `pageDecoration: '${state.pageDecoration}',`,
+  ].filter(Boolean);
 
   // Reviewer notes
   if (state.reviewNotes.trim()) {
@@ -2621,6 +3375,28 @@ function copyExport() {
   });
 }
 
+function loadFromShareLink() {
+  const hash = window.location.hash;
+  if (!hash.startsWith('#config=')) return false;
+  try {
+    const encoded = hash.substring('#config='.length);
+    const json = decodeURIComponent(escape(atob(encoded)));
+    const shared = JSON.parse(json);
+    // Merge shared values into state (keeps any new defaults for props not in the link)
+    Object.keys(shared).forEach(key => {
+      if (key in state) state[key] = shared[key];
+    });
+    syncControlsToState();
+    applyState();
+    // Clean the hash so it doesn't re-load on refresh after changes
+    history.replaceState(null, '', window.location.pathname);
+    return true;
+  } catch (e) {
+    console.warn('Could not load shared config:', e);
+    return false;
+  }
+}
+
 function closeExport() {
   document.getElementById('export-modal').classList.remove('visible');
 }
@@ -2629,10 +3405,65 @@ document.getElementById('export-modal').addEventListener('click', function(e) {
   if (e.target === this) closeExport();
 });
 
+// ═══ Collapsible Sections ═══
+// Wraps each section's control-groups in a .section-content div
+// and adds toggle behavior. All sections start expanded.
+document.querySelectorAll('.controls-panel .section-label').forEach(label => {
+  const content = document.createElement('div');
+  content.className = 'section-content';
+
+  let sibling = label.nextElementSibling;
+  while (sibling &&
+         !sibling.classList.contains('section-divider') &&
+         !sibling.classList.contains('section-label') &&
+         !sibling.classList.contains('controls-footer')) {
+    const next = sibling.nextElementSibling;
+    content.appendChild(sibling);
+    sibling = next;
+  }
+
+  if (content.children.length > 0) {
+    label.after(content);
+  }
+
+  // Start expanded
+  label.classList.add('expanded');
+
+  label.addEventListener('click', () => {
+    label.classList.toggle('expanded');
+  });
+});
+
+// ═══ Clickable Child Tabs ═══
+// Lets you click Emma / Noah / All to see how colors look when active
+document.querySelectorAll('#home-tabs .mock-tab').forEach(tab => {
+  tab.addEventListener('click', function() {
+    document.querySelectorAll('#home-tabs .mock-tab').forEach(t => {
+      t.classList.remove('active');
+      t.classList.add('inactive');
+    });
+    this.classList.remove('inactive');
+    this.classList.add('active');
+    applyState();
+  });
+});
+
+// ═══ Store Original Icons ═══
+// Capture default SVGs so we can restore them when switching back to "standard" icon set
+const ORIGINAL_ICONS = {};
+document.querySelectorAll('.mock-icon-btn').forEach(btn => {
+  const type = ['icon-search','icon-heart','icon-settings','icon-delete']
+    .find(cls => btn.classList.contains(cls));
+  if (type && !ORIGINAL_ICONS[type]) {
+    ORIGINAL_ICONS[type] = btn.innerHTML;
+  }
+});
+
 // ═══ Initialize ═══
 buildThemeColorGrid();
 buildFamilySwatches('ctrl-bg-colors', BG_FAMILIES, state.bgHex, selectBgColor);
 buildFamilySwatches('ctrl-card-colors', CARD_FAMILIES, state.cardHex, selectCardColor);
+loadFromShareLink(); // Load shared config from URL if present
 applyState();
 </script>
 
