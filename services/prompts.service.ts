@@ -2,18 +2,45 @@
 // and notifications. Tracks which prompts the user has seen so we don't
 // repeat the same one too often (like a playlist on shuffle).
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/lib/database.types';
 
 type Prompt = Database['public']['Tables']['prompts']['Row'];
+type CachedPrompt = Pick<Prompt, 'id' | 'text'>;
+
+const DAILY_PROMPTS_KEY = 'daily_prompts';
+
+interface DailyPromptsCache {
+  date: string;
+  prompts: CachedPrompt[];
+}
+
+/** Get today's date as YYYY-MM-DD in the user's local timezone.
+ *  Using local time (not UTC) so the cache key matches the user's
+ *  calendar day — otherwise a user at 11 PM would get a cache miss
+ *  because UTC has already rolled over to tomorrow. */
+function getLocalToday(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
 export const promptsService = {
-  /** Get a prompt the user hasn't seen recently, filtered by child age.
-   *  Fetches a few candidates and picks one randomly (like a playlist on shuffle).
-   *  Without randomization, PostgreSQL returns rows in storage order — meaning
-   *  the same prompt would come up every time. */
-  async getNextPrompt(profileId: string, childAgeMonths?: number): Promise<Prompt | null> {
-    // Get recently shown prompt IDs (last 10)
+  /** Get multiple unique prompts in one batch. Hits the database twice:
+   *  once for recently-shown history, once for candidates. Shuffles
+   *  candidates and returns `count` unique prompts.
+   *
+   *  Think of it like going to the store once and buying 3 items,
+   *  instead of making 3 separate trips for each item. */
+  async getNextPrompts(
+    profileId: string,
+    count: number,
+    childAgeMonths?: number,
+  ): Promise<Prompt[]> {
+    // 1. Fetch recently shown prompt IDs (last 10) — 1 DB call
     const { data: recentHistory, error: historyError } = await supabase
       .from('prompt_history')
       .select('prompt_id')
@@ -21,52 +48,125 @@ export const promptsService = {
       .order('shown_at', { ascending: false })
       .limit(10);
 
-    if (historyError) throw new Error(`Failed to fetch prompt history: ${historyError.message}`, { cause: historyError });
+    if (historyError) {
+      throw new Error(
+        `Failed to fetch prompt history: ${historyError.message}`,
+        { cause: historyError },
+      );
+    }
 
-    const recentIds = recentHistory?.map(h => h.prompt_id) ?? [];
+    const recentIds = recentHistory?.map((h) => h.prompt_id) ?? [];
 
-    // Build the query — get prompts NOT in recent history
+    // 2. Fetch candidates (excluding recent ones) — 1 DB call
     let query = supabase
       .from('prompts')
       .select('*')
       .eq('is_active', true);
 
-    // Filter by age range if provided
     if (childAgeMonths !== undefined) {
       query = query
         .or(`min_age_months.is.null,min_age_months.lte.${childAgeMonths}`)
         .or(`max_age_months.is.null,max_age_months.gte.${childAgeMonths}`);
     }
 
-    // Exclude recently shown prompts
     if (recentIds.length > 0) {
       query = query.not('id', 'in', `(${recentIds.join(',')})`);
     }
 
-    // Fetch a batch of candidates so we can pick one randomly.
-    // (Supabase JS client doesn't support ORDER BY random(), so we
-    // grab several and shuffle on the client side.)
-    const { data: candidates, error } = await query.limit(10);
+    const fetchLimit = Math.max(count * 3, 10);
+    const { data: candidates, error } = await query.limit(fetchLimit);
 
-    // Always throw on real database errors — don't confuse "DB broke" with "no results"
-    if (error) throw new Error(`Failed to fetch prompts: ${error.message}`, { cause: error });
+    if (error) {
+      throw new Error(
+        `Failed to fetch prompts: ${error.message}`,
+        { cause: error },
+      );
+    }
 
-    // If all prompts have been shown recently, grab from the full pool
-    if (!candidates || candidates.length === 0) {
-      const { data: fallbackCandidates, error: fallbackError } = await supabase
+    let pool = candidates ?? [];
+
+    // If not enough candidates (all were recently shown), fall back
+    // to the full active pool — better to repeat than show nothing.
+    if (pool.length < count) {
+      const { data: fallbackPool, error: fallbackError } = await supabase
         .from('prompts')
         .select('*')
         .eq('is_active', true)
-        .limit(10);
+        .limit(fetchLimit);
 
-      if (fallbackError || !fallbackCandidates || fallbackCandidates.length === 0) return null;
-
-      // Pick a random one from the fallback pool
-      return fallbackCandidates[Math.floor(Math.random() * fallbackCandidates.length)];
+      if (!fallbackError && fallbackPool && fallbackPool.length > 0) {
+        pool = fallbackPool;
+      }
     }
 
-    // Pick a random one from the candidates
-    return candidates[Math.floor(Math.random() * candidates.length)];
+    // Shuffle using Fisher-Yates, then take the first `count`.
+    // Fisher-Yates is like dealing cards from a shuffled deck —
+    // each item has an equal chance of landing in any position.
+    const shuffled = [...pool];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    return shuffled.slice(0, count);
+  },
+
+  /** Get 3 prompts for today, cached in AsyncStorage so they're instant
+   *  after the first load. Think of it like a "daily special" menu —
+   *  the kitchen preps it once in the morning, then serves it instantly
+   *  to every customer that day. Next day, new specials.
+   *
+   *  Returns raw prompt text with {child_name} placeholder intact —
+   *  the caller substitutes real names at render time so renames
+   *  take effect immediately without clearing the cache. */
+  async getDailyPrompts(
+    profileId: string,
+    count: number,
+    childAgeMonths?: number,
+  ): Promise<CachedPrompt[]> {
+    const today = getLocalToday();
+
+    // 1. Try cache first (~5-20ms, local disk)
+    try {
+      const raw = await AsyncStorage.getItem(DAILY_PROMPTS_KEY);
+      if (raw) {
+        const cache: DailyPromptsCache = JSON.parse(raw);
+        if (cache.date === today && cache.prompts.length > 0) {
+          return cache.prompts;
+        }
+      }
+    } catch {
+      // Cache read failed — fall through to network
+    }
+
+    // 2. Cache miss — fetch from Supabase (batch method, 2 DB calls)
+    const fetched = await this.getNextPrompts(profileId, count, childAgeMonths);
+    const result: CachedPrompt[] = fetched.map((p) => ({ id: p.id, text: p.text }));
+
+    // 3. Save to cache for today (fire-and-forget)
+    AsyncStorage.setItem(
+      DAILY_PROMPTS_KEY,
+      JSON.stringify({ date: today, prompts: result }),
+    ).catch(() => {});
+
+    // 4. Record shown in prompt_history — single batch insert instead
+    //    of 3 separate calls (fire-and-forget, only on cache miss)
+    if (result.length > 0) {
+      supabase
+        .from('prompt_history')
+        .insert(
+          result.map((p) => ({
+            profile_id: profileId,
+            prompt_id: p.id,
+            context: 'recording_screen' as const,
+          })),
+        )
+        .then(({ error }) => {
+          if (error) console.warn('Failed to record prompts shown:', error.message);
+        });
+    }
+
+    return result;
   },
 
   /** Record that a prompt was shown to the user */

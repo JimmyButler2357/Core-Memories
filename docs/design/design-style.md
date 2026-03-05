@@ -22,13 +22,13 @@ Forever Fireflies should feel like a personal journal, not a tech product. Warm,
 | Token | Hex | Usage |
 |---|---|---|
 | bg | `#FAF8F5` | Page / screen background (cream) |
-| card | `#FFFFFF` | Card surfaces |
+| card | `#FEFCF9` | Card surfaces (warm off-white) |
 | text | `#2C2420` | Primary text, dark brown |
 | textSoft | `#8C7E74` | Secondary text, inactive icons, labels |
 | textMuted | `#B5AAA0` | Placeholder, tertiary text, timestamps, ages |
 | accent | `#E8724A` | Primary accent — mic button, CTA, hearts, links |
-| accentSoft | `#FFF0EB` | Accent tint backgrounds (banners, play buttons, picker highlights) |
-| accentPressed | `#D4613B` | Pressed/active state for accent buttons |
+| accentSoft | `rgba(232,114,74,0.08)` | Accent tint backgrounds (banners, play buttons, picker highlights) — transparent, adapts to surface |
+| accentPressed | `#CC6441` | Pressed/active state for accent buttons |
 | accentGlow | `rgba(232,114,74,0.12)` | Favorited card glow shadow |
 | heartFilled | `#E8724A` | Favorited heart (same as accent) |
 | heartEmpty | `#D9D2CB` | Unfavorited heart stroke |
@@ -41,7 +41,7 @@ Forever Fireflies should feel like a personal journal, not a tech product. Warm,
 | danger | `#D94F4F` | Destructive action (delete) |
 | overlay | `rgba(44,36,32,0.45)` | Modal/dialog backdrops |
 | general | `#B5AAA0` | "All" tab color (matches textMuted) |
-| cardPressed | `#F7F4F1` | Tappable card pressed state (slight darken from card white) |
+| cardPressed | `#F7F4F1` | Tappable card pressed state (slight darken from card) |
 
 ### Per-Child Colors
 
@@ -93,7 +93,7 @@ Secondary accent introduced during the Forever Fireflies rebrand. Gold for "magi
 | Font | Usage |
 |---|---|
 | **System sans** (`-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`) | Default everywhere — UI chrome, labels, buttons, tags, metadata, navigation |
-| **Georgia serif** (`'Georgia', serif`) | App title, onboarding headings, transcript body text, prompt cards, Firefly Jar title and card previews, empty state messages, birthday picker values, child name input. Georgia = journal voice. System sans = app voice. |
+| **Merriweather serif** (`'Merriweather', serif`) | App title, onboarding headings, transcript body text, prompt cards, Firefly Jar title and card previews, empty state messages, birthday picker values, child name input. Merriweather = journal voice. System sans = app voice. |
 
 ### Type Scale
 
@@ -113,12 +113,12 @@ The wireframe uses additional sizes for specific contexts. At implementation, ma
 
 | Size | Weight | Usage |
 |---|---|---|
-| 28px | 800 | App title on Sign In only (Georgia serif, letter-spacing -0.5) |
-| 20px | 700 | Onboarding headings — Memory Saved, Paywall (Georgia serif) |
-| 18px | 700 | Section headings — Add Child, Mic Permission, Notifications (Georgia serif) |
-| 18px | 500 | Prompt card text (Georgia serif, 1.5 line-height) |
-| 17px | 700 | Firefly Jar screen title (Georgia serif, 0.3 tracking) |
-| 15px | 400–700 | Transcript body text (Georgia serif, 1.65 line-height), Firefly Jar card previews (Georgia, 1.6 line-height), onboarding tagline |
+| 28px | 800 | App title on Sign In only (Merriweather serif, letter-spacing -0.5) |
+| 20px | 700 | Onboarding headings — Memory Saved, Paywall (Merriweather serif) |
+| 18px | 700 | Section headings — Add Child, Mic Permission, Notifications (Merriweather serif) |
+| 18px | 500 | Prompt card text (Merriweather serif, 1.5 line-height) |
+| 17px | 700 | Firefly Jar screen title (Merriweather serif, 0.3 tracking) |
+| 15px | 400–700 | Transcript body text (Merriweather serif, 1.65 line-height), Firefly Jar card previews (Merriweather, 1.6 line-height), onboarding tagline |
 | 13px | 600–700 | Child pills, tab labels, button labels, banner text |
 | 10px | 600–700 | Date/time on cards, audio duration, flow map labels |
 
@@ -137,7 +137,7 @@ The wireframe uses additional sizes for specific contexts. At implementation, ma
 
 | Value | Usage |
 |---|---|
-| 1.65 | Transcript text area (Georgia serif — needs room to breathe) |
+| 1.65 | Transcript text area (Merriweather serif — needs room to breathe) |
 | 1.6 | Firefly Jar card previews, empty state text |
 | 1.55 | Entry card previews on Home |
 | 1.5 | General body text, descriptions, prompt cards |
@@ -298,7 +298,7 @@ Every tappable element must meet accessibility standards and provide visible fee
 |---|---|---|
 | Mic button (recording) | 96×96px | Largest element in the app. Pulsing glow. |
 | Mic button (home) | 68×68px | Prominent but secondary to recording screen |
-| Back/X/gear icons | ~20–22px | Pad tappable area to 44px minimum |
+| Back/X/gear icons | ~20–22px | **Glass button style**: 36×36px frosted circle (`rgba(243,237,232,0.5)`) behind icon. Pad to 44px with hitSlop. |
 | Child picker + button | 24×24px | Pad tappable area to 44px minimum |
 | Play button (Detail) | 36×36px | AccentSoft background circle |
 | Play button (Firefly Jar card) | 26×26px | AccentSoft background circle |
@@ -307,8 +307,8 @@ Every tappable element must meet accessibility standards and provide visible fee
 
 | Element type | Pressed feedback |
 |---|---|
-| Accent button | Background → `accentPressed` (#D4613B) |
-| Ghost button | Background → `accentSoft` (#FFF0EB) |
+| Accent button | Background → `accentPressed` (#CC6441) |
+| Ghost button | Background → `accentSoft` (rgba(232,114,74,0.08)) |
 | Card (tappable) | Background → `cardPressed` (#F7F4F1) |
 | Icon button | Opacity 0.6 |
 | Filter tab | Opacity 0.7 |
@@ -396,21 +396,24 @@ Every screen must handle all three states. Never show a blank screen.
 
 Standard entry cards on the Home screen and Search results.
 
-- Background: `card` with `paperTex` overlay
+- Background: `card` (#FEFCF9, warm off-white)
 - Border: `1px solid border`
 - Border radius: `card` (14px)
 - Shadow: `sm`
-- Content: child dot + name (colored), date, time, then 2-line transcript preview (system sans, 14.5px, 450 weight, `-webkit-line-clamp: 2`)
+- **Left accent bar:** 3px wide colored stripe on the left edge, using the first child's color (falls back to accent). Positioned absolutely, clipped by card's overflow:hidden.
+- **Header text:** Child names use **Merriweather serif bold** (11px, 600 weight) for a journal feel. Date/time stays system sans.
+- Content: child dot + name (serif, colored), date, time, then 2-line transcript preview (serif, 14.5px, `-webkit-line-clamp: 2`)
 - **Favorited variant:** Border becomes `1px solid accent25`, shadow adds accent glow, filled heart icon shown
 
 ### Entry Cards (Firefly Jar)
 
 Elevated treatment for the favorites screen. Should feel warmer and more expansive.
 
+- Same left accent bar as Home variant
 - Border radius: `lg` (16px)
 - Shadow: `0 0 0 1.5px accent25, 0 3px 12px accent10` (warmer, more prominent)
 - Border: `1px solid accent20`
-- Transcript preview: **Georgia serif**, 15px, 400 weight, 1.6 line-height, **3 lines** (vs. Home's 2)
+- Transcript preview: **Merriweather serif**, 15px, 400 weight, 1.6 line-height, **3 lines** (vs. Home's 2)
 - Includes inline audio play button at bottom of card (26px circle, accentSoft background)
 - Play button uses `stopPropagation` — tapping audio stays on Firefly Jar; tapping card navigates to Detail
 
@@ -485,7 +488,7 @@ Expands inline within the Add Child card when the birthday row is tapped.
 - Three columns: Month (35% width), Day (25%), Year (30%)
 - Column height: 120px with overflow hidden
 - Each row: 40px height, centered text
-- Selected row: Georgia serif, heading size, 700 weight, text color; highlighted by `accentSoft` band behind it (40px tall, radius `sm`)
+- Selected row: Merriweather serif, heading size, 700 weight, text color; highlighted by `accentSoft` band behind it (40px tall, radius `sm`)
 - Unselected rows: body size, 400 weight, textMuted
 - Fade edges: linear gradient from card → transparent at top and bottom (36px fade)
 - Confirm button: full-width "Set birthday" (accent background, white text, radius `sm`)
@@ -495,15 +498,7 @@ Expands inline within the Add Child card when the birthday row is tapped.
 
 ## Paper Texture
 
-Cards and transcript areas use a subtle SVG noise texture overlay for a journal feel. The texture is a fractal noise pattern at 2.5% opacity — visible on close inspection but never distracting.
-
-```
-feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="4"
-rect opacity="0.025"
-```
-
-Applied to: entry cards, transcript text area, prompt cards, form cards (Add Child), text entry areas.
-Not applied to: tabs, pills, buttons, settings rows, UI chrome.
+**Disabled.** The paper texture overlay has been removed for a cleaner, more modern look. The `PaperTexture` component still exists in the codebase but is no longer used by any screen or component.
 
 ---
 
@@ -514,6 +509,7 @@ Not applied to: tabs, pills, buttons, settings rows, UI chrome.
 | `radial-gradient(ellipse at 50% 40%, rgba(244,226,214,0.45) 0%, transparent 70%)` | Recording and Empty State backdrop — warm center glow |
 | `linear-gradient(180deg, #FDF6E3 0%, bg 35%)` | Firefly Jar screen — warm gold top (glowSoft) fading to standard cream |
 | `linear-gradient(180deg, bg 0%, #F5F0EB 100%)` | Notification screen — subtle warm base |
+| `linear-gradient(180deg, rgba(237,232,227,0.25) 0%, transparent 100%)` | Home screen top gradient — subtle warm wash, 160px tall |
 | `linear-gradient(to bottom, bg@0 0%, bg@55% 55%, bg 100%)` | Home screen bottom fade — content dissolves into mic button area |
 | `linear-gradient(135deg, accentSoft 0%, rgba(255,240,235,0.5) 100%)` | First-entry celebration banner |
 | `linear-gradient(card, transparent)` / `linear-gradient(transparent, card)` | Birthday picker scroll wheel fade edges |
@@ -553,11 +549,11 @@ Each screen has a distinct emotional weight, created through background treatmen
 
 | Screen | Background | Title Font | Card Style | Emotional Role |
 |---|---|---|---|---|
-| Home | Flat `bg` cream | Georgia serif (app title only) | Standard cards (system sans preview) | Inbox — scan, capture, move on |
-| Recording | Radial warm gradient | — | Prompt cards (Georgia serif) | Focus — calm, encouraging |
-| Entry Detail | Flat `bg` cream | — | Transcript area (Georgia serif, paper texture) | Workshop — edit, refine, enrich |
+| Home | Flat `bg` cream | Merriweather serif (app title only) | Standard cards (system sans preview) | Inbox — scan, capture, move on |
+| Recording | Radial warm gradient | — | Prompt cards (Merriweather serif) | Focus — calm, encouraging |
+| Entry Detail | Flat `bg` cream | — | Transcript area (Merriweather serif, paper texture) | Workshop — edit, refine, enrich |
 | Search | Flat `bg` cream | System sans | Standard cards with highlights | Utility — find, filter |
-| Firefly Jar | Warm gradient top (#F9F2EB→cream) | Georgia serif | Larger cards (serif preview, inline audio, amber glow) | Treasure box — slow down, savor |
+| Firefly Jar | Warm gradient top (#F9F2EB→cream) | Merriweather serif | Larger cards (serif preview, inline audio, amber glow) | Treasure box — slow down, savor |
 | Settings | Flat `bg` cream | System sans | Grouped list rows | Configuration — functional |
 | Notification | Warm gradient | System sans | Frosted glass card | Nudge — personal, inviting |
-| Onboarding | Flat `bg` cream (except recording step) | Georgia serif | Paper-textured form cards | Welcome — emotional, progressive |
+| Onboarding | Flat `bg` cream (except recording step) | Merriweather serif | Paper-textured form cards | Welcome — emotional, progressive |

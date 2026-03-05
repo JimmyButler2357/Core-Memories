@@ -591,6 +591,40 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_child: {
+        Args: {
+          p_birthday: string
+          p_color_index: number
+          p_display_order: number
+          p_name: string
+          p_nickname: string
+        }
+        Returns: {
+          birthday: string
+          color_index: number
+          created_at: string
+          display_order: number
+          id: string
+          name: string
+          nickname: string | null
+          photo_url: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "children"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      refresh_auto_children: {
+        Args: { child_ids: string[]; target_entry_id: string }
+        Returns: undefined
+      }
+      refresh_auto_tags: {
+        Args: { tag_ids: string[]; target_entry_id: string }
+        Returns: undefined
+      }
       set_entry_children: {
         Args: {
           child_ids: string[]

@@ -14,13 +14,13 @@ export const familiesService = {
    *  In MVP, each user has exactly one family. This returns it.
    *  Joins through family_members to find the family the user belongs to. */
   async getMyFamily(): Promise<Family> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated — cannot fetch family');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated — cannot fetch family');
 
     const { data, error } = await supabase
       .from('family_members')
       .select('family_id, families(*)')
-      .eq('profile_id', user.id)
+      .eq('profile_id', session.user.id)
       .eq('status', 'active')
       .limit(1)
       .single();

@@ -54,9 +54,9 @@ Every wireframed screen is a real component with hardcoded data. Tappable protot
 - [x] Shared components (TopBar, EntryCard, ChildPill, ChildTab, PrimaryButton, TagPill, ConfirmationDialog, MicButton, PaperTexture, NotificationPreview, ErrorState)
 - [x] Animation polish (fadeInUp stagger, mic pulse, breathing circle, reduce motion support)
 - [x] Welcome Preview screen — onboarding screen 8, between Memory Saved and Paywall *(see Product Spec §2.2)*
-- [ ] Location field on Entry Detail — display and edit `locationText` in metadata block (data model exists, UI missing)
-- [ ] Serif font decision — design spec says Georgia, implementation uses Merriweather. Decide and align spec + code
-- [ ] Settings "Add Child" birthday picker — modal uses today's date silently; needs scroll-wheel picker like onboarding Add Child screen
+- [x] Location field on Entry Detail — display and edit `locationText` in metadata block
+- [x] Serif font decision — using Merriweather; design spec updated to match
+- [x] Settings "Add Child" birthday picker — scroll-wheel picker matching onboarding style
 - [ ] Design cleanup — fix hardcoded hex in EntryCard Firefly Jar shadow, NotificationPreview touch targets (30px → 44px min), hardcoded audio bar values
 
 Every screen handles empty, loading, and error states.
@@ -193,9 +193,9 @@ Make the app smarter, more useful, and harder to leave. Focus on AI features and
 
 | Feature | Description |
 |---------|-------------|
-| **AI-generated titles** | Each memory gets an auto-generated title from its transcript (e.g., "Emma's First Giggle"). Editable by parent. Makes the feed scannable and each card distinct |
-| **AI transcript cleanup** | Light AI pass removes filler words (um, uh) while preserving the parent's authentic voice. Same API call as titles/tags |
-| LLM-powered auto-tagging | Upgrade from keyword matching to Claude Haiku for smarter topic classification + custom tag suggestions |
+| ~~**AI-generated titles**~~ ✅ | **Done — pulled forward to V1.0.** `process-entry` edge function (v10) generates titles via Claude Haiku. Editable by parent |
+| ~~**AI transcript cleanup**~~ ✅ | **Done — pulled forward to V1.0.** Same `process-entry` edge function removes filler words while preserving the parent's authentic voice |
+| ~~LLM-powered auto-tagging~~ ✅ | **Done — pulled forward to V1.0.** `process-entry` applies smart tags via Claude Haiku, replacing keyword matching |
 | "On this day" resurfacing | Memory from 1 year ago surfaces at the top of the feed with special card treatment |
 | Milestone celebrations | AI detects milestone language, flags with star badge + celebration animation |
 | Age milestone markers | Divider cards at birthday boundaries in the timeline |
@@ -206,7 +206,8 @@ Make the app smarter, more useful, and harder to leave. Focus on AI features and
 | **Shareable memory cards** | Tap "Share" on any entry card → generates a branded quote-card image (child's words, name + age, date, subtle Forever Fireflies watermark). Static image works everywhere — iMessage, Instagram Stories, Facebook, etc. Uses native share sheet. Replaces plain-link sharing |
 | **Memory of the Day** | Daily featured memory banner at the top of Home screen. Pulls a past entry (random or "on this day" if available). Includes a one-tap "Share" button that generates the branded quote card. Low-friction daily touchpoint that drives sharing + re-engagement |
 | Family recap emails | Weekly text digest + monthly audio highlight reel |
-| In-app feedback | Contact Us in Settings opens email compose with device info auto-attached |
+| **In-app contact form** | Replace mailto link with a native form inside the app (subject dropdown: bug / feature request / question / other + text area). Submissions saved to a `feedback` Supabase table with user ID, device info, and app version auto-attached. More polished than mailto and captures structured data |
+| **AI feedback triage** | Edge function (similar to `process-entry`) classifies each submission via Claude Haiku as bug / feature-request / question / praise. Auto-drafts an email reply for review, and auto-creates GitHub issues (with labels) for bugs and feature requests via GitHub API. Human-in-the-loop: drafts queue for approval before sending |
 | Cloud transcription fallback | For entries where on-device transcription has low confidence, offer cloud upgrade |
 | Quiet week prompt | Gentle re-engagement for users inactive 7+ days |
 | Quick-react mood tags | One-tap mood icon after recording (laughing, crying, proud, exhausted); filterable later |

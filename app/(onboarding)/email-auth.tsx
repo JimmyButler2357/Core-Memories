@@ -5,11 +5,13 @@ import {
   TextInput,
   StyleSheet,
   KeyboardAvoidingView,
+  ScrollView,
   Platform,
   Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { colors, typography, spacing, radii } from '@/constants/theme';
+import { MaterialIcons } from '@expo/vector-icons';
+import { colors, typography, spacing, radii, hitSlop } from '@/constants/theme';
 import { useAuthStore } from '@/stores/authStore';
 import TopBar from '@/components/TopBar';
 import PrimaryButton from '@/components/PrimaryButton';
@@ -48,6 +50,7 @@ export default function EmailAuthScreen() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const isFormValid = email.trim().length > 0 && password.length >= 6;
 
@@ -103,7 +106,12 @@ export default function EmailAuthScreen() {
     >
       <TopBar showBack title="" />
 
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.heading}>
           {mode === 'signup' ? 'Create Account' : 'Welcome Back'}
         </Text>
@@ -133,16 +141,29 @@ export default function EmailAuthScreen() {
         {/* Password field */}
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            placeholder="At least 6 characters"
-            placeholderTextColor={colors.textMuted}
-            secureTextEntry
-            autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-            editable={!isLoading}
-          />
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={styles.passwordInput}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="At least 6 characters"
+              placeholderTextColor={colors.textMuted}
+              secureTextEntry={!showPassword}
+              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+              editable={!isLoading}
+            />
+            <Pressable
+              onPress={() => setShowPassword(!showPassword)}
+              hitSlop={hitSlop.icon}
+              style={styles.eyeButton}
+            >
+              <MaterialIcons
+                name={showPassword ? 'visibility' : 'visibility-off'}
+                size={20}
+                color={colors.textMuted}
+              />
+            </Pressable>
+          </View>
         </View>
 
         {/* Feedback messages */}
@@ -171,7 +192,7 @@ export default function EmailAuthScreen() {
             </Text>
           </Text>
         </Pressable>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -181,10 +202,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
-  content: {
+  scroll: {
     flex: 1,
+  },
+  content: {
+    flexGrow: 1,
     paddingHorizontal: spacing(5),
     paddingTop: spacing(4),
+    paddingBottom: spacing(8),
   },
   heading: {
     ...typography.sectionHeading,
@@ -213,6 +238,24 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
     paddingHorizontal: spacing(4),
     paddingVertical: spacing(3),
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.sm,
+  },
+  passwordInput: {
+    ...typography.formLabel,
+    color: colors.text,
+    flex: 1,
+    paddingHorizontal: spacing(4),
+    paddingVertical: spacing(3),
+  },
+  eyeButton: {
+    paddingHorizontal: spacing(3),
   },
   error: {
     ...typography.caption,

@@ -39,7 +39,7 @@ Updated to reflect all wireframe iterations through v13. This document covers th
 
 **Purpose:** Authentication and first impression. Sets the emotional tone before any setup begins.
 
-**Layout:** The app title "Forever Fireflies" in Georgia serif with the tagline "You'll never forget the little things." dominates the upper half. Three auth buttons stack at the bottom: Continue with Apple (black, required by Apple for apps offering social login), Continue with Google (white with Google logo), Continue with Email (neutral). Legal links (Terms of Service, Privacy Policy) sit below the buttons in small muted text.
+**Layout:** The app title "Forever Fireflies" in Merriweather serif with the tagline "You'll never forget the little things." dominates the upper half. Three auth buttons stack at the bottom: Continue with Apple (black, required by Apple for apps offering social login), Continue with Google (white with Google logo), Continue with Email (neutral). Legal links (Terms of Service, Privacy Policy) sit below the buttons in small muted text.
 
 **Flow:** Any auth method → Add Child.
 
@@ -51,9 +51,9 @@ Updated to reflect all wireframe iterations through v13. This document covers th
 
 **Layout:** The heading is dynamic and responds to context. Before any name is entered: "Who are we remembering?" Once a name is typed: "Let's start [name]'s memory book." After at least one child is added: "Anyone else?" Previously added children appear as colored pills above the form with their name and birthday.
 
-**Form fields** are presented inside a card with paper texture. All fields are visible upfront — no hidden expanders or progressive disclosure. The fields are: name (required, Georgia serif input), birthday (required — gates the continue button), and nickname (optional, used for voice auto-detection from transcripts, e.g., "Bug").
+**Form fields** are presented inside a card with paper texture. All fields are visible upfront — no hidden expanders or progressive disclosure. The fields are: name (required, Merriweather serif input), birthday (required — gates the continue button), and nickname (optional, used for voice auto-detection from transcripts, e.g., "Bug").
 
-**Birthday picker:** Tapping the birthday row expands an inline styled scroll wheel within the card — three columns for Month, Day, and Year. The selected row gets a warm accentSoft highlight band, with fade-to-transparent edges at the top and bottom of each column. Georgia serif text on the values. A "Set birthday" button confirms the selection. After confirming, the row shows the formatted date with an accent checkmark and a small "change" link to reopen the picker. This inline approach was chosen over the iOS system date wheel to maintain the app's warm journal aesthetic.
+**Birthday picker:** Tapping the birthday row expands an inline styled scroll wheel within the card — three columns for Month, Day, and Year. The selected row gets a warm accentSoft highlight band, with fade-to-transparent edges at the top and bottom of each column. Merriweather serif text on the values. A "Set birthday" button confirms the selection. After confirming, the row shows the formatted date with an accent checkmark and a small "change" link to reopen the picker. This inline approach was chosen over the iOS system date wheel to maintain the app's warm journal aesthetic.
 
 **Button logic:** The primary button is disabled until both name and birthday are provided. Label changes contextually: "Enter a name to continue" → "Add a birthday to continue" → "Add [name]." After at least one child is added, the button becomes "Add [name] & continue" (or just "Continue" if the form is empty), and an "Add another child" link appears below.
 
@@ -103,7 +103,7 @@ Updated to reflect all wireframe iterations through v13. This document covers th
 
 **Purpose:** Text alternative to voice recording during onboarding. For parents who can't or don't want to record audio at this moment.
 
-**Layout:** Back arrow to return to the recording screen. Child pill pre-populated from onboarding setup. Georgia serif text area for typing. Save button disabled until text is entered.
+**Layout:** Back arrow to return to the recording screen. Child pill pre-populated from onboarding setup. Merriweather serif text area for typing. Save button disabled until text is entered.
 
 **Flow:** Save → Memory Saved.
 
@@ -113,7 +113,7 @@ Updated to reflect all wireframe iterations through v13. This document covers th
 
 **Purpose:** Emotional payoff after the first recording. Acknowledges the moment without overproducing it.
 
-**Layout:** Centered content only — heart icon with a scale-in animation, "[Child name]'s first memory, saved." in Georgia serif, and "Your voice and your words — kept forever." below. A single "Keep going" button.
+**Layout:** Centered content only — heart icon with a scale-in animation, "[Child name]'s first memory, saved." in Merriweather serif, and "Your voice and your words — kept forever." below. A single "Keep going" button.
 
 **Design note:** This screen is intentionally minimal. Do not add anything to it — the restraint is the design.
 
@@ -141,7 +141,7 @@ Updated to reflect all wireframe iterations through v13. This document covers th
 
 **Layout (top to bottom):**
 
-**Top bar:** The app title "Forever Fireflies" in Georgia serif sits on the left. On the right, a search icon (magnifying glass — toggles inline search mode), a heart icon for Firefly Jar navigation, and a settings gear icon. In the first-entry state, search and heart icons are hidden to keep the celebration focused.
+**Top bar:** The app title "Forever Fireflies" in Merriweather serif sits on the left. On the right, a search icon (magnifying glass — toggles inline search mode), a heart icon for Firefly Jar navigation, and a settings gear icon. In the first-entry state, search and heart icons are hidden to keep the celebration focused.
 
 **Inline search mode:** Tapping the search icon reveals a collapsible area below the top bar containing a search bar (auto-focuses keyboard), filter chips (tag chips + date range chip), and a "Clear" chip when filters are active. The search icon changes to an X while search is active. Child tabs remain visible and compose with search filters — selecting "Emma" tab + searching "bedtime" shows only Emma's entries containing "bedtime." Entry cards show tags and highlighted matching text during search. A floating result count pill ("X memories found") appears above the mic button. Tapping X or clearing all filters collapses the search area with a 250ms animation.
 
@@ -241,7 +241,7 @@ The always-stacked layout was chosen over a side-by-side (date left, pills right
 
 **Tags row:** Below the metadata, a row of small tag pills (e.g., "milestone," "funny," "bedtime"). Each tag has an × to remove it. A "+ add" link opens the tag editor panel — a card with a text input for custom tags and a "Your Frequent Tags" section showing commonly used tags as tappable pills. Tags use uniform neutral backgrounds (no color-coding by type).
 
-**Transcript text area:** The main body is an editable text field styled with Georgia serif font, paper texture background, and warm border — the feel of a clean, minimal journal page. The full transcription appears here for voice entries; for text-only entries, a placeholder reads "Start typing your memory..." All edits auto-save with no save button. A subtle "All changes saved" indicator appears below the transcript.
+**Transcript text area:** The main body is an editable text field styled with Merriweather serif font, paper texture background, and warm border — the feel of a clean, minimal journal page. The full transcription appears here for voice entries; for text-only entries, a placeholder reads "Start typing your memory..." All edits auto-save with no save button. A subtle "All changes saved" indicator appears below the transcript.
 
 **Audio playback bar:** At the bottom of the screen, a persistent mini-player with a play button (accent-tinted circle) and a scrub bar for the original audio recording. This lets the parent replay what they said. For text-only entries (no recording), this bar is hidden.
 
@@ -266,21 +266,21 @@ The always-stacked layout was chosen over a side-by-side (date left, pills right
 
 **Purpose:** The app's emotional centerpiece — a curated treasure box of the parent's most meaningful moments. Visually elevated from Home to feel like opening something special, not just filtering a list.
 
-**Visual distinction from Home:** The Firefly Jar screen has a warm gradient background (#F9F2EB → cream) instead of Home's flat cream. The title "Firefly Jar" uses Georgia serif (not system sans like other screen titles). A memory count sits below the header ("♡ 3 memories saved"). These details create a different texture — Home is the inbox (scan, capture, move on); Firefly Jar is the keepsake box (slow down, relive, savor).
+**Visual distinction from Home:** The Firefly Jar screen has a warm gradient background (#F9F2EB → cream) instead of Home's flat cream. The title "Firefly Jar" uses Merriweather serif (not system sans like other screen titles). A memory count sits below the header ("♡ 3 memories saved"). These details create a different texture — Home is the inbox (scan, capture, move on); Firefly Jar is the keepsake box (slow down, relive, savor).
 
 **Layout:**
 
-**Top bar:** Back arrow on the left, "Firefly Jar" in Georgia serif centered. No settings or search icons — this is a focused, curated view.
+**Top bar:** Back arrow on the left, "Firefly Jar" in Merriweather serif centered. No settings or search icons — this is a focused, curated view.
 
 **Memory count:** Below the header, a small line with a filled heart icon and the count of favorited entries.
 
 **Child tabs:** Horizontal scrollable row matching Home's tab pattern. "All" plus each child's name. Filters favorites by child.
 
-**Entry cards (larger, warmer than Home):** Favorited entry cards use a different treatment than standard Home cards. They have Georgia serif transcript previews at 3 lines (vs. Home's 2 lines in system font), a warm amber glow border, and an inline audio play button at the bottom of each card with a scrub bar and duration. Tapping the play button area plays the audio without navigating to Entry Detail (stopPropagation). Tapping anywhere else on the card opens Entry Detail.
+**Entry cards (larger, warmer than Home):** Favorited entry cards use a different treatment than standard Home cards. They have Merriweather serif transcript previews at 3 lines (vs. Home's 2 lines in system font), a warm amber glow border, and an inline audio play button at the bottom of each card with a scrub bar and duration. Tapping the play button area plays the audio without navigating to Entry Detail (stopPropagation). Tapping anywhere else on the card opens Entry Detail.
 
 **States:**
 - **Filled (default):** Showing favorited entries with the elevated card treatment and inline audio.
-- **Empty:** Warm encouragement text in Georgia serif — "Tap the heart on any entry to save it as a Firefly." with a "Browse your entries" button that navigates back to Home. This completes the loop so the parent isn't stranded on an empty screen.
+- **Empty:** Warm encouragement text in Merriweather serif — "Tap the heart on any entry to save it as a Firefly." with a "Browse your entries" button that navigates back to Home. This completes the loop so the parent isn't stranded on an empty screen.
 
 **Navigation:**
 - Tap card (non-audio area) → Entry Detail

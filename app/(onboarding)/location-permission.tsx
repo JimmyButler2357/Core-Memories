@@ -27,7 +27,7 @@ export default function LocationPermissionScreen() {
         <Text style={styles.heading}>Tag where memories happen</Text>
 
         <Text style={styles.body}>
-          We'll quietly note the location when you record — like writing the
+          We'll quietly note the location when you record, like writing the
           place on the back of a photo. You can always change or remove it.
         </Text>
       </View>

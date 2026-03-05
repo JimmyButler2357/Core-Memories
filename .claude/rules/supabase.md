@@ -19,8 +19,8 @@ Rules learned from security and database audits. Follow these when writing migra
 
 ## Service Layer
 
-- **Always derive user identity from `supabase.auth.getUser()`** — never accept `userId` or `profileId` as a parameter. Even if RLS blocks misuse, the service layer should not trust caller-supplied identity.
-- **Always check auth before `.single()`.** If the session is expired, RLS returns zero rows and `.single()` throws a confusing PGRST116 error. Call `auth.getUser()` first and throw a clear "Not authenticated" message.
+- **Always derive user identity from `supabase.auth.getSession()`** — never accept `userId` or `profileId` as a parameter. Use `session.user.id`, not `getUser()` (which makes a network request and fails when offline, causing false sign-outs).
+- **Always check auth before `.single()`.** If the session is expired, RLS returns zero rows and `.single()` throws a confusing PGRST116 error. Call `auth.getSession()` first and throw a clear "Not authenticated" message.
 - **Never swallow errors.** Always check the `error` return from every Supabase call. If a method has fallback logic (e.g., retry with a different query), throw on real errors first, then fall back only for empty results.
 - **Use contextual error messages.** `throw new Error('Failed to [operation]: ${error.message}', { cause: error })` — not bare `throw error`. This makes debugging 10x easier.
 - **Use `Omit<Type, 'field'>` to prevent callers from supplying server-derived fields** like `user_id`. TypeScript will enforce this at compile time.

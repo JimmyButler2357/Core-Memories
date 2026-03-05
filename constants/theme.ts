@@ -11,13 +11,13 @@
 
 export const colors = {
   bg: '#FAF8F5',
-  card: '#FFFFFF',
+  card: '#FEFCF9',
   text: '#2C2420',
   textSoft: '#8C7E74',
   textMuted: '#B5AAA0',
   accent: '#E8724A',
-  accentSoft: '#FFF0EB',
-  accentPressed: '#D4613B',
+  accentSoft: 'rgba(232,114,74,0.08)',
+  accentPressed: '#CC6441',
   accentGlow: 'rgba(232,114,74,0.12)',
   heartFilled: '#E8724A',
   heartEmpty: '#D9D2CB',
@@ -40,7 +40,7 @@ export const colors = {
 
 // Screen-specific colors
 export const screenColors = {
-  fireflyJarBg: '#FDF6E3',
+  fireflyJarBg: '#F5E6C8',
   notificationBg: '#F5F0EB',
   recordingBackdrop: 'rgba(244,226,214,0.45)',
 } as const;
@@ -142,8 +142,8 @@ export const typography = {
   // Firefly Jar card preview text
   fireflyJarPreview: {
     fontFamily: fonts.serif,
-    fontSize: 15,
-    lineHeight: 24, // 15 * 1.6
+    fontSize: 14,
+    lineHeight: 22.4, // 14 * 1.6
   },
   // Onboarding tagline / subtitle
   onboardingTagline: {
@@ -153,8 +153,8 @@ export const typography = {
   // Entry card preview text (Home / Search)
   entryPreview: {
     fontFamily: fonts.serif,
-    fontSize: 14.5,
-    lineHeight: 22.5, // ~1.55
+    fontSize: 14,
+    lineHeight: 22.4, // 14 * 1.6
   },
   // Form labels, input text
   formLabel: {

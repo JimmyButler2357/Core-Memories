@@ -130,10 +130,19 @@ export const useAuthStore = create<AuthState>()(
             hasCompletedOnboarding: profile.onboarding_completed,
           });
         } catch (error) {
-          // Profile/family fetch failed — user is authenticated but
-          // we couldn't load their data. This might happen if the
-          // handle_new_user trigger hasn't fired yet (race condition).
-          console.warn('Failed to load profile/family:', error);
+          const message = (error as Error)?.message ?? '';
+          if (message.includes('Not authenticated')) {
+            // The session token was rejected server-side (stale or revoked).
+            // Sign out cleanly so the router sends the user back to login
+            // instead of leaving them stuck with a session but no profile.
+            console.warn('Session invalid during profile load, signing out');
+            try { await authService.signOut(); } catch { /* ignore */ }
+            set({ session: null, user: null, profile: null, familyId: null });
+          } else {
+            // Non-auth failure (e.g. network hiccup or trigger race condition).
+            // Stay logged in so the user can retry — don't force a sign-out.
+            console.warn('Failed to load profile/family:', error);
+          }
         }
       },
 

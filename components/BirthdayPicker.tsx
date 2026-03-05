@@ -1,19 +1,18 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   Pressable,
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
   colors,
-  fonts,
   typography,
   spacing,
   radii,
 } from '@/constants/theme';
+import ScrollColumn from '@/components/ScrollColumn';
 
 // ─── Data ────────────────────────────────────────────────
 
@@ -28,121 +27,6 @@ function getDaysInMonth(month: number, year: number) {
 
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 20 }, (_, i) => currentYear - i);
-
-// ─── Scroll Column ───────────────────────────────────────
-
-const ROW_HEIGHT = 40;
-const VISIBLE_ROWS = 3;
-const COLUMN_HEIGHT = ROW_HEIGHT * VISIBLE_ROWS;
-
-interface ScrollColumnProps {
-  items: string[];
-  selectedIndex: number;
-  onSelect: (index: number) => void;
-}
-
-function ScrollColumn({ items, selectedIndex, onSelect }: ScrollColumnProps) {
-  const scrollRef = useRef<ScrollView>(null);
-
-  const handleScrollEnd = useCallback((e: any) => {
-    const offsetY = e.nativeEvent.contentOffset.y;
-    const index = Math.round(offsetY / ROW_HEIGHT);
-    const clamped = Math.max(0, Math.min(index, items.length - 1));
-    onSelect(clamped);
-  }, [items.length, onSelect]);
-
-  const handleLayout = useCallback(() => {
-    scrollRef.current?.scrollTo({ y: selectedIndex * ROW_HEIGHT, animated: false });
-  }, [selectedIndex]);
-
-  return (
-    <View style={columnStyles.wrapper}>
-      <View style={columnStyles.highlightBand} />
-      <View style={columnStyles.fadeTop} />
-      <View style={columnStyles.fadeBottom} />
-      <ScrollView
-        ref={scrollRef}
-        showsVerticalScrollIndicator={false}
-        snapToInterval={ROW_HEIGHT}
-        decelerationRate="fast"
-        onLayout={handleLayout}
-        onMomentumScrollEnd={handleScrollEnd}
-        onScrollEndDrag={handleScrollEnd}
-        contentContainerStyle={{ paddingVertical: ROW_HEIGHT }}
-      >
-        {items.map((item, i) => {
-          const isSelected = i === selectedIndex;
-          return (
-            <Pressable
-              key={i}
-              onPress={() => {
-                onSelect(i);
-                scrollRef.current?.scrollTo({ y: i * ROW_HEIGHT, animated: true });
-              }}
-              style={columnStyles.row}
-            >
-              <Text style={isSelected ? columnStyles.selectedText : columnStyles.unselectedText}>
-                {item}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-    </View>
-  );
-}
-
-const columnStyles = StyleSheet.create({
-  wrapper: {
-    height: COLUMN_HEIGHT,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  highlightBand: {
-    position: 'absolute',
-    top: ROW_HEIGHT,
-    left: 0,
-    right: 0,
-    height: ROW_HEIGHT,
-    backgroundColor: colors.accentSoft,
-    borderRadius: radii.sm,
-    zIndex: 0,
-  },
-  fadeTop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 36,
-    zIndex: 2,
-    backgroundColor: 'rgba(255,255,255,0.7)',
-  },
-  fadeBottom: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 36,
-    zIndex: 2,
-    backgroundColor: 'rgba(255,255,255,0.7)',
-  },
-  row: {
-    height: ROW_HEIGHT,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  selectedText: {
-    fontFamily: fonts.serif,
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  unselectedText: {
-    fontSize: 14,
-    fontWeight: '400',
-    color: colors.textMuted,
-  },
-});
 
 // ─── BirthdayPicker ──────────────────────────────────────
 

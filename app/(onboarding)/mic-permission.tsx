@@ -44,8 +44,7 @@ export default function MicPermissionScreen() {
         <Text style={styles.heading}>One tap to capture a memory</Text>
 
         <Text style={styles.body}>
-          Nothing is ever recorded without you pressing the button — and your recordings stay
-          private.
+          Nothing is ever recorded until you press the button. Your voice, your memories.
         </Text>
 
         {showSkipCard && (

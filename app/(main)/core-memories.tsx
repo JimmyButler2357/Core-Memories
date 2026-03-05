@@ -55,11 +55,11 @@ export default function CoreMemoriesScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Warm gradient backdrop — top portion only */}
+      {/* Warm honey fades to cool cream in the bottom third */}
       <LinearGradient
         colors={[screenColors.fireflyJarBg, colors.bg]}
-        locations={[0, 0.35]}
-        style={styles.gradientTop}
+        locations={[0.33, 1]}
+        style={styles.gradientBottom}
       />
 
       {/* Floating firefly particles — ambient gold dots drifting in background */}
@@ -117,7 +117,7 @@ export default function CoreMemoriesScreen() {
             entry={entryToCard(item, childMap)}
             variant="coreMemory"
             index={index}
-            onPress={() => router.push('/(main)/entry-detail')}
+            onPress={() => router.push({ pathname: '/(main)/entry-detail', params: { entryId: item.id } })}
             onPlayAudio={() => {
               // Visual only for MVP — no actual playback
             }}
@@ -147,21 +147,21 @@ export default function CoreMemoriesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: screenColors.fireflyJarBg,
   },
-  gradientTop: {
+  gradientBottom: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: 280,
+    bottom: 0,
   },
   firefliesLayer: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: 280,
+    height: 600,
   },
   // ─── Count Row ────────────────────────
   countRow: {

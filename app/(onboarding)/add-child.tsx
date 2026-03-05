@@ -9,6 +9,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,7 +27,6 @@ import { useChildrenStore, mapSupabaseChild } from '@/stores/childrenStore';
 import { childrenService } from '@/services/children.service';
 import PrimaryButton from '@/components/PrimaryButton';
 import ChildPill from '@/components/ChildPill';
-import PaperTexture from '@/components/PaperTexture';
 import BirthdayPicker, { formatBirthdayDisplay } from '@/components/BirthdayPicker';
 
 // ─── Add Child Screen ─────────────────────────────────────
@@ -37,9 +38,19 @@ import BirthdayPicker, { formatBirthdayDisplay } from '@/components/BirthdayPick
 // 3. The server returns the saved row (with a real UUID)
 // 4. We map it to the UI shape and add it to the local store
 //
+// After adding the first child, the form collapses and shows
+// a "Continue" button + "Add another child" option — instead
+// of resetting to an empty form which felt confusing.
+//
 // If the network call fails, we show an error and DON'T add
 // anything locally — we never want local and server data to
 // get out of sync.
+
+// Enable LayoutAnimation on Android (iOS works out of the box).
+// This lets us animate the form expanding/collapsing smoothly.
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 export default function AddChildScreen() {
   const router = useRouter();
@@ -50,25 +61,33 @@ export default function AddChildScreen() {
   const [nickname, setNickname] = useState('');
   const [birthday, setBirthday] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showForm, setShowForm] = useState(true);
 
   const hasChildren = children.length > 0;
   const nameEntered = name.trim().length > 0;
   const birthdaySet = !!birthday;
   const formReady = nameEntered && birthdaySet;
 
-  // Dynamic heading
+  // Dynamic heading — changes based on what stage you're at:
+  // 1. No children, nothing typed → welcoming question
+  // 2. No children, typing a name → personalized encouragement
+  // 3. Has children, form hidden → celebration + clear next step
+  // 4. Has children, form open → asking about more children
+  const lastChild = children[children.length - 1];
   const heading = hasChildren
-    ? 'Anyone else?'
+    ? showForm
+      ? 'Anyone else?'
+      : `${lastChild?.name} is all set!`
     : nameEntered
       ? `Let's start ${name.trim()}'s memory book.`
       : 'Who are we remembering?';
 
-  // Button label
+  // Button label — depends on whether the form is showing or hidden
   const getButtonLabel = () => {
+    if (!showForm && hasChildren) return 'Continue';
     if (isLoading) return 'Saving...';
     if (!nameEntered) return 'Enter a name to continue';
     if (!birthdaySet) return 'Add a birthday to continue';
-    if (hasChildren) return `Add ${name.trim()} & continue`;
     return `Add ${name.trim()}`;
   };
 
@@ -92,10 +111,13 @@ export default function AddChildScreen() {
       // and add it to the local store for instant display.
       addChildLocal(mapSupabaseChild(row));
 
-      // Reset form for potential next child
+      // Reset form fields and collapse it. LayoutAnimation makes
+      // the form smoothly shrink away instead of popping out.
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setName('');
       setNickname('');
       setBirthday('');
+      setShowForm(false);
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Something went wrong';
@@ -106,45 +128,55 @@ export default function AddChildScreen() {
     }
   };
 
-  // Remove a child — deletes from Supabase, then removes locally
+  // Remove a child — deletes from Supabase, then removes locally.
+  // If this was the last child, the form reappears automatically
+  // so the user can add at least one.
   const handleRemoveChild = async (id: string) => {
     try {
       await childrenService.deleteChild(id);
       removeChildLocal(id);
+
+      // If that was the last child, show the form again
+      if (children.length <= 1) {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setShowForm(true);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not remove child';
       Alert.alert('Error', message);
     }
   };
 
-  const handleAddChild = async () => {
-    if (!formReady) return;
-    await saveChildToSupabase();
+  // Expand the form with a smooth animation
+  const handleShowForm = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setShowForm(true);
   };
 
-  const handleContinue = async () => {
-    if (formReady) {
-      const success = await saveChildToSupabase();
-      if (!success) return; // Don't navigate if save failed
-    }
-    router.push('/(onboarding)/mic-permission');
+  // Collapse the form without saving
+  const handleCancelForm = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setName('');
+    setNickname('');
+    setBirthday('');
+    setShowForm(false);
   };
 
   const handleButtonPress = async () => {
-    if (!formReady) return;
-    if (hasChildren) {
-      // "Add [name] & continue" — add the child and move on
-      await handleContinue();
-    } else {
-      // "Add [name]" — add first child, form resets, heading changes to "Anyone else?"
-      await handleAddChild();
+    // When form is hidden, "Continue" navigates forward
+    if (!showForm && hasChildren) {
+      router.push('/(onboarding)/mic-permission');
+      return;
     }
+    // When form is showing, "Add [name]" saves the child
+    if (!formReady) return;
+    await saveChildToSupabase();
   };
 
   return (
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
         style={styles.scroll}
@@ -172,70 +204,67 @@ export default function AddChildScreen() {
           </View>
         )}
 
-        {/* Form card */}
-        <View style={styles.card}>
-          <PaperTexture />
+        {/* Form card — only visible when adding a child */}
+        {showForm && (
+          <View style={styles.card}>
+            {/* Name field */}
+            <View style={styles.field}>
+              <Text style={styles.fieldLabelRequired}>Name</Text>
+              <TextInput
+                style={styles.nameInput}
+                value={name}
+                onChangeText={setName}
+                placeholder="Child's name"
+                placeholderTextColor={colors.textMuted}
+                editable={!isLoading}
+              />
+              <View style={styles.fieldDivider} />
+            </View>
 
-          {/* Name field */}
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Name</Text>
-            <TextInput
-              style={styles.nameInput}
-              value={name}
-              onChangeText={setName}
-              placeholder="Child's name"
-              placeholderTextColor={colors.textMuted}
-              editable={!isLoading}
-            />
-            <View style={styles.fieldDivider} />
+            {/* Birthday field */}
+            <View style={styles.field}>
+              <Text style={styles.fieldLabelRequired}>Birthday</Text>
+              <BirthdayPicker
+                value={birthday || undefined}
+                onChange={setBirthday}
+              />
+              <View style={styles.fieldDivider} />
+            </View>
+
+            {/* Nickname field */}
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Nickname (optional)</Text>
+              <TextInput
+                style={styles.nicknameInput}
+                value={nickname}
+                onChangeText={setNickname}
+                placeholder="Used for voice auto-detection"
+                placeholderTextColor={colors.textMuted}
+                editable={!isLoading}
+              />
+            </View>
           </View>
+        )}
 
-          {/* Birthday field */}
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Birthday</Text>
-            <BirthdayPicker
-              value={birthday || undefined}
-              onChange={setBirthday}
-            />
-            <View style={styles.fieldDivider} />
-          </View>
-
-          {/* Nickname field */}
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Nickname (optional)</Text>
-            <TextInput
-              style={styles.nicknameInput}
-              value={nickname}
-              onChangeText={setNickname}
-              placeholder="Used for voice auto-detection"
-              placeholderTextColor={colors.textMuted}
-              editable={!isLoading}
-            />
-          </View>
-        </View>
-
-        {/* Primary button */}
+        {/* Buttons */}
         <View style={styles.buttonArea}>
           <PrimaryButton
             label={getButtonLabel()}
             onPress={handleButtonPress}
-            disabled={!formReady || isLoading}
+            disabled={showForm && (!formReady || isLoading)}
           />
 
-          {/* "Continue" button when children exist and form is empty */}
-          {hasChildren && !formReady && (
-            <Pressable
-              onPress={() => router.push('/(onboarding)/mic-permission')}
-              disabled={isLoading}
-            >
-              <Text style={styles.continueBtn}>Continue</Text>
+          {/* When form is hidden: offer to add another child */}
+          {hasChildren && !showForm && (
+            <Pressable onPress={handleShowForm}>
+              <Text style={styles.addAnotherLink}>+ Add another child</Text>
             </Pressable>
           )}
 
-          {/* "Add another child" link when children exist */}
-          {hasChildren && formReady && (
-            <Pressable onPress={handleAddChild} disabled={isLoading}>
-              <Text style={styles.addAnotherLink}>Add another child</Text>
+          {/* When form is open and children exist: offer to cancel */}
+          {hasChildren && showForm && (
+            <Pressable onPress={handleCancelForm} disabled={isLoading}>
+              <Text style={styles.cancelLink}>Cancel</Text>
             </Pressable>
           )}
         </View>
@@ -286,6 +315,14 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     marginBottom: spacing(2),
   },
+  fieldLabelRequired: {
+    ...typography.timestamp,
+    fontWeight: '700' as const,
+    color: colors.text,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: spacing(2),
+  },
   nameInput: {
     fontFamily: fonts.serif,
     fontSize: 16,
@@ -306,12 +343,12 @@ const styles = StyleSheet.create({
     gap: spacing(4),
     alignItems: 'center',
   },
-  continueBtn: {
-    ...typography.buttonLabel,
-    color: colors.accent,
-  },
   addAnotherLink: {
     ...typography.formLabel,
     color: colors.accent,
+  },
+  cancelLink: {
+    ...typography.formLabel,
+    color: colors.textMuted,
   },
 });

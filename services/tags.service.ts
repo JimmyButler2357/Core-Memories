@@ -3,6 +3,7 @@
 // Custom tags are created by the user and scoped to their family.
 
 import { supabase } from '@/lib/supabase';
+import { slugify } from '@/lib/textQuality';
 import type { Database } from '@/lib/database.types';
 
 type Tag = Database['public']['Tables']['tags']['Row'];
@@ -33,14 +34,7 @@ export const tagsService = {
 
   /** Create a custom tag for the user's family */
   async createTag(name: string, familyId: string): Promise<Tag> {
-    // Normalize: lowercase, strip non-alphanumeric characters, replace spaces with hyphens.
-    // Without the full sanitization, a name like "Emma's First!" would produce
-    // the slug "emma's-first!" — keeping apostrophes and punctuation that could
-    // cause issues with unique constraints or look ugly in URLs.
-    const slug = name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')  // Replace any non-letter/number sequence with a hyphen
-      .replace(/^-|-$/g, '');        // Trim leading/trailing hyphens
+    const slug = slugify(name);
 
     const { data, error } = await supabase
       .from('tags')

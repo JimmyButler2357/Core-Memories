@@ -10,6 +10,8 @@
 // appear somewhere inside it.
 
 import type { Child } from '@/stores/childrenStore';
+import { entriesService } from '@/services/entries.service';
+import { tagsService } from '@/services/tags.service';
 
 // ─── Tag Shape ────────────────────────────────────────────
 // This matches the tag rows from Supabase. We only need
@@ -141,4 +143,64 @@ export function detectTags(
   }
 
   return Array.from(matched);
+}
+
+// ─── Build Contextual Strings ────────────────────────────
+//
+// Creates an array of "hint" strings to give the speech engine
+// so it's more likely to recognize unusual names correctly.
+//
+// Think of it like writing the names on a whiteboard before a
+// meeting — the transcriber can glance at it and know what to
+// listen for.
+
+export function buildContextualStrings(children: Child[]): string[] {
+  const hints: string[] = [];
+  for (const child of children) {
+    hints.push(child.name);
+    if (child.nickname) hints.push(child.nickname);
+  }
+  return hints;
+}
+
+// ─── Refresh Detection ───────────────────────────────────
+//
+// Re-runs auto-detection on an edited transcript and updates
+// the database. Think of it like "re-running the label maker."
+//
+// Only touches auto-detected/auto-applied rows — any children
+// or tags the user manually added are preserved.
+//
+// Detection failure is non-critical. If this throws, the
+// transcript was already saved successfully. Callers should
+// catch and warn.
+
+export async function refreshDetection(
+  entryId: string,
+  transcript: string,
+  allChildren: Child[],
+): Promise<void> {
+  // Step 1: Detect children from transcript
+  let detectedChildIds = detectChildren(transcript, allChildren);
+
+  // Fallback: single-child family — auto-assign (no ambiguity).
+  // Multi-child family with no detection — keep existing children
+  // rather than silently guessing the first child.
+  if (detectedChildIds.length === 0 && allChildren.length === 1) {
+    detectedChildIds = [allChildren[0].id];
+  } else if (detectedChildIds.length === 0 && allChildren.length > 1) {
+    return;
+  }
+
+  // Step 2: Detect tags from transcript
+  // Fetch the system tags list for keyword matching
+  const systemTags = await tagsService.getSystemTags();
+  const detectedTagIds = detectTags(transcript, systemTags);
+
+  // Step 3: Update the database — both calls are independent,
+  // so we run them in parallel (saves ~100-200ms).
+  await Promise.all([
+    entriesService.refreshAutoChildren(entryId, detectedChildIds),
+    entriesService.refreshAutoTags(entryId, detectedTagIds),
+  ]);
 }

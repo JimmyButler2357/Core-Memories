@@ -130,7 +130,7 @@ export default function EntryDetailScreen() {
   const [retryCount, setRetryCount] = useState(0);
 
   // Location — lightweight check, no GPS (just permission status)
-  const permissionGranted = useLocationPermission();
+  const { granted: permissionGranted } = useLocationPermission();
   const [editingLocation, setEditingLocation] = useState(false);
   const [locationInput, setLocationInput] = useState('');
 
@@ -192,9 +192,9 @@ export default function EntryDetailScreen() {
           });
           if (cancelled) return;
 
-          // Steps 2 & 3 run in parallel — audio upload and
-          // child/tag detection don't depend on each other, so
-          // running them at the same time saves hundreds of ms.
+          // Steps 2-4 run in parallel — audio upload, child/tag
+          // detection, and AI processing don't depend on each other,
+          // so running them at the same time saves ~1-2 seconds.
 
           const transcriptText = params.transcript || '';
 
@@ -236,10 +236,20 @@ export default function EntryDetailScreen() {
             }
           })();
 
-          // Wait for both branches to finish
+          // Branch C: AI processing — generates a title and cleans
+          // the transcript via the process-entry edge function.
+          // Only needs row.id (reads transcript from DB), so it can
+          // start immediately alongside audio + detection.
+          const aiPromise = entriesService.processWithAI(row.id)
+            .catch(() => null); // nice-to-have — don't block on failure
+
+          // Wait for audio + detection (needed for getEntry joins).
+          // AI runs independently — we handle its result below.
           await Promise.all([audioPromise, detectPromise]);
 
-          // Step 4: Fetch the full entry (with joins) for display
+          // Step 5: Fetch the full entry (with joins) for display.
+          // If AI was fast enough, this already has the title +
+          // cleaned transcript. If not, we patch the title below.
           const fullRow = await entriesService.getEntry(row.id);
           if (cancelled) return;
           const mapped = mapSupabaseEntry(fullRow);
@@ -249,6 +259,16 @@ export default function EntryDetailScreen() {
 
           // Also add to local cache so Home shows it immediately
           addEntryLocal(mapped);
+
+          // If AI hasn't finished yet, patch the title when it arrives.
+          // (If it already finished, getEntry above caught the title.)
+          if (!mapped.title) {
+            aiPromise.then((result) => {
+              if (cancelled || !result?.title) return;
+              setEntry((prev) => prev ? { ...prev, title: result.title } : prev);
+              updateEntryLocal(row.id, { title: result.title });
+            });
+          }
         } else {
           // No params at all — nothing to show
           setEntry(null);

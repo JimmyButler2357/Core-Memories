@@ -128,7 +128,7 @@ A mason jar silhouette (simple, geometric) on a warm cream background, with 2-3 
 
 ### 6. Splash Screen / Launch Animation
 
-On cold launch, the screen starts dark cream. A single firefly dot fades in at center, gently pulses, then the app title "Forever Fireflies" fades in below it in Georgia serif. The firefly dot floats upward and off-screen as the home feed loads in. Total: ~1.5 seconds. Magical without being slow.
+On cold launch, the screen starts dark cream. A single firefly dot fades in at center, gently pulses, then the app title "Forever Fireflies" fades in below it in Merriweather serif. The firefly dot floats upward and off-screen as the home feed loads in. Total: ~1.5 seconds. Magical without being slow.
 
 **Effort:** Medium — Animated API sequence on the splash/loading screen.
 

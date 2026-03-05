@@ -94,12 +94,12 @@ Ship native on-device transcription for MVP. Monitor these signals to decide whe
 
 The onboarding flow is 9 screens, designed to get the parent to their first saved entry in under 90 seconds while establishing the emotional tone.
 
-1. **Sign In** — Apple Sign-In, Google Sign-In, or Email. Georgia serif title "Forever Fireflies" with tagline "You'll never forget the little things." Legal links below auth buttons.
+1. **Sign In** — Apple Sign-In, Google Sign-In, or Email. Merriweather serif title "Forever Fireflies" with tagline "You'll never forget the little things." Legal links below auth buttons.
 2. **Add Child** — Name (required), birthday (required — powers age stamps on every entry), nickname (optional — used for voice auto-detection). All fields visible upfront, no progressive disclosure. Birthday uses an inline styled scroll wheel picker (Month/Day/Year) within the card to maintain the app's warm aesthetic. Parents can add multiple children before proceeding — added children appear as colored pills above the form.
 3. **Mic Permission** — Pre-permission primer explaining *why* before iOS system prompt. "Nothing is ever recorded without you pressing the button."
 4. **Notifications** — Set nightly reminder time. Scrollable time picker with 30-minute increments, 8:30 PM default. Framed as "a gentle nudge at bedtime," not a notification. Skip option available.
 5. **First Recording** — Personalized prompt with child's name, pulsing mic button with warm radial gradient backdrop. "Or write instead" text fallback. 60-second limit.
-6. **First Memory (Text)** — Alternative to voice for step 5. Georgia serif text area with child pre-populated.
+6. **First Memory (Text)** — Alternative to voice for step 5. Merriweather serif text area with child pre-populated.
 7. **Memory Saved** — Emotional payoff. Heart animation, "[Child name]'s first memory, saved." and "Your voice and your words — kept forever." Intentionally minimal — do not add to this screen.
 8. **Welcome Preview** — Shows what the app looks like with months of data: a populated Home feed with multiple entries, the Firefly Jar screen with favorites, and the Search screen finding a specific moment. Gives the parent a vision of what they're building toward before being asked to subscribe. Static mockup with sample data — not the user's actual entries.
 9. **Paywall** — Convert to trial subscriber after experiencing core value. Annual/monthly pricing (annual pre-selected), 7-day free trial, visible dismiss button, restore purchase link. Exits to Home in the first-entry celebration state.
@@ -113,14 +113,14 @@ The onboarding flow is 9 screens, designed to get the parent to their first save
 ### 2.3 Browse & Relive
 
 **Primary view: Home screen with per-child tabs**
-- Top bar with app title (Georgia serif), search icon (toggles inline search mode), heart icon (→ Firefly Jar), settings gear. In first-entry state, only settings icon is shown — search and heart are hidden
+- Top bar with app title (Merriweather serif), search icon (toggles inline search mode), heart icon (→ Firefly Jar), settings gear. In first-entry state, only settings icon is shown — search and heart are hidden
 - Horizontal scrollable child tabs below the top bar: "All" (default, shows every child's entries) plus one tab per child, color-coded with the child's assigned color
 - Single-child variant: when only one child is registered, tabs are replaced by a warm pill showing the child's name, age, and memory count
 - Entry cards in reverse-chronological order: child name pills (colored dot + name), date, time, 2-line transcript preview, tag pills. Favorited entries get a warm orange glow border and filled heart
 - Gradient fade at the bottom transitioning to the mic button and "or write instead" link
 
 **Firefly Jar screen (favorites):**
-- A visually elevated view of favorited entries — warmer gradient background, Georgia serif title, memory count, larger cards with 3-line serif transcript previews, inline audio play buttons on each card. This screen should feel like opening a treasure box, not filtering a list. See App Workflow v4 for full specification.
+- A visually elevated view of favorited entries — warmer gradient background, Merriweather serif title, memory count, larger cards with 3-line serif transcript previews, inline audio play buttons on each card. This screen should feel like opening a treasure box, not filtering a list. See App Workflow v4 for full specification.
 
 **Inline search (on Home screen):**
 - Search is integrated directly into the Home feed — no separate screen. Tapping the search icon in the top bar toggles a collapsible search area below the top bar
@@ -152,7 +152,7 @@ Line 4: Age line — each child's age at the time of the entry in muted text (e.
 
 **Tags row:** Small tag pills with × for removal, + to add. Tag editor panel shows text input with **autocomplete** — as the user types, matching existing tags (system + family custom) appear as tappable suggestions below the input. This is the primary defense against typos: if "swimming" already exists, the user sees it after typing "swim" and taps it instead of typing "swiming." Below the autocomplete, a "Your Frequent Tags" section shows the family's most-used tags for one-tap access. If the user finishes typing a new tag name that doesn't match any existing tag, a new `user_created` tag is created — but only after checking that no system or AI tag with the same slug already exists (see database-schema.md §3.8, Tag Deduplication Rules).
 
-**Transcript:** Editable text area styled with Georgia serif font, paper texture background, and warm border. Full transcription for voice entries; placeholder text for new text entries.
+**Transcript:** Editable text area styled with Merriweather serif font, paper texture background, and warm border. Full transcription for voice entries; placeholder text for new text entries.
 
 **Audio playback:** Mini-player bar at the bottom with play button and scrub bar. Hidden for text-only entries.
 
@@ -438,8 +438,8 @@ The parent is the sole owner of contributor identities. Contributors never type 
 - [ ] **Add photos (cap 3)** — attach up to 3 photos per entry via camera or gallery picker. Photos display in Entry Detail below the transcript. Keeps the focus on voice/text (the differentiator) while letting parents add visual context. Photos stored in Supabase Storage alongside audio files
 - [ ] **Birthday quiz** — on a child's birthday, app sends a special push notification or shows an in-app interstitial with guided questions ("What's their favorite food right now?" "What word do they say funny?" "What are they obsessed with?"). Responses saved as a structured text entry tagged with the child and a "birthday" tag. Creates an annual snapshot tradition. Overlaps with Keepsakes' core workflow, validating demand
 - [ ] **Help / menu section** — expandable dropdown or dedicated screen accessible from the top bar. Includes: FAQ, "Ways to Use Your Memories" (4 articles linking to website — e.g., "Share with Grandparents," "Create a Birthday Tradition," "Build a Bedtime Routine," "Make a Keepsake Book"), Contact Us, mission/about, and a deeper dive into family connection. Content links to external website rather than living in-app
-- [ ] **Shareable memory cards** — tap a "Share" button on any entry card (Home, Firefly Jar, or Entry Detail) to generate a branded quote-card image. The card displays: transcript text (truncated to ~3 lines for readability), child's name + age at time of entry, entry date, and a subtle "Forever Fireflies" watermark at the bottom. Card uses the app's warm visual language (cream background, Georgia serif for the quote, warm brown text). Image generated client-side via `react-native-view-shot` or similar. Opens native share sheet — works with iMessage, Instagram Stories, Facebook, text, email, etc. Static image format ensures universal compatibility (no audio, no link required). Organic growth loop: every shared card is a branded touchpoint
-- [ ] **Memory of the Day** — daily featured memory banner at the top of the Home screen. Shows one past entry each day — prioritizes "on this day" (same date, previous year) when available, otherwise picks a random entry. Banner includes: child dot + name, short transcript preview (2 lines, Georgia serif), entry date, and a prominent "Share" button that generates the branded quote card (same flow as above). Banner is dismissible for the day. If no past entries exist (new users), banner doesn't appear. Drives daily re-engagement + sharing without guilt or streaks
+- [ ] **Shareable memory cards** — tap a "Share" button on any entry card (Home, Firefly Jar, or Entry Detail) to generate a branded quote-card image. The card displays: transcript text (truncated to ~3 lines for readability), child's name + age at time of entry, entry date, and a subtle "Forever Fireflies" watermark at the bottom. Card uses the app's warm visual language (cream background, Merriweather serif for the quote, warm brown text). Image generated client-side via `react-native-view-shot` or similar. Opens native share sheet — works with iMessage, Instagram Stories, Facebook, text, email, etc. Static image format ensures universal compatibility (no audio, no link required). Organic growth loop: every shared card is a branded touchpoint
+- [ ] **Memory of the Day** — daily featured memory banner at the top of the Home screen. Shows one past entry each day — prioritizes "on this day" (same date, previous year) when available, otherwise picks a random entry. Banner includes: child dot + name, short transcript preview (2 lines, Merriweather serif), entry date, and a prominent "Share" button that generates the branded quote card (same flow as above). Banner is dismissible for the day. If no past entries exist (new users), banner doesn't appear. Drives daily re-engagement + sharing without guilt or streaks
 - [ ] In-app feedback — "Contact Us" in Settings opens email compose with device info + app version auto-attached
 - [ ] Family recap emails — weekly text digest + monthly audio highlight reel with "voices this month" section (see Section 4)
 - [ ] Quick-react mood/emotion tags — after recording, one-tap mood icon (laughing, crying, proud, exhausted, grateful); filterable later

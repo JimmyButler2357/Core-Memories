@@ -14,11 +14,23 @@
 //   // Tap stop → stop()
 //   // Use audioUri to upload the recording, transcript for the text
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   ExpoSpeechRecognitionModule,
   useSpeechRecognitionEvent,
 } from 'expo-speech-recognition';
+
+interface UseSpeechRecognitionOptions {
+  /**
+   * Hint strings to bias the speech engine toward specific words
+   * (e.g. children's names). Callers should memoize this array
+   * with useMemo to avoid unnecessary useCallback recreation.
+   *
+   * - iOS: maps to SFSpeechRecognitionRequest.contextualStrings
+   * - Android: maps to EXTRA_BIASING_STRINGS (API 33+)
+   */
+  contextualStrings?: string[];
+}
 
 interface UseSpeechRecognitionResult {
   /** Start listening. Requests permissions if needed. */
@@ -37,11 +49,19 @@ interface UseSpeechRecognitionResult {
   reset: () => void;
 }
 
-export function useSpeechRecognition(): UseSpeechRecognitionResult {
+export function useSpeechRecognition(
+  options?: UseSpeechRecognitionOptions,
+): UseSpeechRecognitionResult {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [audioUri, setAudioUri] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Accumulates finalized (done) speech segments across pauses.
+  // Using a ref instead of state so the event handler always
+  // reads the latest value — no stale closure problem.
+  // Think of it like a "finished pile" of transcript pages.
+  const finalizedRef = useRef('');
 
   // ─── Event Listeners ──────────────────────────────────
   //
@@ -66,12 +86,28 @@ export function useSpeechRecognition(): UseSpeechRecognitionResult {
   // processing that chunk. Interim results (isFinal=false)
   // are "best guesses" that may change.
   //
-  // We always show the latest result — interim or final —
-  // so the user sees text appearing in real-time.
+  // In continuous mode, each pause creates a NEW segment —
+  // previous segments are NOT included in the event. So we
+  // accumulate finalized segments in `finalizedRef` and
+  // always show: [all finished segments] + [current segment].
   useSpeechRecognitionEvent('result', (event) => {
     const text = event.results[0]?.transcript ?? '';
-    if (text) {
-      setTranscript(text);
+    if (!text) return;
+
+    if (event.isFinal) {
+      // This segment is done — add it to the finished pile.
+      // Add a space between segments so words don't smash together.
+      finalizedRef.current = finalizedRef.current
+        ? `${finalizedRef.current} ${text}`
+        : text;
+      setTranscript(finalizedRef.current);
+    } else {
+      // Still in-progress — show the pile + what they're saying now.
+      setTranscript(
+        finalizedRef.current
+          ? `${finalizedRef.current} ${text}`
+          : text
+      );
     }
   });
 
@@ -94,6 +130,7 @@ export function useSpeechRecognition(): UseSpeechRecognitionResult {
 
   const start = useCallback(async () => {
     // Reset state from any previous recording
+    finalizedRef.current = '';
     setTranscript('');
     setAudioUri(null);
     setError(null);
@@ -121,6 +158,13 @@ export function useSpeechRecognition(): UseSpeechRecognitionResult {
       // Add periods and commas automatically.
       addsPunctuation: true,
 
+      // Bias the speech engine toward children's names so it
+      // recognizes "Xiomara" instead of guessing "see a Mara."
+      // If empty/undefined, the engine uses default vocabulary.
+      ...(options?.contextualStrings?.length && {
+        contextualStrings: options.contextualStrings,
+      }),
+
       // Save the audio to a local file so we can upload it
       // to Supabase Storage later.
       recordingOptions: {
@@ -128,13 +172,14 @@ export function useSpeechRecognition(): UseSpeechRecognitionResult {
         outputFileName: `recording_${Date.now()}.wav`,
       },
     });
-  }, []);
+  }, [options?.contextualStrings]);
 
   const stop = useCallback(() => {
     ExpoSpeechRecognitionModule.stop();
   }, []);
 
   const reset = useCallback(() => {
+    finalizedRef.current = '';
     setTranscript('');
     setAudioUri(null);
     setError(null);

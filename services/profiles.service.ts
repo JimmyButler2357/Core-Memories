@@ -13,13 +13,13 @@ export const profilesService = {
    *  Checks auth first so an expired session gives a clear error
    *  instead of a confusing "0 rows returned" from .single(). */
   async getProfile(): Promise<Profile> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated — cannot fetch profile');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated — cannot fetch profile');
 
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', user.id)
+      .eq('id', session.user.id)
       .single();
 
     if (error) throw new Error(`Failed to fetch profile: ${error.message}`, { cause: error });
@@ -30,13 +30,13 @@ export const profilesService = {
    *  Gets the user ID safely from the session instead of using a
    *  non-null assertion (!) that would crash with a confusing error. */
   async updateProfile(updates: ProfileUpdate) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated — cannot update profile');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated — cannot update profile');
 
     const { data, error } = await supabase
       .from('profiles')
       .update(updates)
-      .eq('id', user.id)
+      .eq('id', session.user.id)
       .select()
       .single();
 

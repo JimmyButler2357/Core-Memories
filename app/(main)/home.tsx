@@ -405,7 +405,7 @@ export default function HomeScreen() {
       {/* Floating bottom area — gradient fade + mic + write link */}
       <View style={styles.bottomWrapper} pointerEvents="box-none">
         <LinearGradient
-          colors={['transparent', 'rgba(250,248,245,0.55)', colors.bg]}
+          colors={['transparent', 'rgba(250,248,245,0.5)', 'rgba(250,248,245,0.88)']}
           locations={[0, 0.55, 1]}
           style={styles.bottomFade}
           pointerEvents="none"
@@ -581,7 +581,7 @@ const styles = StyleSheet.create({
     height: 70,
   },
   bottomArea: {
-    backgroundColor: colors.bg,
+    backgroundColor: 'rgba(250, 248, 245, 0.88)',
     alignItems: 'center',
     paddingTop: spacing(1),
     gap: spacing(2),

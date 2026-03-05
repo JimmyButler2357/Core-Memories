@@ -3,7 +3,6 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing } from '@/constants/theme';
-import { useChildrenStore } from '@/stores/childrenStore';
 import PrimaryButton from '@/components/PrimaryButton';
 
 /**
@@ -15,9 +14,6 @@ import PrimaryButton from '@/components/PrimaryButton';
 export default function MemorySavedScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const children = useChildrenStore((s) => s.children);
-  const firstName = children.length > 0 ? children[0].name : 'Your child';
-
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.content}>
@@ -27,7 +23,7 @@ export default function MemorySavedScreen() {
           <Ionicons name="heart" size={56} color={colors.glow} />
         </View>
 
-        <Text style={styles.heading}>{firstName}'s first firefly, caught.</Text>
+        <Text style={styles.heading}>Your first firefly, caught.</Text>
         <Text style={styles.body}>Your voice and your words — kept forever.</Text>
       </View>
 

@@ -11,6 +11,8 @@ import {
   Alert,
   Linking,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -39,7 +41,9 @@ import PrimaryButton from '@/components/PrimaryButton';
 import BirthdayPicker from '@/components/BirthdayPicker';
 import ColorPicker from '@/components/ColorPicker';
 import { useLocationPermission } from '@/hooks/useLocation';
-import { formatDate } from '@/lib/dateUtils';
+import { formatDate, to24Hour, from24Hour, daysAgo } from '@/lib/dateUtils';
+import { profilesService } from '@/services/profiles.service';
+import TimePicker from '@/components/TimePicker';
 
 // ─── Helpers ──────────────────────────────────────────────
 
@@ -51,23 +55,6 @@ function formatBirthday(iso: string): string {
     year: 'numeric',
   });
 }
-
-function daysAgo(iso: string): number {
-  const now = new Date();
-  const then = new Date(iso);
-  return Math.floor((now.getTime() - then.getTime()) / (1000 * 60 * 60 * 24));
-}
-
-// Reminder time options: 7:00 PM – 10:00 PM in 30-min steps
-const REMINDER_TIMES = [
-  '7:00 PM',
-  '7:30 PM',
-  '8:00 PM',
-  '8:30 PM',
-  '9:00 PM',
-  '9:30 PM',
-  '10:00 PM',
-];
 
 // ─── Settings Screen ──────────────────────────────────────
 
@@ -84,7 +71,7 @@ export default function SettingsScreen() {
   const familyId = useAuthStore((s) => s.familyId);
   const clearChildren = useChildrenStore((s) => s.clearChildren);
   const clearEntries = useEntriesStore((s) => s.clearEntries);
-  const locationEnabled = useLocationPermission();
+  const { status: locationStatus } = useLocationPermission();
 
   // Local state
   const [reminderEnabled, setReminderEnabled] = useState(true);
@@ -104,6 +91,48 @@ export default function SettingsScreen() {
   const [newChildBirthday, setNewChildBirthday] = useState('');
   const [newChildColorIndex, setNewChildColorIndex] = useState(children.length % 6);
   const [newChildNickname, setNewChildNickname] = useState('');
+
+  // Load saved reminder prefs from Supabase on mount.
+  // Think of it like opening a saved document — we read what the
+  // user previously saved and fill in the form with those values.
+  useEffect(() => {
+    let mounted = true;
+    profilesService.getProfile().then((profile) => {
+      if (!mounted) return;
+      if (profile.notification_enabled != null) {
+        setReminderEnabled(profile.notification_enabled);
+      }
+      if (profile.notification_time) {
+        setReminderTime(from24Hour(profile.notification_time));
+      }
+    }).catch((err) => {
+      console.warn('Failed to load notification prefs:', err);
+    });
+    return () => { mounted = false; };
+  }, []);
+
+  // Save reminder prefs to Supabase. Called whenever the user
+  // toggles the switch or scrolls to a new time.
+  const saveReminderPrefs = useCallback(async (enabled: boolean, time: string) => {
+    try {
+      await profilesService.updateNotificationPrefs({
+        notification_enabled: enabled,
+        notification_time: to24Hour(time),
+      });
+    } catch (err) {
+      console.warn('Failed to save reminder prefs:', err);
+    }
+  }, []);
+
+  const handleToggleReminder = useCallback((enabled: boolean) => {
+    setReminderEnabled(enabled);
+    saveReminderPrefs(enabled, reminderTime);
+  }, [reminderTime, saveReminderPrefs]);
+
+  const handleTimeChange = useCallback((time: string) => {
+    setReminderTime(time);
+    saveReminderPrefs(reminderEnabled, time);
+  }, [reminderEnabled, saveReminderPrefs]);
 
   // Recently deleted entries — fetched from Supabase when the
   // modal opens, not filtered from local state.
@@ -311,7 +340,7 @@ export default function SettingsScreen() {
               <Text style={styles.rowLabel}>Reminder</Text>
               <Switch
                 value={reminderEnabled}
-                onValueChange={setReminderEnabled}
+                onValueChange={handleToggleReminder}
                 trackColor={{ false: colors.border, true: colors.accent }}
                 thumbColor={colors.card}
               />
@@ -337,32 +366,9 @@ export default function SettingsScreen() {
               </View>
             </Pressable>
 
-            {/* Time picker dropdown */}
+            {/* Time picker (scroll wheels) */}
             {showTimePicker && reminderEnabled && (
-              <View style={styles.timePickerWrap}>
-                {REMINDER_TIMES.map((time) => (
-                  <Pressable
-                    key={time}
-                    onPress={() => {
-                      setReminderTime(time);
-                      setShowTimePicker(false);
-                    }}
-                    style={[
-                      styles.timeOption,
-                      reminderTime === time && styles.timeOptionActive,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.timeOptionText,
-                        reminderTime === time && styles.timeOptionTextActive,
-                      ]}
-                    >
-                      {time}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
+              <TimePicker value={reminderTime} onChange={handleTimeChange} />
             )}
           </View>
         </View>
@@ -456,13 +462,25 @@ export default function SettingsScreen() {
               <View style={styles.rowContent}>
                 <Text style={styles.rowLabel}>Location</Text>
                 <Text style={styles.rowSublabel}>
-                  {locationEnabled
+                  {locationStatus === 'available'
                     ? 'Tag where memories happen'
-                    : 'Turn on to auto-tag locations'}
+                    : locationStatus === 'services_off'
+                      ? 'Location Services are off in phone settings'
+                      : 'Turn on to auto-tag locations'}
                 </Text>
               </View>
-              <Text style={[styles.rowSublabel, { color: locationEnabled ? colors.accent : colors.textMuted }]}>
-                {locationEnabled ? 'On' : 'Off'}
+              <Text style={[styles.rowSublabel, {
+                color: locationStatus === 'available'
+                  ? colors.accent
+                  : locationStatus === 'services_off'
+                    ? colors.warning
+                    : colors.textMuted,
+              }]}>
+                {locationStatus === 'available'
+                  ? 'On'
+                  : locationStatus === 'services_off'
+                    ? 'Limited'
+                    : 'Off'}
               </Text>
             </Pressable>
 
@@ -520,6 +538,11 @@ export default function SettingsScreen() {
               />
             </Pressable>
             <Pressable
+              onPress={() => {
+                const subject = encodeURIComponent('Fireflies Feedback — v1.0.0');
+                const body = encodeURIComponent(`\n\n---\nApp: Fireflies v1.0.0\nPlatform: ${Platform.OS} ${Platform.Version}`);
+                Linking.openURL(`mailto:jimmybutler2357@gmail.com?subject=${subject}&body=${body}`);
+              }}
               style={({ pressed }) => [
                 styles.row,
                 pressed && { backgroundColor: colors.cardPressed },
@@ -563,7 +586,10 @@ export default function SettingsScreen() {
         animationType="slide"
         onRequestClose={() => setShowEditChildModal(false)}
       >
-        <View style={styles.fullModalContainer}>
+        <KeyboardAvoidingView
+          style={styles.fullModalContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={[styles.fullModalHeader, { paddingTop: insets.top + spacing(3) }]}>
             <Pressable
               onPress={() => setShowEditChildModal(false)}
@@ -585,7 +611,7 @@ export default function SettingsScreen() {
             showsVerticalScrollIndicator={false}
           >
             {/* Name */}
-            <Text style={styles.inputLabel}>Name</Text>
+            <Text style={styles.inputLabelRequired}>Name</Text>
             <TextInput
               value={editName}
               onChangeText={setEditName}
@@ -596,7 +622,7 @@ export default function SettingsScreen() {
             />
 
             {/* Birthday */}
-            <Text style={styles.inputLabel}>Birthday</Text>
+            <Text style={styles.inputLabelRequired}>Birthday</Text>
             <View style={styles.pickerField}>
               <BirthdayPicker
                 value={editBirthday || undefined}
@@ -656,7 +682,7 @@ export default function SettingsScreen() {
               </Pressable>
             )}
           </ScrollView>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ─── Add Child Modal (full-screen) ──────── */}
@@ -665,7 +691,10 @@ export default function SettingsScreen() {
         animationType="slide"
         onRequestClose={() => setShowAddChildModal(false)}
       >
-        <View style={styles.fullModalContainer}>
+        <KeyboardAvoidingView
+          style={styles.fullModalContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={[styles.fullModalHeader, { paddingTop: insets.top + spacing(3) }]}>
             <Pressable
               onPress={() => setShowAddChildModal(false)}
@@ -687,7 +716,7 @@ export default function SettingsScreen() {
             showsVerticalScrollIndicator={false}
           >
             {/* Name */}
-            <Text style={styles.inputLabel}>Name</Text>
+            <Text style={styles.inputLabelRequired}>Name</Text>
             <TextInput
               value={newChildName}
               onChangeText={setNewChildName}
@@ -698,7 +727,7 @@ export default function SettingsScreen() {
             />
 
             {/* Birthday */}
-            <Text style={styles.inputLabel}>Birthday</Text>
+            <Text style={styles.inputLabelRequired}>Birthday</Text>
             <View style={styles.pickerField}>
               <BirthdayPicker
                 value={newChildBirthday || undefined}
@@ -738,7 +767,7 @@ export default function SettingsScreen() {
               />
             </View>
           </ScrollView>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ─── Recently Deleted Modal ────────────── */}
@@ -969,33 +998,6 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontWeight: '600',
   },
-  timePickerWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: spacing(3),
-    gap: spacing(2),
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  timeOption: {
-    paddingVertical: spacing(2),
-    paddingHorizontal: spacing(3),
-    borderRadius: radii.sm,
-    backgroundColor: colors.tag,
-  },
-  timeOptionActive: {
-    backgroundColor: colors.accentSoft,
-    borderWidth: 1,
-    borderColor: colors.accent,
-  },
-  timeOptionText: {
-    ...typography.caption,
-    color: colors.textSoft,
-  },
-  timeOptionTextActive: {
-    color: colors.accent,
-    fontWeight: '700',
-  },
   // ─── Modals (Edit/Add Child) ──────────
   modalOverlay: {
     flex: 1,
@@ -1018,6 +1020,14 @@ const styles = StyleSheet.create({
   inputLabel: {
     ...typography.caption,
     color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: spacing(2),
+  },
+  inputLabelRequired: {
+    ...typography.caption,
+    fontWeight: '700' as const,
+    color: colors.text,
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginBottom: spacing(2),

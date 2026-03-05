@@ -76,11 +76,12 @@ export function useSearchFilter() {
         }
       }
 
-      // Filter by text query (case-insensitive substring)
+      // Filter by text query (case-insensitive substring, searches title + transcript)
       const trimmed = query.trim().toLowerCase();
       if (trimmed) {
         filtered = filtered.filter((e) =>
-          e.text.toLowerCase().includes(trimmed),
+          e.text.toLowerCase().includes(trimmed) ||
+          (e.title?.toLowerCase().includes(trimmed) ?? false),
         );
       }
 

@@ -18,7 +18,6 @@ import {
 } from '@/constants/theme';
 import { useChildrenStore } from '@/stores/childrenStore';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
-import PaperTexture from '@/components/PaperTexture';
 import WarmGlow from '@/components/WarmGlow';
 
 // ─── Prompt bank — gentle nudges ──────────────────────────
@@ -106,7 +105,6 @@ export default function EmptyStateScreen() {
 
         {/* Prompt card */}
         <View style={[styles.promptCard, shadows.promptCard]}>
-          <PaperTexture radius={radii.card} />
           <Text style={styles.promptText}>{prompt}</Text>
         </View>
 

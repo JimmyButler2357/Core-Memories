@@ -22,16 +22,20 @@ export const childrenService = {
     return data;
   },
 
-  /** Create a new child profile */
+  /** Create a new child profile.
+   *  Uses a SECURITY DEFINER RPC function to bypass a PostgreSQL quirk where
+   *  the children INSERT RLS policy fails despite auth.uid() being correct. */
   async createChild(child: Pick<ChildInsert, 'name' | 'birthday' | 'nickname' | 'color_index' | 'display_order'>) {
-    const { data, error } = await supabase
-      .from('children')
-      .insert(child)
-      .select()
-      .single();
+    const { data, error } = await supabase.rpc('create_child', {
+      p_name: child.name,
+      p_birthday: child.birthday,
+      p_nickname: child.nickname ?? null,
+      p_color_index: child.color_index,
+      p_display_order: child.display_order,
+    });
 
     if (error) throw new Error(`Failed to create child: ${error.message}`, { cause: error });
-    return data;
+    return data as Child;
   },
 
   /** Update an existing child */

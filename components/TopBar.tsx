@@ -1,6 +1,6 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, typography, spacing, hitSlop } from '@/constants/theme';
+import { colors, typography, spacing, hitSlop, radii } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
@@ -62,6 +62,7 @@ export default function TopBar({
               styles.title,
               titleStyle === 'serif' ? styles.titleSerif : styles.titleSans,
             ]}
+            numberOfLines={1}
           >
             {title}
           </Text>
@@ -77,6 +78,7 @@ export default function TopBar({
             hitSlop={hitSlop.icon}
             style={({ pressed }) => [
               styles.iconButton,
+              styles.glassButton,
               pressed && { opacity: 0.6 },
             ]}
           >
@@ -105,11 +107,19 @@ const styles = StyleSheet.create({
   right: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing(4),
+    gap: spacing(3),
   },
   iconButton: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  glassButton: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(237,232,227,0.6)',
   },
   title: {
     color: colors.text,

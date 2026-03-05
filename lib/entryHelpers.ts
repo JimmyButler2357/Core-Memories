@@ -30,6 +30,7 @@ export function entryToCard(
     childColors: entryChildColors,
     date: formatDate(entry.date, dateWeekday),
     time: formatTime(entry.date),
+    title: entry.title,
     preview: entry.text,
     tags: entry.tags,
     isFavorited: entry.isFavorited,

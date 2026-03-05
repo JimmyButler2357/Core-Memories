@@ -67,7 +67,7 @@ export default function RecordingScreen() {
 
   const [state, setState] = useState<'prompts' | 'recording'>('prompts');
   const [seconds, setSeconds] = useState(0);
-  const [prompts, setPrompts] = useState<string[]>(FALLBACK_PROMPTS);
+  const [prompts, setPrompts] = useState<string[] | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Tracks when we've called stop() but speech hasn't finalized yet.
@@ -93,7 +93,6 @@ export default function RecordingScreen() {
   speechRef.current = speech;
   const locationTextRef = useRef(locationText);
   locationTextRef.current = locationText;
-  const firstName = children.length > 0 ? children[0].name : 'your child';
   const reduceMotion = useReduceMotion();
 
   // ─── Permission Check ──────────────────────────────────
@@ -121,14 +120,13 @@ export default function RecordingScreen() {
       });
   }, []);
 
-  // ─── Fetch Prompts from Supabase ────────────────────────
+  // ─── Load Daily Prompts ────────────────────────────────
   //
-  // On mount, fetch 3 prompts from the database. Each prompt
-  // is age-appropriate (filtered by the youngest child's age)
-  // and avoids recently shown ones (tracked in prompt_history).
-  //
-  // We fetch 3 separately so each one is unique. If any fetch
-  // fails, the fallback prompts stay visible — no blank cards.
+  // Fetches 3 prompts per day from Supabase, then caches them
+  // in AsyncStorage. First open today = network fetch (~200ms).
+  // Every open after that = instant from local cache (~10ms).
+  // Child names are substituted at render time (not cached) so
+  // renames take effect immediately without clearing the cache.
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -140,30 +138,18 @@ export default function RecordingScreen() {
 
     (async () => {
       try {
-        const fetched: string[] = [];
-        const shownIds: string[] = [];
+        const daily = await promptsService.getDailyPrompts(profile.id, 3, childAge);
+        if (cancelled) return;
 
-        for (let i = 0; i < 3; i++) {
-          const prompt = await promptsService.getNextPrompt(profile.id, childAge);
-          if (cancelled) return;
-          if (prompt && !shownIds.includes(prompt.id)) {
-            fetched.push(prompt.text);
-            shownIds.push(prompt.id);
-
-            // Record that we showed this prompt (non-blocking)
-            promptsService.recordPromptShown(
-              profile.id,
-              prompt.id,
-              'recording_screen',
-            ).catch(() => {});
-          }
-        }
-
-        if (!cancelled && fetched.length > 0) {
-          setPrompts(fetched);
-        }
+        const texts = daily.map((p, i) =>
+          p.text.replace(
+            /\{child_name\}/gi,
+            children.length > 0 ? children[i % children.length].name : 'your child',
+          )
+        );
+        setPrompts(texts);
       } catch {
-        // Keep fallback prompts on error
+        if (!cancelled) setPrompts(FALLBACK_PROMPTS);
       }
     })();
 
@@ -320,7 +306,7 @@ export default function RecordingScreen() {
       // Normal: navigate to entry-detail with the transcript
       // and audioUri. Entry-detail will create the Supabase
       // entry and upload the audio itself.
-      router.push({
+      router.replace({
         pathname: '/(main)/entry-detail',
         params: {
           transcript: s.transcript,
@@ -411,6 +397,16 @@ export default function RecordingScreen() {
                 <Ionicons name="refresh-outline" size={20} color={colors.accent} style={{ marginBottom: spacing(2) }} />
                 <Text style={styles.promptText}>Take your time and re-record this memory</Text>
               </View>
+            </View>
+          ) : prompts === null ? (
+            /* Skeleton cards while cache loads (~10ms, barely visible) */
+            <View style={styles.promptScroll}>
+              {[0, 1, 2].map((i) => (
+                <View key={i} style={[styles.promptCard, { opacity: 0.4 }]}>
+                  <View style={styles.skeletonLine} />
+                  <View style={[styles.skeletonLine, styles.skeletonLineShort]} />
+                </View>
+              ))}
             </View>
           ) : (
             <ScrollView
@@ -552,6 +548,16 @@ const styles = StyleSheet.create({
   promptText: {
     ...typography.promptCard,
     color: colors.text,
+  },
+  skeletonLine: {
+    height: 16,
+    backgroundColor: colors.border,
+    borderRadius: radii.sm,
+    width: '80%',
+  },
+  skeletonLineShort: {
+    width: '55%',
+    marginTop: spacing(2),
   },
   // ─── Recording Area ─────────────────
   recordingArea: {

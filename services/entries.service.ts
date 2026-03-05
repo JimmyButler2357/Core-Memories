@@ -41,12 +41,12 @@ export const entriesService = {
    *  Derives user_id from the authenticated session instead of trusting
    *  the caller. The caller provides family_id and content fields only. */
   async create(entry: Omit<EntryInsert, 'user_id'>) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated — cannot create entry');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated — cannot create entry');
 
     const { data, error } = await supabase
       .from('entries')
-      .insert({ ...entry, user_id: user.id })
+      .insert({ ...entry, user_id: session.user.id })
       .select()
       .single();
 
@@ -179,5 +179,53 @@ export const entriesService = {
     });
 
     if (error) throw new Error(`Failed to set entry tags: ${error.message}`, { cause: error });
+  },
+
+  /** Refresh only auto-detected child links for an entry.
+   *  Deletes all rows where auto_detected = true, then inserts new ones.
+   *  Manual rows (auto_detected = false) are left untouched.
+   *  If a new auto child collides with an existing manual row, the manual
+   *  row wins (ON CONFLICT DO NOTHING — no duplicate). */
+  async refreshAutoChildren(entryId: string, childIds: string[]) {
+    const { error } = await supabase.rpc('refresh_auto_children', {
+      target_entry_id: entryId,
+      child_ids: childIds,
+    });
+
+    if (error) throw new Error(`Failed to refresh auto-detected children: ${error.message}`, { cause: error });
+  },
+
+  /** Refresh only auto-applied tag links for an entry.
+   *  Same pattern as refreshAutoChildren but for tags.
+   *  Manual tags (auto_applied = false) are preserved. */
+  async refreshAutoTags(entryId: string, tagIds: string[]) {
+    const { error } = await supabase.rpc('refresh_auto_tags', {
+      target_entry_id: entryId,
+      tag_ids: tagIds,
+    });
+
+    if (error) throw new Error(`Failed to refresh auto-applied tags: ${error.message}`, { cause: error });
+  },
+
+  /** Trigger AI processing for an entry (title, transcript cleanup, smart tags).
+   *  Calls the process-entry Edge Function. This is non-critical — if it
+   *  fails, the entry still has its raw transcript and keyword-detected tags.
+   *
+   *  Think of it like sending your journal to a helpful assistant who adds
+   *  a nice title, tidies up the "um"s, and sticks the right labels on it. */
+  async processWithAI(entryId: string): Promise<{ title?: string; tags_applied?: number } | null> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated — cannot process entry');
+
+    const { data, error } = await supabase.functions.invoke('process-entry', {
+      body: { entry_id: entryId },
+    });
+
+    if (error) {
+      console.warn('AI processing failed:', error.message ?? error);
+      return null;
+    }
+
+    return data;
   },
 };

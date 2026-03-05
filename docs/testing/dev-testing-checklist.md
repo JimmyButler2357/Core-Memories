@@ -23,6 +23,7 @@
 - [ ] Can select a color/avatar for the child
 - [ ] "Add Child" button saves and moves forward
 - [ ] Can skip or add multiple children (if supported)
+- [ ] Long child name doesn't overflow or break layout
 
 ### Mic Permission Screen
 - [ ] Explanation text displays properly
@@ -85,6 +86,10 @@
 - [ ] Audio playback button works (plays back your recording)
 - [ ] Date displays correctly
 - [ ] Location tags (if location was granted)
+- [ ] With 1 child: child auto-selected, no selector needed
+- [ ] With 2+ children: child selector appears and works
+- [ ] Entry with 0 tags looks fine (no empty tag area)
+- [ ] Entry with many tags wraps properly, not cut off
 
 ---
 
@@ -96,12 +101,16 @@
 - [ ] Tapping an entry card navigates to entry detail
 - [ ] Scrolling is smooth with multiple entries
 - [ ] Pull-to-refresh works (if implemented)
+- [ ] Card with very long transcript text truncates cleanly
+- [ ] Card with no tags doesn't show empty tag area
 
 ### Search & Filter
 - [ ] Search bar is visible and tappable
 - [ ] Typing filters entries by text content
 - [ ] Child filter tabs work (if you added multiple children)
 - [ ] Clearing search shows all entries again
+- [ ] With 1 child: no child filter tabs shown (not needed)
+- [ ] Search with no results shows a "nothing found" state
 
 ---
 
@@ -111,6 +120,7 @@
 - [ ] Empty state if no favorites yet
 - [ ] Tapping an entry navigates to detail view
 - [ ] Visual design matches the "special" feel (firefly/glow theme)
+- [ ] Unfavoriting an entry removes it from this screen
 
 ---
 
@@ -119,8 +129,10 @@
 - [ ] Settings screen loads without crashing
 - [ ] Profile/account info displays
 - [ ] Child management — can see children you added
+- [ ] Can add a second child from settings
 - [ ] Notification time is editable
 - [ ] Sign out button works and returns to sign-in screen
+- [ ] Sign back in — all previous data still there
 - [ ] Any modals open and close properly
 
 ---

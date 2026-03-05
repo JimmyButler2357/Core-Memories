@@ -3,15 +3,15 @@ import { View, Text, Pressable, Animated, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
   colors,
+  fonts,
   typography,
   radii,
   shadows,
   spacing,
+  childColorWithOpacity,
 } from '@/constants/theme';
-import { childColorWithOpacity } from '@/constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
-import PaperTexture from './PaperTexture';
-import FireflyDot from './FireflyDot';
 
 // ─── Highlight Helper ────────────────────────────────────
 
@@ -60,11 +60,56 @@ const highlightStyle = {
   backgroundColor: 'rgba(232,114,74,0.20)',
 };
 
+// ─── Quick-Blend Gradient Stops ─────────────────────────
+/**
+ * Builds color stops for a "quick blend" gradient.
+ *
+ * Imagine a striped pole where each color band is solid,
+ * then there's a very short fade into the next color.
+ * We achieve this by doubling each color with two stops —
+ * one near the end of its segment, one near the start of the next.
+ * The 10% blend zone between them creates a quick transition.
+ */
+const EMPTY_BLEND_STOPS: { colors: string[]; locations: number[] } = {
+  colors: [],
+  locations: [],
+};
+
+function buildQuickBlendStops(inputColors: string[]): {
+  colors: string[];
+  locations: number[];
+} {
+  const n = inputColors.length;
+  if (n < 2) return EMPTY_BLEND_STOPS;
+
+  const blend = 0.1; // 10% of total bar height for each blend zone
+  const halfBlend = blend / 2;
+
+  const outColors: string[] = [];
+  const locations: number[] = [];
+
+  for (let i = 0; i < n; i++) {
+    const segStart = i / n;
+    const segEnd = (i + 1) / n;
+
+    // First stop: where this color's solid zone begins
+    outColors.push(inputColors[i]);
+    locations.push(i === 0 ? 0 : segStart + halfBlend);
+
+    // Second stop: where this color's solid zone ends
+    outColors.push(inputColors[i]);
+    locations.push(i === n - 1 ? 1 : segEnd - halfBlend);
+  }
+
+  return { colors: outColors, locations };
+}
+
 interface EntryCardEntry {
   childNames: string[];
   childColors: string[];
   date: string;
   time: string;
+  title?: string;
   preview: string;
   tags: string[];
   isFavorited: boolean;
@@ -125,6 +170,11 @@ export default function EntryCard({
     ]).start();
   }, []);
 
+  const hasMultipleChildren = entry.childColors.length >= 2;
+  const blendStops = hasMultipleChildren
+    ? buildQuickBlendStops(entry.childColors)
+    : EMPTY_BLEND_STOPS;
+
   const hasFooterContent =
     (showTags && entry.tags.length > 0) ||
     (isCoreMemory && entry.hasAudio);
@@ -145,7 +195,22 @@ export default function EntryCard({
           pressed && { backgroundColor: colors.cardPressed },
         ]}
       >
-        <PaperTexture radius={isCoreMemory ? radii.lg : radii.card} />
+        {/* Left accent bar — colored stripe showing which child this entry belongs to.
+             When 2+ children, shows a quick-blend gradient between their colors. */}
+        {hasMultipleChildren ? (
+          <LinearGradient
+            colors={blendStops.colors}
+            locations={blendStops.locations}
+            style={styles.leftBar}
+          />
+        ) : (
+          <View
+            style={[
+              styles.leftBar,
+              { backgroundColor: entry.childColors[0] ?? colors.accent },
+            ]}
+          />
+        )}
 
         {/* Header: child dots + names, date/time inline, heart far right */}
         <View style={[styles.header, isCoreMemory && styles.coreMemoryHeader]}>
@@ -177,12 +242,27 @@ export default function EntryCard({
               <Ionicons
                 name="heart"
                 size={14}
-                color={colors.heartFilled}
+                color={colors.glow}
               />
-              {isCoreMemory && <FireflyDot />}
             </View>
           )}
         </View>
+
+        {/* Title — AI-generated or user-edited entry name */}
+        {entry.title ? (
+          highlightQuery ? (
+            <HighlightedText
+              text={entry.title}
+              query={highlightQuery}
+              style={styles.title}
+              numberOfLines={1}
+            />
+          ) : (
+            <Text style={styles.title} numberOfLines={1}>
+              {entry.title}
+            </Text>
+          )
+        ) : null}
 
         {/* Preview text */}
         {highlightQuery ? (
@@ -241,6 +321,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(4),
     overflow: 'hidden',
   },
+  leftBar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+  },
   homeCard: {
     borderRadius: radii.card,
     borderWidth: 1,
@@ -253,7 +340,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingBottom: 14,
     borderWidth: 1,
-    borderColor: childColorWithOpacity(colors.glow, 0.20),
+    borderColor: 'rgba(180,160,140,0.35)',
     shadowColor: colors.glow,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.10,
@@ -294,11 +381,18 @@ const styles = StyleSheet.create({
   },
   childName: {
     ...typography.cardMeta,
+    fontFamily: fonts.serifBold,
     fontWeight: '600',
   },
   meta: {
     ...typography.cardMeta,
     color: colors.textMuted,
+  },
+  title: {
+    ...typography.formLabel,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 4,
   },
   homePreview: {
     ...typography.entryPreview,

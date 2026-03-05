@@ -5,31 +5,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, radii } from '@/constants/theme';
 import { profilesService } from '@/services/profiles.service';
+import { to24Hour } from '@/lib/dateUtils';
 import PrimaryButton from '@/components/PrimaryButton';
 
 const TIMES = [
   '7:00 PM', '7:30 PM', '8:00 PM', '8:30 PM',
-  '9:00 PM', '9:30 PM', '10:00 PM',
+  '9:00 PM', '9:30 PM', '10:00 PM', '10:30 PM',
+  '11:00 PM', '11:30 PM', '12:00 AM',
 ];
 
 const DEFAULT_TIME = '8:30 PM';
-
-/**
- * Converts a display time like "8:30 PM" to a 24-hour string
- * like "20:30" that the database expects.
- *
- * Why? Databases prefer 24-hour format because it's unambiguous
- * and sorts correctly. "8:30 PM" is nice for humans but messy
- * for computers (is "12:00 PM" noon or midnight?).
- */
-function to24Hour(displayTime: string): string {
-  const [timePart, period] = displayTime.split(' ');
-  const [hourStr, minute] = timePart.split(':');
-  let hour = parseInt(hourStr, 10);
-  if (period === 'PM' && hour !== 12) hour += 12;
-  if (period === 'AM' && hour === 12) hour = 0;
-  return `${hour.toString().padStart(2, '0')}:${minute}`;
-}
 
 export default function NotificationsScreen() {
   const router = useRouter();
