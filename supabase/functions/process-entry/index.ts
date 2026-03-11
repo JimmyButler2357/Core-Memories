@@ -77,9 +77,7 @@ Deno.serve(async (req) => {
     // Keep in sync with lib/textQuality.ts
     const FILLER_WORDS = new Set([
       'um', 'uh', 'uh-huh', 'like', 'you', 'know', 'so', 'basically',
-      'i', 'mean', 'kind', 'of', 'sort', 'the', 'a', 'an', 'and',
-      'but', 'or', 'is', 'was', 'it', 'just', 'really', 'very',
-      'well', 'oh', 'yeah', 'yes', 'no', 'ok', 'okay', 'right',
+      'mean', 'kind', 'of', 'sort', 'well', 'oh', 'yeah', 'ok', 'okay',
     ]);
     const meaningfulWords = entry.transcript
       .toLowerCase()

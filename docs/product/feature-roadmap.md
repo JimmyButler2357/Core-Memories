@@ -57,7 +57,10 @@ Every wireframed screen is a real component with hardcoded data. Tappable protot
 - [x] Location field on Entry Detail — display and edit `locationText` in metadata block
 - [x] Serif font decision — using Merriweather; design spec updated to match
 - [x] Settings "Add Child" birthday picker — scroll-wheel picker matching onboarding style
-- [ ] Design cleanup — fix hardcoded hex in EntryCard Firefly Jar shadow, NotificationPreview touch targets (30px → 44px min), hardcoded audio bar values
+- [ ] Design cleanup (3 items):
+  - [ ] **EntryCard.tsx hardcoded colors** — `shadowColor: '#E8724A'` (line ~352), `borderColor: 'rgba(180,160,140,0.35)'` (line ~343), and highlight `backgroundColor: 'rgba(232,114,74,0.20)'` (line ~60) all use raw hex/rgba instead of theme tokens (`colors.accent`, `colors.accentGlow`, etc.)
+  - [ ] **NotificationPreview.tsx touch targets** — action buttons have `paddingVertical: 9` (line ~126), giving ~30px total height — well below the 44×44px minimum. Use `minTouchTarget` from theme
+  - [ ] **entry-detail.tsx audio bar** — `playBtn` hardcoded 36×36 (lines ~1263-64), `scrubTrack` height hardcoded 4px (line ~1272), `reRecordBtn` hardcoded 28×28 with conflicting `minWidth/minHeight: minTouchTarget` (lines ~1286-87). Use spacing tokens and ensure all interactive elements meet 44px minimum
 
 Every screen handles empty, loading, and error states.
 
@@ -149,6 +152,7 @@ Trial → paid conversion via RevenueCat.
 
 Measure what matters. Add warmth.
 
+- [ ] Sentry error tracking — crash reports, error context, performance monitoring (free tier: 5K errors/mo)
 - [ ] PostHog event tracking across all features
 - [ ] Key funnel: install → account → first child → first entry → day 7 → converted
 - [ ] First Entry Celebration — Home banner + glowing card *(see Product Spec §4.2)*
@@ -161,6 +165,30 @@ Measure what matters. Add warmth.
 
 App Store ready.
 
+- [ ] **Rebrand cleanup — remove all "Core Memories" references**
+  - [ ] **Critical (affects functionality):**
+    - [ ] Update deep link scheme from `core-memories://` to `forever-fireflies://` in `app.json`
+    - [ ] Update iOS bundle ID from `com.corememories.app` in `app.json`
+    - [ ] Update Android package from `com.corememories.app` in `app.json`
+    - [ ] Update OAuth redirects in `services/auth.service.ts` (Apple, Google, password reset)
+    - [ ] Update Supabase redirect allowlist in `supabase/config.toml`
+    - [ ] Push updated Supabase config to remote project
+  - [ ] **Code cleanup:**
+    - [ ] Rename `app/(main)/core-memories.tsx` → `firefly-jar.tsx`
+    - [ ] Update Stack.Screen registration in `app/(main)/_layout.tsx`
+    - [ ] Update navigation route in `app/(main)/home.tsx`
+    - [ ] Update NPM package name in `package.json`
+    - [ ] Update Supabase local project ID in `supabase/config.toml`
+    - [ ] Update code comments referencing old scheme (`_layout.tsx`, `entryHelpers.ts`)
+  - [ ] **Documentation:**
+    - [ ] Update doc titles in `docs/business/scaling.md`, `docs/product/functional-requirements.md`
+    - [ ] Update example project names in `scaling.md`, `product-spec.md`
+    - [ ] Update `docs/product/implementation-plan-phases-4-5.md` references
+    - [ ] Update PDF output filename in `docs/business/financial-summary.py`
+    - [ ] Update `architecture-explorer.html` label
+  - [ ] **External (manual):**
+    - [ ] Rename GitHub repository
+    - [ ] Update Supabase project display name on dashboard
 - [ ] Accessibility audit (labels, touch targets ≥44pt, contrast ≥4.5:1, Dynamic Type)
 - [ ] Performance targets (cold start <2s, transcription <5s, first entry <90s from install)
 - [ ] App icon, splash screen, App Store screenshots
@@ -200,7 +228,7 @@ Make the app smarter, more useful, and harder to leave. Focus on AI features and
 | Milestone celebrations | AI detects milestone language, flags with star badge + celebration animation |
 | Age milestone markers | Divider cards at birthday boundaries in the timeline |
 | Developmental prompts | Age-appropriate prompt suggestions that evolve as children grow |
-| **Add photos (cap 3)** | Attach up to 3 photos per entry. Camera or gallery picker. Keeps focus on voice/text while adding visual context |
+| **Add photos (cap 3)** | Attach up to 3 photos per entry. Gallery picker only (no camera in V1.5). Photos are extras — every entry still requires voice or text. New `entry_media` table (pre-wired for video). 3 new packages: `expo-image-picker`, `expo-image-manipulator`, `expo-image`. Photos compressed client-side (~800px, 80% JPEG). 3 new UI components: PhotoPicker, PhotoThumbnailRow, PhotoViewer. See product-spec.md §V1.5 for full spec and database-schema.md §4.1 for table definition |
 | **Birthday quiz** | On a child's birthday, app sends special notification with guided questions (favorite food, funny words, current obsessions). Saves as a structured text entry — annual snapshot |
 | **Help / menu section** | Expandable menu with FAQ, "Ways to Use Your Memories" articles (link to website), Contact Us, mission/about |
 | **Shareable memory cards** | Tap "Share" on any entry card → generates a branded quote-card image (child's words, name + age, date, subtle Forever Fireflies watermark). Static image works everywhere — iMessage, Instagram Stories, Facebook, etc. Uses native share sheet. Replaces plain-link sharing |
@@ -228,6 +256,7 @@ Multi-user features, richer media, and smarter search. The app evolves from a so
 | **Memory view filtering** | Toggle to see "My memories," "Partner's memories," "Both," or "Others" (grandparents via share links). New filter axis alongside child tabs |
 | **Search scroll (Google Photos style)** | As you scroll the feed, a floating date indicator shows where you are. Fast-scrolling accelerates through months and years. Essential once a user has hundreds of entries |
 | **Memory Calendar** | Month-by-month calendar grid as an alternative way to browse entries. Days with entries show child-colored dots; days with photos show small thumbnails. Tap any day to see that day's entries. Swipe between months/years. Respects child tab filtering. Access point TBD — could be a toggle on Home (list ↔ calendar) or a new bottom-nav item if the app moves to a tab bar. Think Google Calendar meets baby journal |
+| **Video clips (short)** | Short video attachments on entries (10–30s cap). Builds on V1.5 photo infrastructure — `entry_media` table already pre-wired with `media_type = 'video'`, `thumbnail_path`, and `duration_seconds`. Adds 2–3 packages (video player, compressor, thumbnail extractor). Needs progress bar UI, background upload, bandwidth detection. Storage ~$0.50/month per active user after 12 months. Ship photos first in V1.5, validate demand, then add video |
 | **Start/stop recording** | Pause and resume during a recording. Audio segments stitched together. Lets parents collect their thoughts mid-recording |
 | **Location search** | Search and filter entries by location — simple text matching, not geo-queries (e.g., search "Italy" to find all vacation memories). Location-based recaps (e.g., "Your Tampa trip, 2025") |
 | AI semantic search | Natural language queries ("When did Liam first talk about wanting a dog?") via pgvector + RAG pattern |
@@ -286,6 +315,9 @@ These fields exist in the database schema now even though their full features sh
 | `title` | entries | AI-generated titles | V1.5 |
 | `recorded_by` | entries | Parent merge / linked accounts | V2 |
 | `location_text` | entries | Location capture + search | V1.0 (capture), V2 (search) |
+| `media_type` | entry_media | Video clips (column accepts `'video'` from day one) | V1.5 (photos), V2 (video) |
+| `thumbnail_path` | entry_media | Video poster frame for feeds | V2 (video) |
+| `duration_seconds` | entry_media | Video length display + cap enforcement | V2 (video) |
 
 ### Cost at Launch
 
@@ -295,6 +327,7 @@ These fields exist in the database schema now even though their full features sh
 | Supabase | 500MB DB, 1GB storage | ~500 users | $25/mo |
 | RevenueCat | Up to $2,500/mo revenue | $2,500+ | % of MTR |
 | PostHog | 1M events/mo | 1M+ | Usage-based |
+| Sentry | 5K errors/mo | 5K+ | $26/mo |
 | EAS Build | 30 builds/mo | Need more | $15/mo |
 
 Total at launch: **~$99/year** (just Apple Developer).

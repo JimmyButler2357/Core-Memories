@@ -166,6 +166,16 @@ export default function EmailAuthScreen() {
           </View>
         </View>
 
+        {/* Forgot password link — only visible in sign-in mode */}
+        {mode === 'signin' && (
+          <Pressable
+            onPress={() => router.push('/(onboarding)/forgot-password')}
+            style={styles.forgotPassword}
+          >
+            <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+          </Pressable>
+        )}
+
         {/* Feedback messages */}
         {error && <Text style={styles.error}>{error}</Text>}
         {success && <Text style={styles.success}>{success}</Text>}
@@ -256,6 +266,16 @@ const styles = StyleSheet.create({
   },
   eyeButton: {
     paddingHorizontal: spacing(3),
+  },
+  forgotPassword: {
+    alignSelf: 'flex-end',
+    paddingVertical: spacing(2),
+    marginTop: -spacing(2),
+    marginBottom: spacing(2),
+  },
+  forgotPasswordText: {
+    ...typography.caption,
+    color: colors.accent,
   },
   error: {
     ...typography.caption,

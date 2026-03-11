@@ -33,7 +33,10 @@
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
-      ]
+      ],
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
     },
     "web": {
       "bundler": "metro",
@@ -79,6 +82,9 @@
       "eas": {
         "projectId": "28237d21-d29f-4e56-a83d-002d9d20739f"
       }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/28237d21-d29f-4e56-a83d-002d9d20739f"
     }
   }
 }

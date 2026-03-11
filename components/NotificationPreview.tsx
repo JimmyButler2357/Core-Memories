@@ -7,6 +7,7 @@ import {
   radii,
   shadows,
   screenColors,
+  minTouchTarget,
 } from '@/constants/theme';
 
 interface NotificationPreviewProps {
@@ -123,9 +124,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing(1),
-    paddingVertical: 9,
+    minHeight: minTouchTarget,
+    paddingVertical: spacing(3),
     paddingHorizontal: spacing(4),
-    borderRadius: 10,
+    borderRadius: radii.md,
   },
   recordButton: {
     backgroundColor: colors.accent,

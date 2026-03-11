@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  GestureResponderEvent,
+  Keyboard,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -35,13 +37,17 @@ import ChildPill from '@/components/ChildPill';
 import TagPill from '@/components/TagPill';
 import PaperTexture from '@/components/PaperTexture';
 import ConfirmationDialog from '@/components/ConfirmationDialog';
+import CityAutocomplete from '@/components/CityAutocomplete';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
-import { useLocationPermission } from '@/hooks/useLocation';
+import { useLocationPermission, useLocation } from '@/hooks/useLocation';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { detectChildren, detectTags } from '@/lib/autoDetect';
 import { formatDate, formatTime, formatDuration, getAge } from '@/lib/dateUtils';
 import { tagsService } from '@/services/tags.service';
+import { useDraftStore } from '@/stores/draftStore';
+import { audioCleanupService } from '@/services/audioCleanup.service';
 
 // ─── FadeInUp Wrapper ────────────────────────────────────
 
@@ -84,6 +90,66 @@ const FREQUENT_TAGS = [
   'bedtime', 'outing', 'words', 'siblings',
 ];
 
+// ─── Waveform Constants ──────────────────────────────────
+
+const WAVEFORM_BAR_COUNT = 25;
+const WAVEFORM_BAR_WIDTH = 3;
+const WAVEFORM_MIN_HEIGHT = 4;
+const WAVEFORM_MAX_HEIGHT = 16;
+
+// Pre-generate random "resting" heights for each bar so the
+// waveform has an organic shape even when paused. Think of it
+// like a fingerprint — each recording looks slightly different.
+const BAR_REST_HEIGHTS = Array.from({ length: WAVEFORM_BAR_COUNT }, (_, i) => {
+  // Deterministic pseudo-random using the bar index — gives a
+  // natural-looking waveform shape (taller in the middle, shorter
+  // at the edges) plus some variation.
+  const center = WAVEFORM_BAR_COUNT / 2;
+  const distFromCenter = Math.abs(i - center) / center; // 0 at center, 1 at edges
+  const base = 1 - distFromCenter * 0.6; // 0.4–1.0 range
+  const jitter = ((i * 7 + 3) % 5) / 10; // 0.0–0.4 pseudo-random
+  return WAVEFORM_MIN_HEIGHT + (WAVEFORM_MAX_HEIGHT - WAVEFORM_MIN_HEIGHT) * Math.min(base + jitter * 0.3, 1);
+});
+
+/**
+ * Interpolate between two hex colors.
+ * ratio=0 → colorA, ratio=1 → colorB.
+ *
+ * Think of mixing paint — ratio is how much of colorB
+ * you pour into the bucket of colorA.
+ */
+function lerpColor(hexA: string, hexB: string, ratio: number): string {
+  const rA = parseInt(hexA.slice(1, 3), 16);
+  const gA = parseInt(hexA.slice(3, 5), 16);
+  const bA = parseInt(hexA.slice(5, 7), 16);
+  const rB = parseInt(hexB.slice(1, 3), 16);
+  const gB = parseInt(hexB.slice(3, 5), 16);
+  const bB = parseInt(hexB.slice(5, 7), 16);
+  const r = Math.round(rA + (rB - rA) * ratio);
+  const g = Math.round(gA + (gB - gA) * ratio);
+  const b = Math.round(bA + (bB - bA) * ratio);
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
+/**
+ * Get the color for a specific waveform bar based on
+ * the entry's tagged children. Single child → one color.
+ * Multiple children → gradient flowing between their colors.
+ * No children → accent fallback.
+ */
+function getBarColor(barIndex: number, childHexColors: string[]): string {
+  if (childHexColors.length === 0) return colors.accent;
+  if (childHexColors.length === 1) return childHexColors[0];
+
+  // Map barIndex to a position in the gradient (0–1)
+  const t = barIndex / (WAVEFORM_BAR_COUNT - 1);
+  // Figure out which two colors we're between
+  const segments = childHexColors.length - 1;
+  const segmentIndex = Math.min(Math.floor(t * segments), segments - 1);
+  const segmentRatio = (t * segments) - segmentIndex;
+  return lerpColor(childHexColors[segmentIndex], childHexColors[segmentIndex + 1], segmentRatio);
+}
+
 // ─── Helpers (shared from lib/) ───────────────────────────
 
 // ─── Entry Detail Screen ──────────────────────────────────
@@ -109,15 +175,28 @@ export default function EntryDetailScreen() {
     transcript?: string;
     audioUri?: string;
     locationText?: string;
+    onboarding?: 'true';
   }>();
 
   const allChildren = useChildrenStore((s) => s.children);
   const familyId = useAuthStore((s) => s.familyId);
+  const session = useAuthStore((s) => s.session);
 
   // Local store methods — update the cache after Supabase writes
   const addEntryLocal = useEntriesStore((s) => s.addEntryLocal);
   const updateEntryLocal = useEntriesStore((s) => s.updateEntryLocal);
   const removeEntryLocal = useEntriesStore((s) => s.removeEntryLocal);
+
+  // Draft store — for saving entries offline
+  const addDraft = useDraftStore((s) => s.addDraft);
+
+  // Network status — checked before saving to decide online vs offline path
+  const { isOnline } = useNetworkStatus();
+  // Store in a ref to avoid stale closures in the effect below (same
+  // pattern as locationTextRef — the effect captures the ref at render
+  // time, but reads .current when it actually runs).
+  const isOnlineRef = useRef(isOnline);
+  isOnlineRef.current = isOnline;
 
   // ─── Entry State ───────────────────────────────────────
   //
@@ -129,8 +208,19 @@ export default function EntryDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
-  // Location — lightweight check, no GPS (just permission status)
+  // Location — lightweight check for UI visibility decisions
   const { granted: permissionGranted } = useLocationPermission();
+
+  // Full GPS detection — runs unconditionally (hook rules), but we only
+  // USE the result when creating a new text entry that arrived without
+  // a locationText param (e.g. "write instead" from home screen, or
+  // recording screen where GPS was too slow to resolve in time).
+  // Think of it like a safety net — catches location when the previous
+  // screen couldn't provide it.
+  const { locationText: detectedLocation, loading: locationLoading } = useLocation();
+  const isNewEntryWithoutLocation =
+    !params.entryId && params.transcript !== undefined && !params.locationText;
+
   const [editingLocation, setEditingLocation] = useState(false);
   const [locationInput, setLocationInput] = useState('');
 
@@ -158,6 +248,29 @@ export default function EntryDetailScreen() {
   // and gives us play/pause/seek/position/duration.
   const player = useAudioPlayer();
 
+  // Destructure player.load so loadAudio's useCallback dependency
+  // is stable. The player object itself is a new object every render
+  // (because the hook returns { load, play, ... } as a literal),
+  // but the individual functions inside are stable (wrapped in useCallback).
+  const { load: playerLoad } = player;
+
+  // Store the signed URL so we can retry on error/expiry
+  const signedUrlRef = useRef<string | null>(null);
+
+  // Track waveform area width for touch-to-seek calculations.
+  // Ref (not state) because this value is only read inside
+  // handleWaveformPress — it doesn't affect what renders.
+  const waveformWidthRef = useRef(0);
+
+  // Guard for auto-retry on signed URL expiry — only retry once per entry.
+  // Reset when entry changes so a different entry's audio can get its own retry.
+  const hasAutoRetried = useRef(false);
+  useEffect(() => { hasAutoRetried.current = false; }, [entry?.id]);
+
+  // Static waveform bar heights — no animation needed. The visual
+  // "movement" comes from the color sweep (bars fill from muted to
+  // full color as playback progresses, like a SoundCloud waveform).
+
   // ─── Load or Create Entry ──────────────────────────────
   //
   // On mount, figure out which mode we're in:
@@ -167,6 +280,43 @@ export default function EntryDetailScreen() {
 
   useEffect(() => {
     let cancelled = false;
+
+    // Helper: save the current recording as an offline draft and navigate away.
+    // Extracted so both the proactive offline check and the network-error catch
+    // block can use the same logic (no copy-paste, no divergence).
+    async function saveDraftAndNavigate(isOnboarding: boolean) {
+      const userId = session?.user?.id;
+      if (!userId) throw new Error('No session — cannot save draft');
+
+      // First create the draft to get its ID, then use that ID for the audio filename.
+      // This ensures the filename matches the draft's localId (no mismatch).
+      const localId = addDraft({
+        userId,
+        transcript: params.transcript || '',
+        audioLocalUri: null, // We'll update this after persisting the audio
+        entryDate: new Date().toISOString(),
+        entryType: params.audioUri ? 'voice' : 'text',
+        locationText: params.locationText || null,
+        familyId: familyId!,
+        isOnboarding,
+      });
+
+      // Copy audio to persistent storage (cache can be wiped by the OS)
+      if (params.audioUri) {
+        const persistentUri = audioCleanupService.persistAudioForDraft(
+          params.audioUri,
+          localId,
+        );
+        useDraftStore.getState().updateDraft(localId, { audioLocalUri: persistentUri });
+      }
+
+      // Navigate away — the draft will sync automatically when online
+      if (isOnboarding) {
+        router.replace('/(onboarding)/memory-saved');
+      } else {
+        router.back();
+      }
+    }
 
     async function loadEntry() {
       try {
@@ -182,6 +332,19 @@ export default function EntryDetailScreen() {
           // ── Mode 2: New entry from recording ──
           if (!familyId) throw new Error('No family — cannot create entry');
 
+          const isOnboarding = params.onboarding === 'true';
+
+          // ── Offline check ──
+          // If we're offline, save as a draft instead of hitting Supabase.
+          // Think of it like writing a letter when the post office is closed —
+          // you put it in your outbox and it gets mailed when they reopen.
+          if (!isOnlineRef.current) {
+            await saveDraftAndNavigate(isOnboarding);
+            return;
+          }
+
+          // ── Online path (existing flow) ──
+
           // Step 1: Create the entry row in the database
           const row = await entriesService.create({
             family_id: familyId,
@@ -189,6 +352,7 @@ export default function EntryDetailScreen() {
             entry_date: new Date().toISOString(),
             entry_type: params.audioUri ? 'voice' : 'text',
             location_text: params.locationText || null,
+            ...(isOnboarding && { is_favorited: true }),
           });
           if (cancelled) return;
 
@@ -201,9 +365,11 @@ export default function EntryDetailScreen() {
           // Branch A: Upload audio (if we have a recording)
           const audioPromise = params.audioUri
             ? storageService.uploadAudio(row.id, params.audioUri)
-                .then((storagePath) =>
-                  entriesService.update(row.id, { audio_storage_path: storagePath }),
-                )
+                .then(async (storagePath) => {
+                  await entriesService.update(row.id, { audio_storage_path: storagePath });
+                  // Clean up local .wav after successful upload
+                  await audioCleanupService.deleteLocalFile(params.audioUri!);
+                })
                 .catch((uploadErr) => {
                   // Audio upload failed — entry still saved with text
                   console.warn('Audio upload failed:', uploadErr);
@@ -224,12 +390,17 @@ export default function EntryDetailScreen() {
                 console.warn('Failed to assign children:', childErr);
               }
             }
-            // Detect tags from keywords
+            // Detect tags from keywords (+ first-memory tag for onboarding)
             try {
               const allTags = await tagsService.getSystemTags();
               const detectedTagIds = detectTags(transcriptText, allTags);
-              if (detectedTagIds.length > 0) {
-                await entriesService.setEntryTags(row.id, detectedTagIds, true);
+              const allTagIds = new Set(detectedTagIds);
+              if (isOnboarding) {
+                const firstMemoryTag = allTags.find((t) => t.slug === 'first-memory');
+                if (firstMemoryTag) allTagIds.add(firstMemoryTag.id);
+              }
+              if (allTagIds.size > 0) {
+                await entriesService.setEntryTags(row.id, [...allTagIds], true);
               }
             } catch (tagErr) {
               console.warn('Failed to auto-detect tags:', tagErr);
@@ -260,6 +431,13 @@ export default function EntryDetailScreen() {
           // Also add to local cache so Home shows it immediately
           addEntryLocal(mapped);
 
+          // Onboarding: redirect to memory-saved — don't stay on entry-detail
+          if (isOnboarding) {
+            entriesService.processWithAI(row.id).catch(() => {});
+            router.replace('/(onboarding)/memory-saved');
+            return;
+          }
+
           // If AI hasn't finished yet, patch the title when it arrives.
           // (If it already finished, getEntry above caught the title.)
           if (!mapped.title) {
@@ -276,9 +454,26 @@ export default function EntryDetailScreen() {
       } catch (err) {
         if (cancelled) return;
         console.warn('Entry load/create failed:', err);
+
+        // Onboarding: don't trap the user — navigate away even on failure
+        if (params.onboarding === 'true') {
+          console.error('Failed to save onboarding voice entry:', err);
+          router.replace('/(onboarding)/memory-saved');
+          return;
+        }
+
         const msg = err instanceof Error ? err.message : String(err);
-        // Give a friendlier message for network errors
+        // Give a friendlier message for network errors — also offer to save as draft
         if (msg.includes('network') || msg.includes('fetch') || msg.includes('timeout')) {
+          // Try to save as a draft so the recording isn't lost
+          if (session?.user?.id && familyId && (params.transcript !== undefined || params.audioUri)) {
+            try {
+              await saveDraftAndNavigate(params.onboarding === 'true');
+              return;
+            } catch {
+              // Draft save also failed — fall through to error state
+            }
+          }
           setError('No internet connection — check your network and try again');
         } else {
           setError(msg || 'Something went wrong');
@@ -291,6 +486,32 @@ export default function EntryDetailScreen() {
     loadEntry();
     return () => { cancelled = true; };
   }, [params.entryId, retryCount]);
+
+  // ─── Location Fallback ────────────────────────────────
+  //
+  // "Create then update" pattern: if this is a new entry that was
+  // created without location (e.g. "write instead" from home, or
+  // GPS was slow during recording), patch the entry once our own
+  // useLocation() hook resolves. Think of it like mailing a letter
+  // and then calling to add a return address you forgot.
+  useEffect(() => {
+    if (
+      !isNewEntryWithoutLocation ||  // only for new entries missing location
+      locationLoading ||             // wait for GPS to finish
+      !detectedLocation ||           // GPS failed or no result — nothing to patch
+      !entry ||                      // entry not created yet
+      entry.locationText             // entry already has a location (user set manually)
+    ) return;
+
+    // Patch local state
+    setEntry((prev) => prev ? { ...prev, locationText: detectedLocation } : prev);
+    setLocationInput(detectedLocation);
+    updateEntryLocal(entry.id, { locationText: detectedLocation });
+
+    // Patch Supabase in the background
+    entriesService.update(entry.id, { location_text: detectedLocation })
+      .catch((err) => console.warn('Failed to patch location:', err));
+  }, [isNewEntryWithoutLocation, locationLoading, detectedLocation, entry?.id, entry?.locationText]);
 
   // Banner auto-dismiss
   useEffect(() => {
@@ -316,6 +537,17 @@ export default function EntryDetailScreen() {
   // When we have an entry with audio, get a signed URL from
   // Supabase Storage and load it into the player. The signed
   // URL is like a temporary pass — it expires after 1 hour.
+  // We store it in a ref so we can retry on error/expiry.
+
+  const loadAudio = useCallback(async (storagePath: string) => {
+    try {
+      const url = await storageService.getPlaybackUrl(storagePath);
+      signedUrlRef.current = url;
+      await playerLoad(url);
+    } catch (err) {
+      console.warn('Failed to load audio for playback:', err);
+    }
+  }, [playerLoad]);
 
   useEffect(() => {
     if (!entry?.hasAudio || !entry.audioStoragePath) return;
@@ -323,13 +555,8 @@ export default function EntryDetailScreen() {
     let cancelled = false;
     const path = entry.audioStoragePath;
     (async () => {
-      try {
-        const signedUrl = await storageService.getPlaybackUrl(path);
-        if (cancelled) return;
-        await player.load(signedUrl);
-      } catch (err) {
-        console.warn('Failed to load audio for playback:', err);
-      }
+      if (cancelled) return;
+      await loadAudio(path);
     })();
 
     return () => { cancelled = true; };
@@ -357,12 +584,110 @@ export default function EntryDetailScreen() {
     return unsubscribe;
   }, [navigation, entry?.id]);
 
+
+  // ─── Auto-Retry on Signed URL Expiry ─────────────────────
+  //
+  // If the audio was loaded successfully but later fails (e.g.,
+  // the 1-hour signed URL expired), auto-retry once by fetching
+  // a fresh URL. We track a retry flag so we only try once —
+  // if the fresh URL also fails, show the error state.
+
+  useEffect(() => {
+    if (!player.error || !entry?.audioStoragePath || hasAutoRetried.current) return;
+
+    // Only auto-retry if we had a signed URL before (meaning it
+    // worked at some point and probably just expired)
+    if (signedUrlRef.current) {
+      hasAutoRetried.current = true;
+      loadAudio(entry.audioStoragePath);
+    }
+  }, [player.error, entry?.audioStoragePath, loadAudio]);
+
   // Clean up debounce timer on unmount
   useEffect(() => {
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
   }, []);
+
+  // ─── Derived Data (must be above early returns) ───────
+  //
+  // These computations use hooks (useMemo), so they MUST run
+  // on every single render — even loading/error renders.
+  // Think of it like a roll call: React counts hooks in order,
+  // so if you skip one on some renders, the count doesn't
+  // match and React panics.
+
+  // Memoized because during playback the component re-renders every ~500ms
+  // (audio position updates). Without useMemo, these recompute on every tick
+  // even though childIds and allChildren rarely change.
+  const entryChildren = useMemo(
+    () => (entry?.childIds ?? [])
+      .map((id) => allChildren.find((c) => c.id === id))
+      .filter(Boolean) as Child[],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [entry?.childIds?.join(','), allChildren],
+  );
+
+  // Child hex colors for the waveform — look up each tagged child's color.
+  // Depends on the memoized entryChildren so this only recomputes when
+  // children actually change, not on every playback position update.
+  const waveformChildColors = useMemo(
+    () => entryChildren.map((c) => childColors[c.colorIndex]?.hex ?? childColors[0].hex),
+    [entryChildren],
+  );
+
+  // Pre-compute all 25 bar colors once per waveform child change.
+  // Without this, getBarColor() (hex parsing + RGB math) would be called
+  // 25 times on every single render (~2× per second during playback).
+  const barColors = useMemo(
+    () => BAR_REST_HEIGHTS.map((_, i) => getBarColor(i, waveformChildColors)),
+    [waveformChildColors],
+  );
+
+  // Use a ref to always read the latest entry/transcript inside the keyboard listener.
+  // A plain variable would create a stale closure — the listener is registered once
+  // and would forever see the values from that first render.
+  const entryRef = useRef(entry);
+  const transcriptRef = useRef(transcript);
+  useEffect(() => { entryRef.current = entry; }, [entry]);
+  useEffect(() => { transcriptRef.current = transcript; }, [transcript]);
+
+  // Reads only from refs — no stale closure risk, so useCallback with [] is safe.
+  const triggerAITitleIfNeeded = useCallback(() => {
+    const currentEntry = entryRef.current;
+    const currentTranscript = transcriptRef.current;
+    if (!currentEntry || currentEntry.title || !currentTranscript.trim()) return;
+
+    // Cancel any pending debounce save and flush immediately so the edge
+    // function reads the latest transcript from the DB.
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+
+    const entryId = currentEntry.id;
+    entriesService.update(entryId, { transcript: currentTranscript })
+      .then(() => entriesService.processWithAI(entryId))
+      .then((result) => {
+        if (result?.title) {
+          setEntry((prev) => prev ? { ...prev, title: result.title } : prev);
+          updateEntryLocal(entryId, { title: result.title });
+        }
+      })
+      .catch((err) => console.warn('AI title trigger failed:', err));
+  }, []);
+
+  // Trigger on keyboard hide (user taps "done") or back-navigation (user leaves
+  // without dismissing keyboard).
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidHide', triggerAITitleIfNeeded);
+    return () => sub.remove();
+  }, [triggerAITitleIfNeeded]);
+
+  useEffect(() => {
+    return navigation.addListener('beforeRemove', triggerAITitleIfNeeded);
+  }, [navigation, triggerAITitleIfNeeded]);
 
   // ─── Loading State ──────────────────────────────────────
 
@@ -409,10 +734,6 @@ export default function EntryDetailScreen() {
     );
   }
 
-  // Derived data
-  const entryChildren = entry.childIds
-    .map((id) => allChildren.find((c) => c.id === id))
-    .filter(Boolean) as Child[];
   const untaggedChildren = allChildren.filter(
     (c) => !entry.childIds.includes(c.id),
   );
@@ -574,6 +895,31 @@ export default function EntryDetailScreen() {
     });
   };
 
+  // Touch-to-seek — tap anywhere on the waveform to jump
+  // to that position in the audio. Think of it like tapping
+  // a spot on a ruler — we figure out what percentage of the
+  // way across you tapped and jump to that % of the duration.
+  const handleWaveformPress = (event: GestureResponderEvent) => {
+    if (!player.isLoaded || player.duration <= 0 || waveformWidthRef.current <= 0) return;
+    const tapX = event.nativeEvent.locationX;
+    const ratio = Math.max(0, Math.min(1, tapX / waveformWidthRef.current));
+    const positionMs = ratio * player.duration;
+    player.seek(positionMs);
+  };
+
+  // Retry loading audio — used by error state's retry button
+  // and by the URL-expiry auto-retry
+  const handleAudioRetry = async () => {
+    if (!entry.audioStoragePath) return;
+    await loadAudio(entry.audioStoragePath);
+  };
+
+  // Determine the audio bar state for rendering
+  const isVoiceEntry = entry.entryType === 'voice';
+  const audioIsLoading = entry.hasAudio && !player.isLoaded && !player.error;
+  const audioHasError = !!player.error;
+  const audioMissing = isVoiceEntry && !entry.hasAudio;
+
   // Age line
   const ageLine = entryChildren
     .map((c) => `${c.name} ${getAge(c.birthday, entry.date)}`)
@@ -688,14 +1034,11 @@ export default function EntryDetailScreen() {
             {editingLocation && permissionGranted && (
               <FadeInUp skip={reduceMotion}>
                 <View style={styles.locationEditorCard}>
-                  <TextInput
-                    style={styles.locationInput}
+                  <CityAutocomplete
                     value={locationInput}
                     onChangeText={setLocationInput}
-                    placeholder="Enter a location..."
-                    placeholderTextColor={colors.textMuted}
-                    onSubmitEditing={() => handleLocationSave(locationInput)}
-                    returnKeyType="done"
+                    onSelect={setLocationInput}
+                    onSubmit={() => handleLocationSave(locationInput)}
                     autoFocus
                   />
                   <View style={styles.locationActions}>
@@ -802,8 +1145,11 @@ export default function EntryDetailScreen() {
               onRemove={() => handleRemoveTag(tag)}
             />
           ))}
-          <Pressable onPress={() => setShowTagEditor(!showTagEditor)}>
-            <Text style={styles.addTagLink}>+ add</Text>
+          <Pressable
+            onPress={() => setShowTagEditor(!showTagEditor)}
+            style={styles.addTagPill}
+          >
+            <Text style={styles.addTagPillText}>+ add tag</Text>
           </Pressable>
         </View>
 
@@ -852,7 +1198,7 @@ export default function EntryDetailScreen() {
         )}
 
         {/* Transcript hint — when voice recording produced no text */}
-        {entry.hasAudio && !transcript && (
+        {isVoiceEntry && !transcript && (
           <View style={styles.transcriptHint}>
             <Ionicons name="create-outline" size={14} color={colors.textMuted} />
             <Text style={styles.transcriptHintText}>
@@ -878,44 +1224,99 @@ export default function EntryDetailScreen() {
           <Text style={styles.savedIndicator}>All changes saved</Text>
         )}
 
-        {/* Audio Playback Bar */}
-        {entry.hasAudio && (
+        {/* Audio Playback Bar — always visible for voice entries */}
+        {isVoiceEntry && (
           <View style={styles.audioBar}>
+            {/* Play button / Loading spinner / Error icon */}
             <Pressable
-              onPress={() => player.isPlaying ? player.pause() : player.play()}
+              onPress={() => {
+                if (audioHasError || audioMissing || audioIsLoading) return;
+                player.isPlaying ? player.pause() : player.play();
+              }}
               style={styles.playBtn}
               disabled={!player.isLoaded}
             >
-              <Ionicons
-                name={player.isPlaying ? 'pause' : 'play'}
-                size={16}
-                color={player.isLoaded ? colors.accent : colors.textMuted}
-              />
+              {audioIsLoading ? (
+                <ActivityIndicator size={14} color={colors.accent} />
+              ) : audioHasError ? (
+                <Ionicons name="alert-circle" size={16} color={colors.danger} />
+              ) : (
+                <Ionicons
+                  name={player.isPlaying ? 'pause' : 'play'}
+                  size={16}
+                  color={player.isLoaded ? colors.accent : colors.textMuted}
+                />
+              )}
             </Pressable>
-            <View style={styles.scrubTrack}>
-              <View
-                style={[
-                  styles.scrubFill,
-                  {
-                    width: player.duration > 0
-                      ? `${(player.position / player.duration) * 100}%`
-                      : '0%',
-                  },
-                ]}
-              />
-            </View>
-            <Text style={styles.audioDuration}>
-              {player.duration > 0
-                ? formatDuration(player.isPlaying ? player.position : player.duration, true)
-                : '--:--'}
-            </Text>
-            <Pressable
-              onPress={() => setShowReRecordDialog(true)}
-              hitSlop={hitSlop.icon}
-              style={({ pressed }) => [styles.reRecordBtn, pressed && { opacity: 0.6 }]}
-            >
-              <Ionicons name="mic-outline" size={16} color={colors.accent} />
-            </Pressable>
+
+            {/* Waveform area / Error text / No-audio text */}
+            {audioHasError ? (
+              <View style={styles.waveformMessageArea}>
+                <Text style={styles.audioErrorText}>Couldn't load audio</Text>
+                <Text style={styles.audioErrorDot}> · </Text>
+                <Pressable onPress={handleAudioRetry} hitSlop={hitSlop.icon}>
+                  <Text style={styles.audioRetryLink}>Retry</Text>
+                </Pressable>
+              </View>
+            ) : audioMissing ? (
+              <View style={styles.waveformMessageArea}>
+                <Text style={styles.audioMissingText}>Audio unavailable</Text>
+              </View>
+            ) : (
+              <Pressable
+                style={styles.waveformArea}
+                onPress={handleWaveformPress}
+                onLayout={(e) => { waveformWidthRef.current = e.nativeEvent.layout.width; }}
+                disabled={!player.isLoaded}
+              >
+                {BAR_REST_HEIGHTS.map((barHeight, i) => {
+                  // Figure out if this bar is "played" (behind the
+                  // playback position) or "unplayed" (ahead of it)
+                  const barRatio = i / (WAVEFORM_BAR_COUNT - 1);
+                  const playedRatio = player.duration > 0
+                    ? player.position / player.duration
+                    : 0;
+                  const isPlayed = barRatio <= playedRatio;
+                  const barHex = barColors[i];
+
+                  return (
+                    <View
+                      key={i}
+                      style={{
+                        width: WAVEFORM_BAR_WIDTH,
+                        height: barHeight,
+                        borderRadius: WAVEFORM_BAR_WIDTH / 2,
+                        backgroundColor: isPlayed
+                          ? barHex
+                          : childColorWithOpacity(barHex, 0.3),
+                      }}
+                    />
+                  );
+                })}
+              </Pressable>
+            )}
+
+            {/* Duration / Loading text */}
+            {!audioHasError && !audioMissing && (
+              <Text style={styles.audioDuration}>
+                {audioIsLoading
+                  ? 'Loading...'
+                  : player.duration > 0
+                    ? formatDuration(player.isPlaying ? player.position : player.duration, true)
+                    : '--:--'}
+              </Text>
+            )}
+
+            {/* Re-record button (hidden during loading) */}
+            {!audioIsLoading && (
+              <Pressable
+                onPress={() => setShowReRecordDialog(true)}
+                hitSlop={hitSlop.icon}
+                style={({ pressed }) => [styles.reRecordBtn, pressed && { opacity: 0.6 }]}
+              >
+                <Ionicons name="mic-outline" size={16} color={colors.accent} />
+              </Pressable>
+            )}
           </View>
         )}
       </ScrollView>
@@ -1064,13 +1465,6 @@ const styles = StyleSheet.create({
     padding: spacing(3),
     marginBottom: spacing(4),
   },
-  locationInput: {
-    ...typography.formLabel,
-    color: colors.text,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    paddingVertical: spacing(2),
-  },
   locationActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -1164,8 +1558,18 @@ const styles = StyleSheet.create({
     gap: spacing(2),
     marginBottom: spacing(4),
   },
-  addTagLink: {
-    ...typography.caption,
+  addTagPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.accent,
+  },
+  addTagPillText: {
+    ...typography.tag,
     color: colors.accent,
   },
   // ─── Tag Editor ─────────────────────
@@ -1258,6 +1662,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing(3),
+    marginTop: spacing(2),
   },
   playBtn: {
     width: 36,
@@ -1267,16 +1672,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  scrubTrack: {
+  waveformArea: {
     flex: 1,
-    height: 4,
-    backgroundColor: colors.border,
-    borderRadius: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    height: WAVEFORM_MAX_HEIGHT + 4, // +4 for breathing room
+    minHeight: minTouchTarget, // 44px touch target
   },
-  scrubFill: {
-    height: '100%',
-    backgroundColor: colors.accent,
-    borderRadius: 2,
+  waveformMessageArea: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: WAVEFORM_MAX_HEIGHT + 4,
+  },
+  audioErrorText: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  audioErrorDot: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  audioRetryLink: {
+    ...typography.caption,
+    color: colors.accent,
+    fontWeight: '600',
+  },
+  audioMissingText: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontStyle: 'italic',
   },
   audioDuration: {
     ...typography.caption,

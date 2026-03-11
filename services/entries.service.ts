@@ -222,7 +222,18 @@ export const entriesService = {
     });
 
     if (error) {
+      // FunctionsHttpError hides the real response body in error.context.
+      // Try to read it so we can see the actual edge function error.
+      const ctx = (error as any).context;
+      if (ctx && typeof ctx.text === 'function') {
+        ctx.text().then((body: string) => console.warn('AI processing error body:', body)).catch(() => {});
+      }
       console.warn('AI processing failed:', error.message ?? error);
+      return null;
+    }
+
+    if (data?.success === false) {
+      console.warn('AI processing returned success: false:', data);
       return null;
     }
 

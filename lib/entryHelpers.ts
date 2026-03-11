@@ -5,6 +5,7 @@
 
 import type { Entry } from '@/stores/entriesStore';
 import type { Child } from '@/stores/childrenStore';
+import type { DraftEntry } from '@/stores/draftStore';
 import { childColors, colors } from '@/constants/theme';
 import { formatDate, formatTime } from '@/lib/dateUtils';
 
@@ -35,5 +36,26 @@ export function entryToCard(
     tags: entry.tags,
     isFavorited: entry.isFavorited,
     hasAudio: entry.hasAudio,
+  };
+}
+
+/**
+ * Map a DraftEntry to the shape EntryCard expects.
+ *
+ * Drafts don't have children or tags assigned yet (that happens
+ * during sync), so we show minimal info — just the transcript
+ * preview with the date it was recorded.
+ */
+export function draftToCard(draft: DraftEntry) {
+  return {
+    childNames: [] as string[],
+    childColors: [] as string[],
+    date: formatDate(draft.entryDate),
+    time: formatTime(draft.entryDate),
+    title: undefined,
+    preview: draft.transcript,
+    tags: [] as string[],
+    isFavorited: false,
+    hasAudio: draft.audioLocalUri != null,
   };
 }

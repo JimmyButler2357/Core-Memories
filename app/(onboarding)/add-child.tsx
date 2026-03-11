@@ -27,7 +27,8 @@ import { useChildrenStore, mapSupabaseChild } from '@/stores/childrenStore';
 import { childrenService } from '@/services/children.service';
 import PrimaryButton from '@/components/PrimaryButton';
 import ChildPill from '@/components/ChildPill';
-import BirthdayPicker, { formatBirthdayDisplay } from '@/components/BirthdayPicker';
+import BirthdayPicker from '@/components/BirthdayPicker';
+import ColorPicker from '@/components/ColorPicker';
 
 // ─── Add Child Screen ─────────────────────────────────────
 //
@@ -60,6 +61,7 @@ export default function AddChildScreen() {
   const [name, setName] = useState('');
   const [nickname, setNickname] = useState('');
   const [birthday, setBirthday] = useState('');
+  const [colorIndex, setColorIndex] = useState(children.length % 6);
   const [isLoading, setIsLoading] = useState(false);
   const [showForm, setShowForm] = useState(true);
 
@@ -80,7 +82,7 @@ export default function AddChildScreen() {
       : `${lastChild?.name} is all set!`
     : nameEntered
       ? `Let's start ${name.trim()}'s memory book.`
-      : 'Who are we remembering?';
+      : 'Who are we capturing moments for?';
 
   // Button label — depends on whether the form is showing or hidden
   const getButtonLabel = () => {
@@ -103,7 +105,7 @@ export default function AddChildScreen() {
         name: name.trim(),
         birthday,
         nickname: nickname.trim() || null,
-        color_index: children.length % 6,
+        color_index: colorIndex,
         display_order: children.length,
       });
 
@@ -117,6 +119,7 @@ export default function AddChildScreen() {
       setName('');
       setNickname('');
       setBirthday('');
+      setColorIndex((children.length + 1) % 6);
       setShowForm(false);
       return true;
     } catch (error) {
@@ -194,7 +197,7 @@ export default function AddChildScreen() {
               return (
                 <ChildPill
                   key={child.id}
-                  name={`${child.name} · ${formatBirthdayDisplay(child.birthday)}`}
+                  name={child.name}
                   color={color}
                   showRemove
                   onRemove={() => handleRemoveChild(child.id)}
@@ -209,7 +212,7 @@ export default function AddChildScreen() {
           <View style={styles.card}>
             {/* Name field */}
             <View style={styles.field}>
-              <Text style={styles.fieldLabelRequired}>Name</Text>
+              <Text style={styles.fieldLabel}>Name</Text>
               <TextInput
                 style={styles.nameInput}
                 value={name}
@@ -223,7 +226,7 @@ export default function AddChildScreen() {
 
             {/* Birthday field */}
             <View style={styles.field}>
-              <Text style={styles.fieldLabelRequired}>Birthday</Text>
+              <Text style={styles.fieldLabel}>Birthday</Text>
               <BirthdayPicker
                 value={birthday || undefined}
                 onChange={setBirthday}
@@ -242,6 +245,12 @@ export default function AddChildScreen() {
                 placeholderTextColor={colors.textMuted}
                 editable={!isLoading}
               />
+            </View>
+
+            {/* Color field */}
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Color</Text>
+              <ColorPicker selectedIndex={colorIndex} onSelect={setColorIndex} />
             </View>
           </View>
         )}
@@ -309,13 +318,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing(4),
   },
   fieldLabel: {
-    ...typography.timestamp,
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: spacing(2),
-  },
-  fieldLabelRequired: {
     ...typography.timestamp,
     fontWeight: '700' as const,
     color: colors.text,

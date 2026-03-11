@@ -54,6 +54,28 @@ export const authService = {
     return data;
   },
 
+  /** Send a password reset email.
+   *  Supabase emails the user a link containing temporary tokens.
+   *  The `redirectTo` tells the link where to send the user —
+   *  our app's deep link scheme opens the reset-password screen.
+   *  We show the same success message regardless of whether the
+   *  email exists (so attackers can't check if someone has an account). */
+  async resetPasswordForEmail(email: string) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'core-memories://reset-password',
+    });
+    if (error) throw new Error(`Failed to send reset email: ${error.message}`, { cause: error });
+  },
+
+  /** Update the current user's password.
+   *  Works when the user has an active session — either logged in
+   *  normally (change password from Settings) or via the temporary
+   *  PASSWORD_RECOVERY session from the email link (forgot password flow). */
+  async updatePassword(newPassword: string) {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw new Error(`Failed to update password: ${error.message}`, { cause: error });
+  },
+
   /** Sign out */
   async signOut() {
     const { error } = await supabase.auth.signOut();

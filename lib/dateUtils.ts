@@ -54,6 +54,46 @@ export function getAge(birthday: string, referenceDate?: string): string {
 }
 
 /**
+ * Convert a 12-hour display string like "8:30 PM" to 24-hour format "20:30".
+ * The database stores times in 24-hour format, but the UI shows 12-hour.
+ */
+export function to24Hour(display: string): string {
+  const [timePart, period] = display.split(' ');
+  const [hourStr, minute] = timePart.split(':');
+  let hour = parseInt(hourStr, 10);
+
+  if (period === 'AM' && hour === 12) hour = 0;
+  else if (period === 'PM' && hour !== 12) hour += 12;
+
+  return `${String(hour).padStart(2, '0')}:${minute}`;
+}
+
+/**
+ * Convert a 24-hour string like "20:30" back to 12-hour display "8:30 PM".
+ */
+export function from24Hour(time24: string): string {
+  const [hourStr, minute] = time24.split(':');
+  let hour = parseInt(hourStr, 10);
+  const period = hour >= 12 ? 'PM' : 'AM';
+
+  if (hour === 0) hour = 12;
+  else if (hour > 12) hour -= 12;
+
+  return `${hour}:${minute} ${period}`;
+}
+
+/**
+ * Return how many days ago a given ISO date string was.
+ * Returns 0 if the date is today or in the future.
+ */
+export function daysAgo(iso: string): number {
+  const then = new Date(iso);
+  const now = new Date();
+  const diff = Math.floor((now.getTime() - then.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.max(0, diff);
+}
+
+/**
  * Calculate a child's age in months (for prompt filtering).
  */
 export function ageInMonths(birthday: string): number {

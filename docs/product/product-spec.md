@@ -435,7 +435,62 @@ The parent is the sole owner of contributor identities. Contributors never type 
 - [ ] Improved transcription (cloud fallback for low-confidence entries — see Section 2.1.1)
 - [ ] "Quiet week" prompt for inactive users — see Section 4b
 - [ ] LLM-powered auto-tagging upgrade (Claude Haiku — see Section 3.3)
-- [ ] **Add photos (cap 3)** — attach up to 3 photos per entry via camera or gallery picker. Photos display in Entry Detail below the transcript. Keeps the focus on voice/text (the differentiator) while letting parents add visual context. Photos stored in Supabase Storage alongside audio files
+- [ ] **Add photos (cap 3)** — attach up to 3 photos per entry. Full spec below
+
+#### Photo Attachments — V1.5 Feature Spec
+
+**Scope & constraints:**
+- Photos are *extras only* — every entry must still have voice or text. No photo-only entries. This preserves the app's voice-first identity
+- Gallery picker only for V1.5 (no in-app camera). Simpler to build, fewer permissions to request
+- 3-photo cap per entry. Keeps the focus on storytelling, not photo albums
+- New entries only — no retroactive photo attachment to existing entries in V1.5
+
+**Dependencies (3 new packages):**
+- `expo-image-picker` — launches the device photo gallery and returns selected images
+- `expo-image-manipulator` — resizes and compresses photos before upload (think of it like a photo shrink-ray)
+- `expo-image` — fast, cached image rendering in the app (replaces React Native's built-in `<Image>` which is slower)
+
+**Compression pipeline:**
+Photos are compressed client-side before upload to keep storage costs low and uploads fast:
+- Resize to ~800px on the longest side (plenty for mobile viewing, way smaller than a raw camera photo)
+- 80% JPEG quality (visually identical to the original, ~70% smaller file)
+- HEIC (Apple's default photo format) auto-converted to JPEG for cross-platform compatibility
+- Result: ~200–500KB per photo after compression (vs. 3–8MB raw)
+
+**New UI components:**
+1. **PhotoPicker** — button that launches the gallery + displays a thumbnail strip of selected photos. Lives on Entry Detail in the "add content" area
+2. **PhotoThumbnailRow** — horizontal row of 1–3 small rounded-square thumbnails. Reused in two places: EntryCard (Home feed) and entry-detail (full view)
+3. **PhotoViewer** — full-screen overlay with swipe-to-navigate between photos. Tap a thumbnail → opens this viewer. Pinch-to-zoom. Tap X or swipe down to close
+
+**Entry Detail changes:**
+- New "Photos" section appears between the transcript and child assignment areas
+- "Add photos" button (camera icon + text) — taps open the gallery picker
+- Selected photos appear as thumbnails with an X button to remove
+- Photos save alongside the entry when the user navigates away (same auto-save pattern as text)
+
+**EntryCard changes (Home feed + Firefly Jar):**
+- PhotoThumbnailRow appears below the transcript preview text
+- Shows 1–3 small rounded squares (e.g., 48×48). If 3 photos, they sit side by side
+- Tapping a thumbnail on EntryCard navigates to Entry Detail (not the photo viewer — keeps the card tap target simple)
+
+**Upload flow:**
+- Photos compress + upload to Supabase Storage in parallel with audio via `Promise.all` (both happen at the same time, so the user doesn't wait twice)
+- Each photo stored at path: `{user_id}/{entry_id}/photo_{order}.jpg` in the `entry-media` storage bucket
+- Metadata (path, dimensions, file size, display order) saved to the `entry_media` database table (see database-schema.md §4.1)
+
+**AI processing:**
+- Deferred — no vision analysis in V1.5. Claude won't "look at" the photos
+- V2 possibility: pass photos to a vision model to auto-generate descriptions or detect milestones
+
+**Storage cost:**
+- ~200–500KB per photo after compression
+- At 1 photo/entry average: adds ~300KB/entry → ~9MB/month for a daily user
+- Negligible compared to audio storage. See scaling.md for full projections
+
+**Pre-wired for video:**
+- The `entry_media` table uses a `media_type` column (`'photo'` or `'video'`) instead of a photo-specific table name
+- Video-ready columns (`thumbnail_path`, `duration_seconds`) exist as nullable fields — zero cost now, avoids a migration later
+- See feature-roadmap.md for video research notes
 - [ ] **Birthday quiz** — on a child's birthday, app sends a special push notification or shows an in-app interstitial with guided questions ("What's their favorite food right now?" "What word do they say funny?" "What are they obsessed with?"). Responses saved as a structured text entry tagged with the child and a "birthday" tag. Creates an annual snapshot tradition. Overlaps with Keepsakes' core workflow, validating demand
 - [ ] **Help / menu section** — expandable dropdown or dedicated screen accessible from the top bar. Includes: FAQ, "Ways to Use Your Memories" (4 articles linking to website — e.g., "Share with Grandparents," "Create a Birthday Tradition," "Build a Bedtime Routine," "Make a Keepsake Book"), Contact Us, mission/about, and a deeper dive into family connection. Content links to external website rather than living in-app
 - [ ] **Shareable memory cards** — tap a "Share" button on any entry card (Home, Firefly Jar, or Entry Detail) to generate a branded quote-card image. The card displays: transcript text (truncated to ~3 lines for readability), child's name + age at time of entry, entry date, and a subtle "Forever Fireflies" watermark at the bottom. Card uses the app's warm visual language (cream background, Merriweather serif for the quote, warm brown text). Image generated client-side via `react-native-view-shot` or similar. Opens native share sheet — works with iMessage, Instagram Stories, Facebook, text, email, etc. Static image format ensures universal compatibility (no audio, no link required). Organic growth loop: every shared card is a branded touchpoint

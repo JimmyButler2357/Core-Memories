@@ -26,6 +26,7 @@ import { useEntriesStore } from '@/stores/entriesStore';
 import { useAuthStore } from '@/stores/authStore';
 import { entriesService } from '@/services/entries.service';
 import { storageService } from '@/services/storage.service';
+import { audioCleanupService } from '@/services/audioCleanup.service';
 import { promptsService } from '@/services/prompts.service';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { ageInMonths, formatDuration } from '@/lib/dateUtils';
@@ -51,7 +52,10 @@ const FALLBACK_PROMPTS = [
 export default function RecordingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { reRecordEntryId } = useLocalSearchParams<{ reRecordEntryId?: string }>();
+  const { reRecordEntryId, onboarding } = useLocalSearchParams<{
+    reRecordEntryId?: string;
+    onboarding?: string;
+  }>();
   const isReRecord = !!reRecordEntryId;
 
   const children = useChildrenStore((s) => s.children);
@@ -129,7 +133,7 @@ export default function RecordingScreen() {
   // renames take effect immediately without clearing the cache.
 
   useEffect(() => {
-    if (!profile?.id) return;
+    if (!profile?.id || onboarding === 'true') return;
 
     let cancelled = false;
     const childAge = children.length > 0
@@ -287,6 +291,8 @@ export default function RecordingScreen() {
           // Upload the new audio file (upsert overwrites the old one)
           if (s.audioUri) {
             await storageService.uploadAudio(reRecordEntryId, s.audioUri);
+            // Clean up local .wav after successful upload
+            await audioCleanupService.deleteLocalFile(s.audioUri);
           }
           // Update the transcript in the database
           await entriesService.update(reRecordEntryId, {
@@ -297,6 +303,8 @@ export default function RecordingScreen() {
             text: s.transcript || '',
             hasAudio: true,
           });
+          // Re-run AI with the new transcript so the title stays fresh
+          entriesService.processWithAI(reRecordEntryId).catch(() => {});
         } catch (err) {
           console.warn('Re-record save failed:', err);
         }
@@ -312,6 +320,7 @@ export default function RecordingScreen() {
           transcript: s.transcript,
           audioUri: s.audioUri ?? '',
           locationText: loc ?? '',
+          onboarding: onboarding ?? '',
         },
       });
     }
@@ -396,6 +405,13 @@ export default function RecordingScreen() {
                 <PaperTexture radius={radii.card} />
                 <Ionicons name="refresh-outline" size={20} color={colors.accent} style={{ marginBottom: spacing(2) }} />
                 <Text style={styles.promptText}>Take your time and re-record this memory</Text>
+              </View>
+            </View>
+          ) : onboarding === 'true' ? (
+            <View style={styles.promptScroll}>
+              <View style={styles.promptCard}>
+                <PaperTexture radius={radii.card} />
+                <Text style={styles.promptText}>Tap the mic and tell us about a moment you never want to forget</Text>
               </View>
             </View>
           ) : prompts === null ? (

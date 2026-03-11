@@ -4,9 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, radii, shadows, screenColors } from '@/constants/theme';
 import { useChildrenStore } from '@/stores/childrenStore';
-import { useEntriesStore } from '@/stores/entriesStore';
 import PaperTexture from '@/components/PaperTexture';
-import { useLocation } from '@/hooks/useLocation';
 
 /**
  * First Recording — onboarding step 5.
@@ -18,21 +16,13 @@ export default function FirstRecordingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const children = useChildrenStore((s) => s.children);
-  const addEntry = useEntriesStore((s) => s.addEntry);
-  const { locationText } = useLocation();
   const firstName = children.length > 0 ? children[0].name : 'your child';
 
   const handleRecord = () => {
-    addEntry({
-      text: `A precious moment with ${firstName} that I never want to forget.`,
-      date: new Date().toISOString(),
-      childIds: children.length > 0 ? [children[0].id] : [],
-      tags: ['first-memory'],
-      isFavorited: true,
-      hasAudio: true,
-      locationText: locationText ?? undefined,
+    router.push({
+      pathname: '/(main)/recording',
+      params: { onboarding: 'true' },
     });
-    router.push('/(onboarding)/memory-saved');
   };
 
   return (

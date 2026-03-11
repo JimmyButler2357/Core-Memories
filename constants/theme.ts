@@ -31,6 +31,7 @@ export const colors = {
   overlay: 'rgba(44,36,32,0.45)',
   general: '#B5AAA0',
   cardPressed: '#F7F4F1',
+  borderWarm: 'rgba(180,160,140,0.35)',
   // Gold glow — secondary accent for firefly magic moments
   glow: '#F2C94C',
   glowSoft: '#FDF6E3',
@@ -275,7 +276,7 @@ export const shadows = {
     elevation: 2,
   },
   micButtonHome: {
-    shadowColor: '#E8724A',
+    shadowColor: colors.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 20,

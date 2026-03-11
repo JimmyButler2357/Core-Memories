@@ -9,6 +9,7 @@ import {
   Keyboard,
   StyleSheet,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -37,7 +38,10 @@ import { entriesService } from '@/services/entries.service';
 import { useSearchFilter, collectTags } from '@/hooks/useSearchFilter';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { getAge } from '@/lib/dateUtils';
-import { buildChildMap, entryToCard } from '@/lib/entryHelpers';
+import { buildChildMap, entryToCard, draftToCard } from '@/lib/entryHelpers';
+import { useDraftStore } from '@/stores/draftStore';
+import { useDraftSync } from '@/hooks/useDraftSync';
+import DraftBanner from '@/components/DraftBanner';
 import TopBar from '@/components/TopBar';
 import ChildTab from '@/components/ChildTab';
 import EntryCard from '@/components/EntryCard';
@@ -63,6 +67,17 @@ export default function HomeScreen() {
   const activeFilter = useUIStore((s) => s.activeChildFilter);
   const setFilter = useUIStore((s) => s.setActiveChildFilter);
   const familyId = useAuthStore((s) => s.familyId);
+  const userId = useAuthStore((s) => s.session?.user?.id);
+
+  // Draft sync — watches connectivity and auto-syncs offline drafts
+  const { retryDraft } = useDraftSync();
+
+  // Get drafts for the current user
+  const allDrafts = useDraftStore((s) => s.drafts);
+  const userDrafts = useMemo(
+    () => (userId ? allDrafts.filter((d) => d.userId === userId) : []),
+    [allDrafts, userId],
+  );
 
   // Loading & error state for the initial fetch
   const [isLoadingData, setIsLoadingData] = useState(true);
@@ -353,7 +368,12 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* Entry list */}
+      {/* Draft banner — shows when offline drafts exist */}
+      {userDrafts.length > 0 && !isSearchActive && (
+        <DraftBanner drafts={userDrafts} />
+      )}
+
+      {/* Entry list — drafts prepended above synced entries */}
       <FlatList
         data={displayedEntries}
         keyExtractor={(item) => item.id}
@@ -362,6 +382,32 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
+        ListHeaderComponent={
+          // Show draft cards above synced entries (only when not searching)
+          !isSearchActive && userDrafts.length > 0 ? (
+            <View style={styles.draftList}>
+              {userDrafts.map((draft, index) => (
+                <EntryCard
+                  key={draft.localId}
+                  entry={draftToCard(draft)}
+                  index={index}
+                  syncStatus={draft.status}
+                  onPress={() => {
+                    if (draft.status === 'failed') {
+                      retryDraft(draft.localId);
+                    } else {
+                      Alert.alert(
+                        'Not synced yet',
+                        'This memory will sync when you\'re back online.',
+                      );
+                    }
+                  }}
+                  showTags={false}
+                />
+              ))}
+            </View>
+          ) : null
+        }
         renderItem={({ item, index }) => (
           <EntryCard
             entry={entryToCard(item, childMap)}
@@ -381,7 +427,7 @@ export default function HomeScreen() {
                 Try different keywords or filters.
               </Text>
             </View>
-          ) : (
+          ) : userDrafts.length > 0 ? null : (
             <View style={styles.empty}>
               <Ionicons name="book-outline" size={48} color={colors.textMuted} />
               <Text style={styles.emptyHeading}>No memories yet</Text>
@@ -460,7 +506,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accentSoft,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: childColorWithOpacity('#E8724A', 0.15),
+    borderColor: childColorWithOpacity(colors.accent, 0.15),
     alignItems: 'center',
   },
   bannerEmoji: {
@@ -530,6 +576,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     color: colors.textMuted,
+  },
+  // ─── Draft List ────────────────────
+  draftList: {
+    gap: spacing(3),
+    marginBottom: spacing(3),
   },
   // ─── Entry List ────────────────────
   listContainer: {

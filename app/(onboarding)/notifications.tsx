@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, Alert } from 'react-native';
+import { useState, useRef, useCallback } from 'react';
+import { View, Text, Pressable, FlatList, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,11 +8,24 @@ import { profilesService } from '@/services/profiles.service';
 import { to24Hour } from '@/lib/dateUtils';
 import PrimaryButton from '@/components/PrimaryButton';
 
-const TIMES = [
-  '7:00 PM', '7:30 PM', '8:00 PM', '8:30 PM',
-  '9:00 PM', '9:30 PM', '10:00 PM', '10:30 PM',
-  '11:00 PM', '11:30 PM', '12:00 AM',
-];
+// Generate all 48 half-hour slots across 24 hours (12:00 AM → 11:30 PM).
+// Think of it like listing every half-hour mark on a clock for a full day.
+const TIMES: string[] = [];
+for (let h = 0; h < 24; h++) {
+  for (const m of ['00', '30']) {
+    const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    const period = h < 12 ? 'AM' : 'PM';
+    TIMES.push(`${hour12}:${m} ${period}`);
+  }
+}
+
+// To create a "wrap-around" effect, we repeat the list 3 times and start
+// in the middle copy. Think of it like a conveyor belt loop — when you
+// scroll near an edge, we silently jump you back to the center so it
+// feels like it never ends.
+const REPEAT_COUNT = 3;
+const TOTAL_ITEMS = TIMES.length * REPEAT_COUNT; // 144
+const ROW_HEIGHT = 44;
 
 const DEFAULT_TIME = '8:30 PM';
 
@@ -21,8 +34,28 @@ export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
   const [selectedTime, setSelectedTime] = useState(DEFAULT_TIME);
   const [isLoading, setIsLoading] = useState(false);
+  const listRef = useRef<FlatList>(null);
+
+  // Start in the middle copy, scrolled to the default time's position.
+  const defaultIndex = TIMES.length + TIMES.indexOf(DEFAULT_TIME);
 
   const goNext = () => router.push('/(onboarding)/first-recording');
+
+  // When scrolling stops, check if we've drifted into the first or last
+  // copy. If so, silently jump to the same position in the middle copy.
+  // The user won't notice because all three copies look identical.
+  const handleScrollEnd = useCallback((e: { nativeEvent: { contentOffset: { y: number } } }) => {
+    const y = e.nativeEvent.contentOffset.y;
+    const oneSetHeight = TIMES.length * ROW_HEIGHT;
+
+    if (y < oneSetHeight * 0.5) {
+      // Drifted into the first copy — jump forward by one full set
+      listRef.current?.scrollToOffset({ offset: y + oneSetHeight, animated: false });
+    } else if (y > oneSetHeight * 2.5) {
+      // Drifted into the last copy — jump back by one full set
+      listRef.current?.scrollToOffset({ offset: y - oneSetHeight, animated: false });
+    }
+  }, []);
 
   // Save the selected time to the user's profile in Supabase,
   // then move on. If the save fails, we still navigate forward —
@@ -51,15 +84,26 @@ export default function NotificationsScreen() {
           <Ionicons name="notifications" size={36} color={colors.glow} />
         </View>
 
-        <Text style={styles.heading}>A gentle nudge at bedtime.</Text>
+        <Text style={styles.heading}>Do you want a reminder to capture the day's memories?</Text>
 
         <View style={styles.timeList}>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {TIMES.map((time) => {
+          <FlatList
+            ref={listRef}
+            data={Array.from({ length: TOTAL_ITEMS }, (_, i) => i)}
+            keyExtractor={(i) => String(i)}
+            showsVerticalScrollIndicator={false}
+            getItemLayout={(_, index) => ({
+              length: ROW_HEIGHT,
+              offset: ROW_HEIGHT * index,
+              index,
+            })}
+            initialScrollIndex={defaultIndex}
+            onMomentumScrollEnd={handleScrollEnd}
+            renderItem={({ index }) => {
+              const time = TIMES[index % TIMES.length];
               const isSelected = time === selectedTime;
               return (
                 <Pressable
-                  key={time}
                   onPress={() => setSelectedTime(time)}
                   style={[styles.timeRow, isSelected && styles.timeRowSelected]}
                 >
@@ -71,8 +115,8 @@ export default function NotificationsScreen() {
                   )}
                 </Pressable>
               );
-            })}
-          </ScrollView>
+            }}
+          />
         </View>
       </View>
 
@@ -129,7 +173,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: spacing(3),
+    height: ROW_HEIGHT,
     paddingHorizontal: spacing(4),
     borderRadius: radii.md,
   },

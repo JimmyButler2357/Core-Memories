@@ -49,17 +49,18 @@ Think of it this way: a `family` is like a shared Google Drive folder. Right now
 | 11 | `user_devices` | MVP | Push notification tokens per device |
 | 12 | `prompt_history` | MVP | Tracks which prompts each user has seen (prevents repeats) |
 | 13 | `notification_log` | MVP | Tracks notification delivery + tap-through for frequency backoff |
-| 14 | `mood_reactions` | V1.5 | Quick-react mood/emotion per entry |
-| 15 | `entry_shares` | V1.5 | Shareable entry links with revocation |
-| 16 | `recap_digests` | V1.5 | Weekly/monthly recap metadata |
-| 17 | `contributor_links` | V2 | Invite links for extended family recording |
-| 18 | `contributed_entries` | V2 | Contribution approval workflow |
-| 19 | `entry_embeddings` | V2 | pgvector embeddings for semantic search |
-| 20 | `keepsake_books` | V2 | Print-on-demand book projects |
-| 21 | `keepsake_book_entries` | V2 | Junction: books ↔ entries with page order |
-| 22 | `record_requests` | V2 | Named, themed recording invites to family |
-| 23 | `interviews` | V3+ | Interview mode sessions (child's perspective) |
-| 24 | `interview_questions` | V3+ | Guided Q&A within an interview |
+| 14 | `entry_media` | V1.5 | Photo (and future video) attachments on entries |
+| 15 | `mood_reactions` | V1.5 | Quick-react mood/emotion per entry |
+| 16 | `entry_shares` | V1.5 | Shareable entry links with revocation |
+| 17 | `recap_digests` | V1.5 | Weekly/monthly recap metadata |
+| 18 | `contributor_links` | V2 | Invite links for extended family recording |
+| 19 | `contributed_entries` | V2 | Contribution approval workflow |
+| 20 | `entry_embeddings` | V2 | pgvector embeddings for semantic search |
+| 21 | `keepsake_books` | V2 | Print-on-demand book projects |
+| 22 | `keepsake_book_entries` | V2 | Junction: books ↔ entries with page order |
+| 23 | `record_requests` | V2 | Named, themed recording invites to family |
+| 24 | `interviews` | V3+ | Interview mode sessions (child's perspective) |
+| 25 | `interview_questions` | V3+ | Guided Q&A within an interview |
 
 ---
 
@@ -522,11 +523,52 @@ These rules are enforced in app code, not database constraints. The database's u
 
 ## 4. V1.5 Tables
 
-> **3 tables.** Created when V1.5 features ship. The MVP schema does not need these tables.
+> **4 tables.** Created when V1.5 features ship. The MVP schema does not need these tables.
 
 ---
 
-### 4.1 mood_reactions
+### 4.1 entry_media
+
+> **Version:** V1.5 | **RLS:** Yes | **Refs:** Product Spec §V1.5, Photo Attachments
+
+**Purpose:** Photo (and future video) attachments on entries. Every entry can have up to 3 photos in V1.5. The table is deliberately named `entry_media` (not `entry_photos`) and includes video-ready columns so that adding video clips in a future version is just a feature flag — no schema migration needed.
+
+| Column | Type | Nullable | Default | Version | Notes |
+|--------|------|----------|---------|---------|-------|
+| `id` | uuid | NO | gen_random_uuid() | V1.5 | PK |
+| `entry_id` | uuid | NO | — | V1.5 | FK → entries.id, ON DELETE CASCADE |
+| `user_id` | uuid | NO | — | V1.5 | FK → profiles.id. Who uploaded the media |
+| `family_id` | uuid | NO | — | V1.5 | FK → families.id. Denormalized for RLS (avoids joining through entries) |
+| `media_type` | text | NO | — | V1.5 | `'photo'` or `'video'`. CHECK constraint enforces allowed values |
+| `storage_path` | text | NO | — | V1.5 | Path in `entry-media` storage bucket |
+| `thumbnail_path` | text | YES | null | **V2** | Required for videos (auto-generated thumbnail frame), NULL for photos |
+| `display_order` | smallint | NO | 0 | V1.5 | Position within the entry (0, 1, 2). Determines thumbnail strip order |
+| `width` | smallint | YES | null | V1.5 | Image/video width in pixels after compression |
+| `height` | smallint | YES | null | V1.5 | Image/video height in pixels after compression |
+| `duration_seconds` | smallint | YES | null | **V2** | Populated for videos, NULL for photos |
+| `file_size_bytes` | integer | YES | null | V1.5 | File size after compression. Useful for storage analytics |
+| `created_at` | timestamptz | NO | now() | V1.5 | |
+
+**CHECK constraint:** `media_type IN ('photo', 'video')`
+
+**Pre-wired fields (zero cost now, saves a migration later):**
+- `media_type` — V1.5 only inserts `'photo'`, but the column accepts `'video'` too
+- `thumbnail_path` — videos need a poster frame for display in feeds; photos don't need this (the photo itself is the thumbnail)
+- `duration_seconds` — video length in seconds; NULL for photos
+
+**RLS policies:**
+- `entry_media_select_family` — SELECT WHERE `family_id IN (SELECT user_family_ids())` (same family membership pattern as other tables)
+- `entry_media_insert_own` — INSERT WHERE `user_id = auth.uid()` AND `family_id IN (SELECT user_family_ids())`
+- `entry_media_delete_own` — DELETE WHERE `user_id = auth.uid()` (only the uploader can remove their photos)
+
+**Notes:**
+- `family_id` is denormalized (it could be derived by joining `entries → family_id`). Think of it like keeping a copy of your apartment number on your mailbox — it's redundant, but it means the mail carrier (RLS) doesn't have to walk upstairs to check. This avoids a join in every RLS policy evaluation, which matters because RLS runs on every single row access.
+- No UPDATE policy — photos are immutable. To "replace" a photo, delete and re-upload. This keeps the logic simple and avoids partial-update bugs.
+- The 3-photo cap is enforced in the application layer (service module), not as a database constraint. This keeps the constraint easy to change later (e.g., bumping to 5 for premium users).
+
+---
+
+### 4.2 mood_reactions
 
 > **Version:** V1.5 | **RLS:** Yes | **Refs:** Product Spec §7, V1.5
 
@@ -545,7 +587,7 @@ These rules are enforced in app code, not database constraints. The database's u
 
 ---
 
-### 4.2 entry_shares
+### 4.3 entry_shares
 
 > **Version:** V1.5 | **RLS:** Yes | **Refs:** FR-V2-001, FR-V2-002, FR-V2-003
 
@@ -565,7 +607,7 @@ These rules are enforced in app code, not database constraints. The database's u
 
 ---
 
-### 4.3 recap_digests
+### 4.4 recap_digests
 
 > **Version:** V1.5 | **RLS:** Yes | **Refs:** FR-V2-007, FR-V2-008
 
@@ -803,6 +845,7 @@ Supabase manages the `auth.users` table automatically. You never write to it dir
 | Bucket | Access | Path Pattern | Version | Notes |
 |--------|--------|-------------|---------|-------|
 | `audio-recordings` | Private (RLS) | `{user_id}/{entry_id}.wav` | MVP | Original audio files. `.wav` for MVP, `.m4a` post-optimization at ~1K users |
+| `entry-media` | Private (RLS) | `{user_id}/{entry_id}/photo_{order}.jpg` | V1.5 | Photo attachments. 5MB max per file. V2: add video support (`video_{order}.mp4`) |
 | `profile-photos` | Private (RLS) | `{family_id}/{child_id}.jpg` | V2 | Child profile photos |
 | `keepsake-assets` | Private (RLS) | `{family_id}/books/{book_id}/` | V2 | Book covers, layout exports |
 
@@ -840,6 +883,8 @@ All indexes should be created in the MVP migration. They're cheap to create on e
 | Table | Columns | Type | Purpose |
 |-------|---------|------|---------|
 | `entries` | `(family_id, is_favorited, entry_date DESC)` | B-tree | Firefly Jar screen — favorited entries only |
+| `entry_media` | `(entry_id, display_order)` | B-tree | Fetch photos for an entry in display order (thumbnail strip) |
+| `entry_media` | `(family_id)` | B-tree | RLS policy evaluation — "is this media in my family?" |
 | `entry_shares` | `(share_token)` | B-tree (unique) | Token lookup for shared entry URLs |
 | `entry_embeddings` | `embedding` | HNSW (pgvector) | V2 semantic similarity search |
 
@@ -878,6 +923,7 @@ $$ LANGUAGE sql SECURITY DEFINER STABLE;
 | `entry_children` | Family member | Own entries | Own entries | Own entries |
 | `tags` | All (system) + family (custom) | Family member | Family member | Family member |
 | `entry_tags` | Family member | Own entries | Own entries | Own entries |
+| `entry_media` | Family member | Own family | — | Own media |
 | `prompts` | All authenticated | — | — | — |
 | `user_devices` | Own only | Own only | Own only | Own only |
 | `prompt_history` | Own only | Own only | — | — |

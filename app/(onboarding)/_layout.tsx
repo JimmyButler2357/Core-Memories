@@ -10,6 +10,8 @@ export default function OnboardingLayout() {
     >
       <Stack.Screen name="index" />
       <Stack.Screen name="email-auth" />
+      <Stack.Screen name="forgot-password" />
+      <Stack.Screen name="reset-password" />
       <Stack.Screen name="add-child" />
       <Stack.Screen name="mic-permission" />
       <Stack.Screen name="location-permission" />

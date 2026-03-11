@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
+import * as Linking from 'expo-linking';
 import {
   Merriweather_400Regular,
   Merriweather_700Bold,
@@ -11,10 +12,14 @@ import {
 } from '@expo-google-fonts/merriweather';
 
 import { useAuthStore } from '@/stores/authStore';
+import { useDraftStore } from '@/stores/draftStore';
 import { authService } from '@/services/auth.service';
+import { audioCleanupService } from '@/services/audioCleanup.service';
+import { supabase } from '@/lib/supabase';
 import { colors } from '@/constants/theme';
 
 export default function RootLayout() {
+  const router = useRouter();
   const [fontsLoaded] = useFonts({
     Merriweather_400Regular,
     Merriweather_700Bold,
@@ -31,6 +36,21 @@ export default function RootLayout() {
   // keycard is still active).
   useEffect(() => {
     initialize();
+
+    // Reset any drafts stuck in 'syncing' (app was killed mid-sync).
+    // Think of it like checking a conveyor belt after a power outage —
+    // anything that was mid-delivery goes back to the "retry" pile.
+    useDraftStore.getState().resetStaleSyncing();
+
+    // Delayed orphan cleanup — runs 3 seconds after startup so it
+    // doesn't compete with the critical auth + data loading.
+    // Like a janitor who waits for the office to open before sweeping.
+    setTimeout(() => {
+      const draftAudioUris = useDraftStore.getState().drafts
+        .map((d) => d.audioLocalUri)
+        .filter((uri): uri is string => uri != null);
+      audioCleanupService.cleanupOrphans(draftAudioUris);
+    }, 3000);
   }, [initialize]);
 
   // Listen for auth state changes (login, logout, token refresh).
@@ -38,15 +58,71 @@ export default function RootLayout() {
   // changes — even if it happens in the background (e.g. token
   // auto-refresh). Think of it as a "doorbell" that rings whenever
   // someone enters or leaves.
+  //
+  // The PASSWORD_RECOVERY event fires after the deep link handler
+  // below calls setSession() with tokens from the reset email link.
+  // When that happens, we navigate to the reset-password screen.
   useEffect(() => {
     const { data: { subscription } } = authService.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
         handleAuthChange(session);
+
+        if (event === 'PASSWORD_RECOVERY') {
+          router.replace('/(onboarding)/reset-password');
+        }
       },
     );
 
     return () => subscription.unsubscribe();
-  }, [handleAuthChange]);
+  }, [handleAuthChange, router]);
+
+  // Deep link handler — catches URLs that open the app.
+  //
+  // When a user taps the "Reset Password" link in their email,
+  // it opens a URL like:
+  //   core-memories://reset-password#access_token=xxx&refresh_token=yyy&type=recovery
+  //
+  // We need to:
+  // 1. Parse the tokens out of the URL fragment (the part after #)
+  // 2. Give them to Supabase via setSession() to prove the user is verified
+  // 3. Supabase then fires the PASSWORD_RECOVERY event (handled above)
+  //
+  // Two cases to handle:
+  // - "Warm start": app is already open → addEventListener fires
+  // - "Cold start": app was closed → getInitialURL() returns the URL
+  useEffect(() => {
+    const handleDeepLink = (url: string) => {
+      // The tokens live in the URL fragment (after #), not query params (after ?)
+      // Example: core-memories://reset-password#access_token=abc&refresh_token=def&type=recovery
+      const hashIndex = url.indexOf('#');
+      if (hashIndex === -1) return;
+
+      const fragment = url.substring(hashIndex + 1);
+      const params = new URLSearchParams(fragment);
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+
+      if (accessToken && refreshToken) {
+        // Tell Supabase "this person clicked the email link and is verified."
+        // This creates a temporary session. Supabase will then fire the
+        // PASSWORD_RECOVERY event in onAuthStateChange above.
+        supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+      }
+    };
+
+    // Warm start: app is already running when the link is tapped
+    const sub = Linking.addEventListener('url', ({ url }) => handleDeepLink(url));
+
+    // Cold start: app was closed, the link opened it fresh
+    Linking.getInitialURL().then((url) => {
+      if (url) handleDeepLink(url);
+    });
+
+    return () => sub.remove();
+  }, []);
 
   // Show a warm-colored loading screen while fonts load and
   // auth state is being checked. This prevents a flash of the

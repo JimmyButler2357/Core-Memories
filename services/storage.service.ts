@@ -3,6 +3,7 @@
 // so each user can only access their own audio files.
 // Path pattern: {user_id}/{entry_id}.wav
 
+import { File as ExpoFile } from 'expo-file-system';
 import { supabase } from '@/lib/supabase';
 
 const BUCKET = 'audio-recordings';
@@ -20,13 +21,17 @@ export const storageService = {
 
     const path = `${user.id}/${entryId}.wav`;
 
-    // Read the file as a blob (React Native)
-    const response = await fetch(fileUri);
-    const blob = await response.blob();
+    // Read the local file as an ArrayBuffer via expo-file-system.
+    // React Native's fetch().blob() produces malformed data that
+    // Supabase Storage rejects (HTTP 400). The expo-file-system
+    // File class reads local files reliably and its arrayBuffer()
+    // method gives us the format Supabase accepts.
+    const file = new ExpoFile(fileUri);
+    const arrayBuffer = await file.arrayBuffer();
 
     const { data, error } = await supabase.storage
       .from(BUCKET)
-      .upload(path, blob, {
+      .upload(path, arrayBuffer, {
         contentType: 'audio/wav',
         upsert: true,  // Allow re-recording (overwrite existing file for same entry)
       });

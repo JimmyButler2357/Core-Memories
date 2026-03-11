@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import {
   colors,
   typography,
@@ -32,6 +32,8 @@ import {
 import { useChildrenStore, mapSupabaseChild, type Child } from '@/stores/childrenStore';
 import { useEntriesStore, mapSupabaseEntry, type Entry } from '@/stores/entriesStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useDraftStore } from '@/stores/draftStore';
+import { authService } from '@/services/auth.service';
 import { childrenService } from '@/services/children.service';
 import { entriesService } from '@/services/entries.service';
 import { storageService } from '@/services/storage.service';
@@ -68,6 +70,7 @@ export default function SettingsScreen() {
   const addEntryLocal = useEntriesStore((s) => s.addEntryLocal);
   const removeEntryLocal = useEntriesStore((s) => s.removeEntryLocal);
   const signOut = useAuthStore((s) => s.signOut);
+  const user = useAuthStore((s) => s.user);
   const familyId = useAuthStore((s) => s.familyId);
   const clearChildren = useChildrenStore((s) => s.clearChildren);
   const clearEntries = useEntriesStore((s) => s.clearEntries);
@@ -91,6 +94,17 @@ export default function SettingsScreen() {
   const [newChildBirthday, setNewChildBirthday] = useState('');
   const [newChildColorIndex, setNewChildColorIndex] = useState(children.length % 6);
   const [newChildNickname, setNewChildNickname] = useState('');
+
+  // Change password modal state
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   // Load saved reminder prefs from Supabase on mount.
   // Think of it like opening a saved document — we read what the
@@ -245,6 +259,57 @@ export default function SettingsScreen() {
     setShowAddChildModal(true);
   };
 
+  // ─── Change Password Handlers ─────────────────────────
+
+  // Check if this user signed up with email (not OAuth like Apple/Google).
+  // OAuth users don't have a password to change — they sign in through
+  // the provider instead. Think of it like: some hotel guests use a
+  // keycard (password), others use face recognition (OAuth).
+  const isEmailUser = user?.app_metadata?.providers?.includes('email') ?? false;
+
+  const openChangePasswordModal = () => {
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmNewPassword('');
+    setPasswordError(null);
+    setShowCurrentPassword(false);
+    setShowNewPassword(false);
+    setShowConfirmNewPassword(false);
+    setShowChangePasswordModal(true);
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || newPassword.length < 6 || newPassword !== confirmNewPassword) return;
+
+    setPasswordError(null);
+    setIsChangingPassword(true);
+
+    try {
+      // Step 1: Verify the current password by trying to sign in with it.
+      // This is a UX safety measure — we want to make sure the person
+      // changing the password is actually the account owner (not someone
+      // who found the phone unlocked).
+      const email = user?.email;
+      if (!email) throw new Error('No email found on account');
+      await authService.signInWithEmail(email, currentPassword);
+
+      // Step 2: Now update to the new password
+      await authService.updatePassword(newPassword);
+
+      setShowChangePasswordModal(false);
+      Alert.alert('Password Updated', 'Your password has been changed successfully.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Something went wrong';
+      if (message.includes('Invalid login')) {
+        setPasswordError('Current password is incorrect.');
+      } else {
+        setPasswordError(message);
+      }
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
   // ─── Delete Account Handler ────────────────────────────
 
   const handleDeleteAccount = () => {
@@ -256,14 +321,37 @@ export default function SettingsScreen() {
 
   // Sign out — clears Supabase session + all local stores,
   // then routes back to onboarding/sign-in.
+  // If there are unsent drafts, warn the user first (drafts are
+  // namespaced by userId, so they'll still be there when they
+  // sign back in — like leaving a letter in the outbox).
   const handleSignOut = async () => {
-    try {
-      await signOut();
-      clearChildren();
-      clearEntries();
-      router.replace('/(onboarding)');
-    } catch (error) {
-      console.warn('Sign out error:', error);
+    const userId = user?.id;
+    const pendingDrafts = userId
+      ? useDraftStore.getState().getDraftsForUser(userId)
+      : [];
+
+    const doSignOut = async () => {
+      try {
+        await signOut();
+        clearChildren();
+        clearEntries();
+        router.replace('/(onboarding)');
+      } catch (error) {
+        console.warn('Sign out error:', error);
+      }
+    };
+
+    if (pendingDrafts.length > 0) {
+      Alert.alert(
+        'Unsent memories',
+        `You have ${pendingDrafts.length} ${pendingDrafts.length === 1 ? 'memory' : 'memories'} waiting to sync. They'll be here when you sign back in.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign Out', style: 'destructive', onPress: doSignOut },
+        ],
+      );
+    } else {
+      await doSignOut();
     }
   };
 
@@ -401,7 +489,30 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* ─── 4. Recently Deleted ─────────────── */}
+        {/* ─── 4. Account Security (email users only) ── */}
+        {isEmailUser && (
+          <View style={styles.section}>
+            <Text style={styles.sectionHeader}>Account Security</Text>
+            <View style={styles.card}>
+              <Pressable
+                onPress={openChangePasswordModal}
+                style={({ pressed }) => [
+                  styles.row,
+                  pressed && { backgroundColor: colors.cardPressed },
+                ]}
+              >
+                <Text style={styles.rowLabel}>Change Password</Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={16}
+                  color={colors.textMuted}
+                />
+              </Pressable>
+            </View>
+          </View>
+        )}
+
+        {/* ─── 5. Recently Deleted ─────────────── */}
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>Recently Deleted</Text>
           <View style={[styles.card, styles.deletedSectionCard]}>
@@ -429,7 +540,7 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* ─── 5. Data & Privacy ───────────────── */}
+        {/* ─── 6. Data & Privacy ───────────────── */}
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>Data & Privacy</Text>
           <View style={styles.card}>
@@ -501,7 +612,7 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* ─── 6. About ────────────────────────── */}
+        {/* ─── 7. About ────────────────────────── */}
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>About</Text>
           <View style={styles.card}>
@@ -558,7 +669,7 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* ─── 7. Sign Out ─────────────────────── */}
+        {/* ─── 8. Sign Out ─────────────────────── */}
         <View style={styles.section}>
           <View style={styles.card}>
             <Pressable
@@ -888,6 +999,143 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
+      {/* ─── Change Password Modal ────────────── */}
+      <Modal
+        visible={showChangePasswordModal}
+        animationType="slide"
+        onRequestClose={() => setShowChangePasswordModal(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.fullModalContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={[styles.fullModalHeader, { paddingTop: insets.top + spacing(3) }]}>
+            <Pressable
+              onPress={() => setShowChangePasswordModal(false)}
+              hitSlop={hitSlop.icon}
+              style={({ pressed }) => [
+                styles.fullModalCloseBtn,
+                pressed && { opacity: 0.6 },
+              ]}
+            >
+              <Ionicons name="chevron-back" size={22} color={colors.text} />
+            </Pressable>
+            <Text style={styles.fullModalTitle}>Change Password</Text>
+            <View style={{ width: minTouchTarget }} />
+          </View>
+
+          <ScrollView
+            contentContainerStyle={styles.fullModalContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Current Password */}
+            <Text style={styles.inputLabelRequired}>Current Password</Text>
+            <View style={styles.passwordFieldContainer}>
+              <TextInput
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                style={styles.passwordFieldInput}
+                placeholder="Enter current password"
+                placeholderTextColor={colors.textMuted}
+                secureTextEntry={!showCurrentPassword}
+                autoComplete="current-password"
+                editable={!isChangingPassword}
+                autoFocus
+              />
+              <Pressable
+                onPress={() => setShowCurrentPassword(!showCurrentPassword)}
+                hitSlop={hitSlop.icon}
+                style={styles.passwordEyeBtn}
+              >
+                <MaterialIcons
+                  name={showCurrentPassword ? 'visibility' : 'visibility-off'}
+                  size={20}
+                  color={colors.textMuted}
+                />
+              </Pressable>
+            </View>
+
+            {/* New Password */}
+            <Text style={styles.inputLabelRequired}>New Password</Text>
+            <View style={styles.passwordFieldContainer}>
+              <TextInput
+                value={newPassword}
+                onChangeText={setNewPassword}
+                style={styles.passwordFieldInput}
+                placeholder="At least 6 characters"
+                placeholderTextColor={colors.textMuted}
+                secureTextEntry={!showNewPassword}
+                autoComplete="new-password"
+                editable={!isChangingPassword}
+              />
+              <Pressable
+                onPress={() => setShowNewPassword(!showNewPassword)}
+                hitSlop={hitSlop.icon}
+                style={styles.passwordEyeBtn}
+              >
+                <MaterialIcons
+                  name={showNewPassword ? 'visibility' : 'visibility-off'}
+                  size={20}
+                  color={colors.textMuted}
+                />
+              </Pressable>
+            </View>
+            {newPassword.length > 0 && newPassword.length < 6 && (
+              <Text style={styles.passwordHint}>Must be at least 6 characters</Text>
+            )}
+
+            {/* Confirm New Password */}
+            <Text style={styles.inputLabelRequired}>Confirm New Password</Text>
+            <View style={styles.passwordFieldContainer}>
+              <TextInput
+                value={confirmNewPassword}
+                onChangeText={setConfirmNewPassword}
+                style={styles.passwordFieldInput}
+                placeholder="Re-enter new password"
+                placeholderTextColor={colors.textMuted}
+                secureTextEntry={!showConfirmNewPassword}
+                autoComplete="new-password"
+                editable={!isChangingPassword}
+              />
+              <Pressable
+                onPress={() => setShowConfirmNewPassword(!showConfirmNewPassword)}
+                hitSlop={hitSlop.icon}
+                style={styles.passwordEyeBtn}
+              >
+                <MaterialIcons
+                  name={showConfirmNewPassword ? 'visibility' : 'visibility-off'}
+                  size={20}
+                  color={colors.textMuted}
+                />
+              </Pressable>
+            </View>
+            {confirmNewPassword.length > 0 && confirmNewPassword !== newPassword && (
+              <Text style={styles.passwordHint}>Passwords don't match</Text>
+            )}
+
+            {/* Error */}
+            {passwordError && (
+              <Text style={styles.passwordError}>{passwordError}</Text>
+            )}
+
+            {/* Submit */}
+            <View style={styles.fullModalButtonArea}>
+              <PrimaryButton
+                label={isChangingPassword ? 'Updating...' : 'Update Password'}
+                onPress={handleChangePassword}
+                disabled={
+                  !currentPassword ||
+                  newPassword.length < 6 ||
+                  newPassword !== confirmNewPassword ||
+                  isChangingPassword
+                }
+              />
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
+
       {/* ─── Delete Account Confirmation ───────── */}
       <ConfirmationDialog
         visible={showDeleteAccountDialog}
@@ -932,7 +1180,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   deletedSectionCard: {
-    borderColor: childColorWithOpacity('#E8724A', 0.25),
+    borderColor: childColorWithOpacity(colors.accent, 0.25),
   },
   // ─── Rows ──────────────────────────────
   row: {
@@ -1112,6 +1360,37 @@ const styles = StyleSheet.create({
   },
   fullModalButtonArea: {
     marginTop: spacing(4),
+  },
+  // ─── Change Password Modal ────────────
+  passwordFieldContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    marginBottom: spacing(3),
+  },
+  passwordFieldInput: {
+    ...typography.formLabel,
+    color: colors.text,
+    flex: 1,
+    paddingVertical: spacing(3),
+    paddingHorizontal: spacing(3),
+  },
+  passwordEyeBtn: {
+    paddingHorizontal: spacing(3),
+  },
+  passwordHint: {
+    ...typography.caption,
+    color: colors.warning,
+    marginTop: -spacing(2),
+    marginBottom: spacing(3),
+  },
+  passwordError: {
+    ...typography.caption,
+    color: colors.danger,
+    marginBottom: spacing(4),
   },
   removeChildBtn: {
     alignItems: 'center',

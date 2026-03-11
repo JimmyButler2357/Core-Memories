@@ -12,6 +12,8 @@ import {
 } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
+import DraftBadge from '@/components/DraftBadge';
+import type { DraftStatus } from '@/stores/draftStore';
 
 // ─── Highlight Helper ────────────────────────────────────
 
@@ -57,7 +59,7 @@ function HighlightedText({
 }
 
 const highlightStyle = {
-  backgroundColor: 'rgba(232,114,74,0.20)',
+  backgroundColor: childColorWithOpacity(colors.accent, 0.20),
 };
 
 // ─── Quick-Blend Gradient Stops ─────────────────────────
@@ -124,6 +126,9 @@ interface EntryCardProps {
   index?: number;
   highlightQuery?: string;
   showTags?: boolean;
+  /** When set, shows a sync status badge (pending/syncing/failed).
+   *  Used for offline drafts that haven't been uploaded yet. */
+  syncStatus?: DraftStatus;
 }
 
 /**
@@ -143,6 +148,7 @@ export default function EntryCard({
   index = 0,
   highlightQuery,
   showTags = true,
+  syncStatus,
 }: EntryCardProps) {
   const isCoreMemory = variant === 'coreMemory';
   const reduceMotion = useReduceMotion();
@@ -192,6 +198,7 @@ export default function EntryCard({
           styles.card,
           isCoreMemory ? styles.coreMemoryCard : styles.homeCard,
           entry.isFavorited && !isCoreMemory && styles.favoritedCard,
+          syncStatus && { opacity: 0.85 },
           pressed && { backgroundColor: colors.cardPressed },
         ]}
       >
@@ -237,7 +244,9 @@ export default function EntryCard({
               {entry.date}
             </Text>
           </View>
-          {entry.isFavorited && (
+          {syncStatus ? (
+            <DraftBadge status={syncStatus} />
+          ) : entry.isFavorited ? (
             <View style={styles.heartRow}>
               <Ionicons
                 name="heart"
@@ -245,7 +254,7 @@ export default function EntryCard({
                 color={colors.glow}
               />
             </View>
-          )}
+          ) : null}
         </View>
 
         {/* Title — AI-generated or user-edited entry name */}
@@ -340,7 +349,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingBottom: 14,
     borderWidth: 1,
-    borderColor: 'rgba(180,160,140,0.35)',
+    borderColor: colors.borderWarm,
     shadowColor: colors.glow,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.10,
@@ -348,8 +357,8 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   favoritedCard: {
-    borderColor: childColorWithOpacity('#E8724A', 0.25),
-    shadowColor: '#E8724A',
+    borderColor: childColorWithOpacity(colors.accent, 0.25),
+    shadowColor: colors.accent,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,

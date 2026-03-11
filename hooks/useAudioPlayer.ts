@@ -112,18 +112,22 @@ export function useAudioPlayer(): UseAudioPlayerResult {
 
   const play = useCallback(async () => {
     if (!soundRef.current) return;
+    setIsPlaying(true); // Optimistic — update UI instantly, don't wait for native callback
     try {
       await soundRef.current.playAsync();
     } catch (err) {
+      setIsPlaying(false); // Rollback — native play failed, undo the optimistic update
       console.warn('Play failed:', err);
     }
   }, []);
 
   const pause = useCallback(async () => {
     if (!soundRef.current) return;
+    setIsPlaying(false); // Optimistic — update UI instantly, don't wait for native callback
     try {
       await soundRef.current.pauseAsync();
     } catch (err) {
+      setIsPlaying(true); // Rollback — native pause failed, undo the optimistic update
       console.warn('Pause failed:', err);
     }
   }, []);
