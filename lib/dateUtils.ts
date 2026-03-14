@@ -5,15 +5,19 @@
 // only need to happen in one place.
 
 /**
- * Format a date for display in cards and lists.
- * "Mon, Jan 5" (short) or "Monday, Jan 5" (long).
+ * Format a date for display.
+ * 'short' → "Mon, Jan 5" (cards, lists)
+ * 'long'  → "Jan 5, 2026" (entry detail — no weekday, includes year)
  */
 export function formatDate(
   iso: string,
-  weekday: 'short' | 'long' = 'short',
+  variant: 'short' | 'long' = 'short',
 ): string {
   const d = new Date(iso);
-  return d.toLocaleDateString('en-US', { weekday, month: 'short', day: 'numeric' });
+  if (variant === 'long') {
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
 /**

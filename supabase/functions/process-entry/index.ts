@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
 
 1. "title": A short, warm title for this memory (maximum 8 words). Use the child's name if mentioned. Examples: "Emma's First Giggle", "Bath Time Chaos", "Dancing in the Rain". Do not wrap the title in quotes. If the transcript is garbled, incoherent, or doesn't describe a recognizable memory, set title to null.
 
-2. "cleaned_transcript": The same transcript with filler words removed (um, uh, like, you know, so, basically, I mean, kind of, sort of) and obvious speech-to-text errors fixed. IMPORTANT: Preserve the parent's authentic voice and meaning. Do NOT rewrite, summarize, or paraphrase. Only remove filler and fix errors.
+2. "cleaned_transcript": The same transcript with any remaining filler words removed (um, uh, like, you know, so, basically, I mean, kind of, sort of) and obvious speech-to-text errors fixed. Clean up extra spaces (the speech engine sometimes leaves gaps where it removed filler words). Capitalize the first word of every sentence. IMPORTANT: Preserve the parent's authentic voice and meaning. Do NOT rewrite, summarize, or paraphrase. Only remove filler and fix errors.
 
 3. "tags": An array of objects, each with "slug" and "confidence" (0.0 to 1.0). Pick the most relevant tags from this taxonomy: [${tagTaxonomy}]. Maximum 3 tags. Only include tags with confidence >= 0.5.
 

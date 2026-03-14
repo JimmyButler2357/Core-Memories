@@ -36,7 +36,7 @@ import { useUIStore } from '@/stores/uiStore';
 import { useAuthStore } from '@/stores/authStore';
 import { childrenService } from '@/services/children.service';
 import { entriesService } from '@/services/entries.service';
-import { useSearchFilter, collectTags, collectLocations } from '@/hooks/useSearchFilter';
+import { useSearchFilter, collectLocations, getAvailableTags } from '@/hooks/useSearchFilter';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { getAge } from '@/lib/dateUtils';
 import { buildChildMap, entryToCard, draftToCard } from '@/lib/entryHelpers';
@@ -47,6 +47,7 @@ import TopBar from '@/components/TopBar';
 import ChildTab from '@/components/ChildTab';
 import EntryCard from '@/components/EntryCard';
 import MicButton from '@/components/MicButton';
+import DropdownMenu from '@/components/DropdownMenu';
 import SearchBar from '@/components/SearchBar';
 import FilterChips from '@/components/FilterChips';
 import DateRangePicker from '@/components/DateRangePicker';
@@ -69,6 +70,12 @@ export default function HomeScreen() {
   const setFilter = useUIStore((s) => s.setActiveChildFilter);
   const familyId = useAuthStore((s) => s.familyId);
   const userId = useAuthStore((s) => s.session?.user?.id);
+  const signOut = useAuthStore((s) => s.signOut);
+  const clearChildren = useChildrenStore((s) => s.clearChildren);
+  const clearEntries = useEntriesStore((s) => s.clearEntries);
+
+  // Dropdown menu state
+  const [menuVisible, setMenuVisible] = useState(false);
 
   // Draft sync — watches connectivity and auto-syncs offline drafts
   const { retryDraft } = useDraftSync();
@@ -194,13 +201,59 @@ export default function HomeScreen() {
     return searchFilter.filterEntries(childFiltered);
   }, [childFiltered, isSearchActive, searchFilter.filterEntries, searchFilter.query, searchFilter.selectedTags, searchFilter.selectedLocations, searchFilter.dateRangeIndex]);
 
-  // Unique tags from all entries (for filter chips)
-  const allTags = useMemo(() => collectTags(entries), [entries]);
+  // Tags that would still produce results if selected (progressive disclosure)
+  const availableTags = useMemo(
+    () => getAvailableTags(displayedEntries, searchFilter.selectedTags),
+    [displayedEntries, searchFilter.selectedTags],
+  );
+  // Selected tags first (so user can deselect), then available ones
+  const visibleTags = useMemo(
+    () => [...searchFilter.selectedTags, ...availableTags],
+    [searchFilter.selectedTags, availableTags],
+  );
   const allLocations = useMemo(() => collectLocations(entries), [entries]);
 
   const isMultiChild = children.length >= 2;
   const isSingleChild = children.length === 1;
   const isFirstEntry = activeEntries.length === 1;
+
+  // ─── Menu Handlers ──────────────────────────────────────
+
+  const handleMenuNavigate = useCallback((screen: string) => {
+    router.push(`/(main)/${screen}` as any);
+  }, [router]);
+
+  // Sign out — same logic as settings.tsx used to have.
+  // Checks for pending drafts first and warns the user.
+  const handleSignOut = useCallback(async () => {
+    const pendingDrafts = userId
+      ? useDraftStore.getState().getDraftsForUser(userId)
+      : [];
+
+    const doSignOut = async () => {
+      try {
+        await signOut();
+        clearChildren();
+        clearEntries();
+        router.replace('/(onboarding)');
+      } catch (error) {
+        console.warn('Sign out error:', error);
+      }
+    };
+
+    if (pendingDrafts.length > 0) {
+      Alert.alert(
+        'Unsent memories',
+        `You have ${pendingDrafts.length} ${pendingDrafts.length === 1 ? 'memory' : 'memories'} waiting to sync. They'll be here when you sign back in.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign Out', style: 'destructive', onPress: doSignOut },
+        ],
+      );
+    } else {
+      await doSignOut();
+    }
+  }, [userId, signOut, clearChildren, clearEntries, router]);
 
   // Build child lookup for fast access
   const childMap = useMemo(() => buildChildMap(children), [children]);
@@ -262,7 +315,7 @@ export default function HomeScreen() {
             onPress: toggleSearchMode,
           },
           { icon: 'heart-outline' as const, onPress: () => router.push('/(main)/core-memories') },
-          { icon: 'settings-outline' as const, onPress: () => router.push('/(main)/settings') },
+          { icon: 'menu-outline' as const, onPress: () => setMenuVisible(true) },
         ]}
       />
 
@@ -275,7 +328,7 @@ export default function HomeScreen() {
           onClear={() => searchFilter.setQuery('')}
         />
         <FilterChips
-          allTags={allTags}
+          allTags={visibleTags}
           selectedTags={searchFilter.selectedTags}
           onToggleTag={searchFilter.toggleTag}
           allLocations={allLocations}
@@ -482,6 +535,14 @@ export default function HomeScreen() {
           </Pressable>
         </View>
       </View>
+
+      {/* Dropdown menu — anchored below the menu icon */}
+      <DropdownMenu
+        visible={menuVisible}
+        onClose={() => setMenuVisible(false)}
+        onNavigate={handleMenuNavigate}
+        onSignOut={handleSignOut}
+      />
     </View>
   );
 }

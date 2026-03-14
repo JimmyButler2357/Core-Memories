@@ -84,7 +84,8 @@ export default function NotificationsScreen() {
           <Ionicons name="notifications" size={36} color={colors.glow} />
         </View>
 
-        <Text style={styles.heading}>Do you want a reminder to capture the day's memories?</Text>
+        <Text style={styles.heading}>Don't let today's stories fade.</Text>
+        <Text style={styles.subheading}>We'll send a gentle nudge to capture the day's moments.</Text>
 
         <View style={styles.timeList}>
           <FlatList
@@ -158,6 +159,14 @@ const styles = StyleSheet.create({
     ...typography.sectionHeading,
     color: colors.text,
     textAlign: 'center',
+    marginBottom: spacing(3),
+  },
+  subheading: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: colors.textSoft,
+    textAlign: 'center',
+    lineHeight: 22,
     marginBottom: spacing(6),
   },
   timeList: {

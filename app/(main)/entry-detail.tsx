@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   GestureResponderEvent,
   Keyboard,
+  Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,6 +27,7 @@ import {
   childColorWithOpacity,
   hitSlop,
   minTouchTarget,
+  fonts,
 } from '@/constants/theme';
 import { useEntriesStore, mapSupabaseEntry } from '@/stores/entriesStore';
 import type { Entry } from '@/stores/entriesStore';
@@ -33,12 +35,12 @@ import { useChildrenStore, type Child } from '@/stores/childrenStore';
 import { useAuthStore } from '@/stores/authStore';
 import { entriesService } from '@/services/entries.service';
 import { storageService } from '@/services/storage.service';
-import ChildPill from '@/components/ChildPill';
 import TagPill from '@/components/TagPill';
-import PaperTexture from '@/components/PaperTexture';
 import ConfirmationDialog from '@/components/ConfirmationDialog';
+import ChildSelectModal from '@/components/ChildSelectModal';
 import CityAutocomplete from '@/components/CityAutocomplete';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { useLocationPermission, useLocation } from '@/hooks/useLocation';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
@@ -86,9 +88,13 @@ function FadeInUp({ children, skip }: { children: React.ReactNode; skip: boolean
 // ─── Frequent Tags ────────────────────────────────────────
 
 const FREQUENT_TAGS = [
-  'funny', 'milestone', 'first', 'sweet',
-  'bedtime', 'outing', 'words', 'siblings',
+  'funny', 'milestone', 'first', 'sweet', 'family',
+  'bedtime', 'outing', 'words', 'siblings', 'school',
 ];
+
+// ─── Audio Constants ────────────────────────────────────
+
+const MAX_RECORDING_DURATION_MS = 180_000; // 3 minutes
 
 // ─── Waveform Constants ──────────────────────────────────
 
@@ -228,9 +234,15 @@ export default function EntryDetailScreen() {
   // Local UI state
   const [transcript, setTranscript] = useState('');
   const [showChildPicker, setShowChildPicker] = useState(false);
+  // When true, the child picker is mandatory — the user must select
+  // at least one child before interacting with the rest of the entry.
+  // This fires when the auto-detect found no child names in a
+  // multi-child family (e.g. a "whole family" recording).
+  const [needsChildSelection, setNeedsChildSelection] = useState(false);
   const [showTagEditor, setShowTagEditor] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showReRecordDialog, setShowReRecordDialog] = useState(false);
+  const [showAppendDialog, setShowAppendDialog] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const [saveIndicator, setSaveIndicator] = useState(false);
   const [showBanner, setShowBanner] = useState(!!params.audioUri);
@@ -267,6 +279,22 @@ export default function EntryDetailScreen() {
   // Reset when entry changes so a different entry's audio can get its own retry.
   const hasAutoRetried = useRef(false);
   useEffect(() => { hasAutoRetried.current = false; }, [entry?.id]);
+
+  // Ref mirrors needsChildSelection so the beforeRemove listener (which
+  // captures values at mount time) always reads the latest value.
+  const needsChildSelectionRef = useRef(needsChildSelection);
+  needsChildSelectionRef.current = needsChildSelection;
+
+  // Block back-navigation (hardware back on Android, swipe-back on iOS)
+  // while the child selection modal is open. Without this, the user
+  // could leave the screen with zero children on the entry.
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      if (!needsChildSelectionRef.current) return; // not mandatory — allow
+      e.preventDefault(); // block navigation
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   // Static waveform bar heights — no animation needed. The visual
   // "movement" comes from the color sweep (bars fill from muted to
@@ -381,7 +409,10 @@ export default function EntryDetailScreen() {
           const detectPromise = (async () => {
             // Detect children mentioned by name/nickname
             let detectedChildIds = detectChildren(transcriptText, allChildren);
-            if (detectedChildIds.length === 0 && allChildren.length > 0) {
+            // Single child → auto-assign (no ambiguity).
+            // Multi-child + no detection → leave empty; the mandatory
+            // child picker will prompt the user to choose.
+            if (detectedChildIds.length === 0 && allChildren.length === 1) {
               detectedChildIds = [allChildren[0].id];
             }
             if (detectedChildIds.length > 0) {
@@ -428,6 +459,12 @@ export default function EntryDetailScreen() {
           setEntry(mapped);
           setTranscript(mapped.text);
           setLocationInput(mapped.locationText ?? '');
+
+          // Multi-child family + no children detected → show the modal
+          // so the user can pick who this memory is about.
+          if (mapped.childIds.length === 0 && allChildren.length > 1) {
+            setNeedsChildSelection(true);
+          }
 
           // If AI was fast and title is already here, skip the fade-in animation
           if (mapped.title) {
@@ -925,6 +962,18 @@ export default function EntryDetailScreen() {
     });
   };
 
+  const handleAppendAudio = () => {
+    setShowAppendDialog(false);
+    router.push({
+      pathname: '/(main)/recording',
+      params: {
+        appendEntryId: entry.id,
+        appendStoragePath: entry.audioStoragePath ?? '',
+        appendTranscript: transcript,
+      },
+    });
+  };
+
   // Touch-to-seek — tap anywhere on the waveform to jump
   // to that position in the audio. Think of it like tapping
   // a spot on a ruler — we figure out what percentage of the
@@ -950,15 +999,10 @@ export default function EntryDetailScreen() {
   const audioHasError = !!player.error;
   const audioMissing = isVoiceEntry && !entry.hasAudio;
 
-  // Age line
-  const ageLine = entryChildren
-    .map((c) => `${c.name} ${getAge(c.birthday, entry.date)}`)
-    .join(' · ');
-
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior="padding"
     >
       {/* Top bar */}
       <View style={[styles.topBar, { paddingTop: insets.top + spacing(3) }]}>
@@ -984,9 +1028,9 @@ export default function EntryDetailScreen() {
           <Pressable
             onPress={() => setShowDeleteDialog(true)}
             hitSlop={hitSlop.icon}
-            style={({ pressed }) => [styles.iconBtn, pressed && { opacity: 0.6 }]}
+            style={({ pressed }) => [styles.overflowBtn, pressed && { opacity: 0.6 }]}
           >
-            <Ionicons name="trash-outline" size={20} color={colors.text} />
+            <Text style={styles.overflowText}>···</Text>
           </Pressable>
         </View>
       </View>
@@ -1004,8 +1048,7 @@ export default function EntryDetailScreen() {
           </Animated.View>
         )}
 
-        {/* Title — shows immediately if AI already returned one,
-             otherwise shows "Add a title..." placeholder */}
+        {/* ── 1. Title — the hero element ── */}
         <FadeInUp skip={reduceMotion || titleWasImmediate.current}>
           <TextInput
             style={styles.titleText}
@@ -1014,18 +1057,75 @@ export default function EntryDetailScreen() {
             placeholder="Add a title..."
             placeholderTextColor={colors.textMuted}
             maxLength={60}
+            multiline
+            blurOnSubmit
           />
         </FadeInUp>
 
-        {/* Line 1: Date + time — tap to change date */}
-        <Pressable
-          onPress={() => setShowDatePicker(true)}
-          style={styles.dateLine}
-        >
-          <Text style={styles.dateText}>{formatDate(entry.date, 'long')}</Text>
-          <Text style={styles.timeText}>{formatTime(entry.createdAt ?? entry.date)}</Text>
-          <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
-        </Pressable>
+        {/* ── 2. Gradient divider — child colors ── */}
+        <LinearGradient
+          colors={
+            waveformChildColors.length >= 2
+              ? [waveformChildColors[0], waveformChildColors[waveformChildColors.length - 1]]
+              : waveformChildColors.length === 1
+                ? [waveformChildColors[0], waveformChildColors[0]]
+                : [colors.accent, colors.accent]
+          }
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.gradientDivider}
+        />
+
+        {/* ── 3. Mini child pills + add button ── */}
+        <View style={styles.childLine}>
+          {entryChildren.map((child) => {
+            const hex = childColors[child.colorIndex]?.hex ?? childColors[0].hex;
+            const age = getAge(child.birthday, entry.date);
+            return (
+              <View
+                key={child.id}
+                style={[styles.miniPill, { backgroundColor: childColorWithOpacity(hex, 0.12) }]}
+              >
+                <View style={[styles.miniPillDot, { backgroundColor: hex }]} />
+                <Text style={[styles.miniPillName, { color: hex }]}>{child.name}</Text>
+                <Text style={[styles.miniPillAge, { color: childColorWithOpacity(hex, 0.6) }]}>{age}</Text>
+                <Pressable
+                  onPress={() => handleRemoveChildFromEntry(child.id)}
+                  hitSlop={hitSlop.icon}
+                >
+                  <Text style={[styles.miniPillRemove, { color: hex }]}>×</Text>
+                </Pressable>
+              </View>
+            );
+          })}
+          {!allChildrenTagged && (
+            <Pressable
+              onPress={() => setShowChildPicker(!showChildPicker)}
+              hitSlop={hitSlop.icon}
+              style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.6 }]}
+            >
+              <Ionicons name="add" size={12} color={colors.textMuted} />
+            </Pressable>
+          )}
+        </View>
+
+        {/* ── 4. Metadata line — date · time · location (inline) ── */}
+        <View style={styles.metaLine}>
+          <Pressable onPress={() => setShowDatePicker(true)}>
+            <Text style={styles.metaText}>
+              {formatDate(entry.date, 'long')} · {formatTime(entry.createdAt ?? entry.date)}
+            </Text>
+          </Pressable>
+          {entry.locationText ? (
+            <Pressable onPress={() => setEditingLocation(true)}>
+              <Text style={styles.metaText}> · {entry.locationText}</Text>
+            </Pressable>
+          ) : permissionGranted && !editingLocation ? (
+            <Pressable onPress={() => setEditingLocation(true)}>
+              <Text style={styles.metaLocationAdd}> · + Add location</Text>
+            </Pressable>
+          ) : null}
+        </View>
 
         {/* Inline date picker — iOS shows inline, Android shows modal */}
         {showDatePicker && (
@@ -1051,90 +1151,39 @@ export default function EntryDetailScreen() {
           </FadeInUp>
         )}
 
-        {/* Line 2: Location
-             - Permission granted + has location → show, tappable to edit
-             - Permission granted + no location → show "Add location" placeholder
-             - Permission revoked + has location → show read-only (data still visible)
-             - Permission revoked + no location → hide entirely (no wasted space) */}
-        {(permissionGranted || entry.locationText) && (
-          <>
-            <Pressable
-              onPress={permissionGranted ? () => setEditingLocation(true) : undefined}
-              disabled={!permissionGranted}
-              style={styles.locationLine}
-              hitSlop={hitSlop.icon}
-            >
-              <Ionicons
-                name="location-outline"
-                size={14}
-                color={colors.textMuted}
+        {/* Location editor — expands inline when editing */}
+        {editingLocation && permissionGranted && (
+          <FadeInUp skip={reduceMotion}>
+            <View style={styles.locationEditorCard}>
+              <CityAutocomplete
+                value={locationInput}
+                onChangeText={setLocationInput}
+                onSelect={setLocationInput}
+                onSubmit={() => handleLocationSave(locationInput)}
+                autoFocus
               />
-              <Text style={styles.locationText}>
-                {entry.locationText || 'Add location'}
-              </Text>
-            </Pressable>
-
-            {editingLocation && permissionGranted && (
-              <FadeInUp skip={reduceMotion}>
-                <View style={styles.locationEditorCard}>
-                  <CityAutocomplete
-                    value={locationInput}
-                    onChangeText={setLocationInput}
-                    onSelect={setLocationInput}
-                    onSubmit={() => handleLocationSave(locationInput)}
-                    autoFocus
-                  />
-                  <View style={styles.locationActions}>
-                    <Pressable
-                      onPress={() => {
-                        setLocationInput('');
-                        handleLocationSave('');
-                      }}
-                      style={styles.locationClearBtn}
-                    >
-                      <Text style={styles.locationClearText}>Clear</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => handleLocationSave(locationInput)}
-                      style={styles.locationDoneBtn}
-                    >
-                      <Text style={styles.locationDoneText}>Done</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              </FadeInUp>
-            )}
-          </>
+              <View style={styles.locationActions}>
+                <Pressable
+                  onPress={() => {
+                    setLocationInput('');
+                    handleLocationSave('');
+                  }}
+                  style={styles.locationClearBtn}
+                >
+                  <Text style={styles.locationClearText}>Clear</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => handleLocationSave(locationInput)}
+                  style={styles.locationDoneBtn}
+                >
+                  <Text style={styles.locationDoneText}>Done</Text>
+                </Pressable>
+              </View>
+            </View>
+          </FadeInUp>
         )}
 
-        {/* Line 3: Child pills + add button */}
-        <View style={styles.childLine}>
-          {entryChildren.map((child) => (
-            <ChildPill
-              key={child.id}
-              name={child.name}
-              color={childColors[child.colorIndex]?.hex ?? childColors[0].hex}
-              showRemove
-              onRemove={() => handleRemoveChildFromEntry(child.id)}
-            />
-          ))}
-          {!allChildrenTagged && (
-            <Pressable
-              onPress={() => setShowChildPicker(!showChildPicker)}
-              hitSlop={hitSlop.icon}
-              style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.6 }]}
-            >
-              <Ionicons name="add" size={18} color={colors.accent} />
-            </Pressable>
-          )}
-        </View>
-
-        {/* Line 3: Age line */}
-        {ageLine.length > 0 && (
-          <Text style={styles.ageLine}>{ageLine}</Text>
-        )}
-
-        {/* Child Picker */}
+        {/* Child Picker — expands inline when adding children */}
         {showChildPicker && (
           <FadeInUp skip={reduceMotion}>
             <View style={styles.pickerCard}>
@@ -1179,12 +1228,157 @@ export default function EntryDetailScreen() {
           </FadeInUp>
         )}
 
-        {/* Tags Row */}
+        {/* ── 5. Transcript — flows on page background, no card ── */}
+
+        {/* Transcript hint — when voice recording produced no text */}
+        {isVoiceEntry && !transcript && (
+          <View style={styles.transcriptHint}>
+            <Ionicons name="create-outline" size={14} color={colors.textMuted} />
+            <Text style={styles.transcriptHintText}>
+              No speech detected — type your memory below
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.transcriptCard}>
+          <TextInput
+            style={styles.transcriptInput}
+            value={transcript}
+            onChangeText={handleTranscriptChange}
+            placeholder="Start typing your memory..."
+            placeholderTextColor={colors.textMuted}
+            multiline
+            textAlignVertical="top"
+            scrollEnabled
+          />
+        </View>
+        {saveIndicator && (
+          <Text style={styles.savedIndicator}>All changes saved</Text>
+        )}
+
+        {/* ── 6. Audio Playback Bar — prominent, below transcript ── */}
+        {isVoiceEntry && (
+          <View style={styles.audioBar}>
+            {/* Play button / Loading spinner / Error icon */}
+            <Pressable
+              onPress={() => {
+                if (audioHasError || audioMissing || audioIsLoading) return;
+                player.isPlaying ? player.pause() : player.play();
+              }}
+              style={styles.playBtn}
+              disabled={!player.isLoaded}
+            >
+              {audioIsLoading ? (
+                <ActivityIndicator size={14} color={colors.accent} />
+              ) : audioHasError ? (
+                <Ionicons name="alert-circle" size={16} color={colors.danger} />
+              ) : (
+                <Ionicons
+                  name={player.isPlaying ? 'pause' : 'play'}
+                  size={16}
+                  color={player.isLoaded ? colors.accent : colors.textMuted}
+                />
+              )}
+            </Pressable>
+
+            {/* Waveform area / Error text / No-audio text */}
+            {audioHasError ? (
+              <View style={styles.waveformMessageArea}>
+                <Text style={styles.audioErrorText}>Couldn't load audio</Text>
+                <Text style={styles.audioErrorDot}> · </Text>
+                <Pressable onPress={handleAudioRetry} hitSlop={hitSlop.icon}>
+                  <Text style={styles.audioRetryLink}>Retry</Text>
+                </Pressable>
+              </View>
+            ) : audioMissing ? (
+              <View style={styles.waveformMessageArea}>
+                <Text style={styles.audioMissingText}>Audio unavailable</Text>
+              </View>
+            ) : (
+              <Pressable
+                style={styles.waveformArea}
+                onPress={handleWaveformPress}
+                onLayout={(e) => { waveformWidthRef.current = e.nativeEvent.layout.width; }}
+                disabled={!player.isLoaded}
+              >
+                {BAR_REST_HEIGHTS.map((barHeight, i) => {
+                  const barRatio = i / (WAVEFORM_BAR_COUNT - 1);
+                  const playedRatio = player.duration > 0
+                    ? player.position / player.duration
+                    : 0;
+                  const isPlayed = barRatio <= playedRatio;
+                  const barHex = barColors[i];
+
+                  return (
+                    <View
+                      key={i}
+                      style={{
+                        width: WAVEFORM_BAR_WIDTH,
+                        height: barHeight,
+                        borderRadius: WAVEFORM_BAR_WIDTH / 2,
+                        backgroundColor: isPlayed
+                          ? barHex
+                          : childColorWithOpacity(barHex, 0.3),
+                      }}
+                    />
+                  );
+                })}
+              </Pressable>
+            )}
+
+            {/* Duration / Loading text */}
+            {!audioHasError && !audioMissing && (
+              <Text style={styles.audioDuration}>
+                {audioIsLoading
+                  ? 'Loading...'
+                  : player.duration > 0
+                    ? formatDuration(player.isPlaying ? player.position : player.duration, true)
+                    : '--:--'}
+              </Text>
+            )}
+
+            {/* Re-record & Add More buttons (hidden during loading) */}
+            {!audioIsLoading && (
+              <View style={styles.audioActions}>
+                <Pressable
+                  onPress={() => setShowReRecordDialog(true)}
+                  hitSlop={hitSlop.icon}
+                  style={({ pressed }) => [styles.reRecordBtn, pressed && { opacity: 0.6 }]}
+                >
+                  <Ionicons name="mic-outline" size={18} color={colors.accent} />
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    if (player.duration >= MAX_RECORDING_DURATION_MS) {
+                      Alert.alert(
+                        'This memory is full',
+                        'Recordings can be up to three minutes. You can record again to start fresh.',
+                      );
+                    } else {
+                      setShowAppendDialog(true);
+                    }
+                  }}
+                  hitSlop={hitSlop.icon}
+                  style={({ pressed }) => [
+                    styles.reRecordBtn,
+                    pressed && { opacity: 0.6 },
+                    player.duration >= MAX_RECORDING_DURATION_MS && { opacity: 0.35 },
+                  ]}
+                >
+                  <Ionicons name="add-outline" size={18} color={colors.accent} />
+                </Pressable>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* ── 7. Tags — footnote styling at the very bottom ── */}
         <View style={styles.tagsRow}>
           {entry.tags.map((tag) => (
             <TagPill
               key={tag}
               label={tag}
+              variant="muted"
               onRemove={() => handleRemoveTag(tag)}
             />
           ))}
@@ -1239,129 +1433,6 @@ export default function EntryDetailScreen() {
             </View>
           </FadeInUp>
         )}
-
-        {/* Transcript hint — when voice recording produced no text */}
-        {isVoiceEntry && !transcript && (
-          <View style={styles.transcriptHint}>
-            <Ionicons name="create-outline" size={14} color={colors.textMuted} />
-            <Text style={styles.transcriptHintText}>
-              No speech detected — type your memory below
-            </Text>
-          </View>
-        )}
-
-        {/* Transcript Area */}
-        <View style={styles.transcriptCard}>
-          <PaperTexture />
-          <TextInput
-            style={styles.transcriptInput}
-            value={transcript}
-            onChangeText={handleTranscriptChange}
-            placeholder="Start typing your memory..."
-            placeholderTextColor={colors.textMuted}
-            multiline
-            textAlignVertical="top"
-          />
-        </View>
-        {saveIndicator && (
-          <Text style={styles.savedIndicator}>All changes saved</Text>
-        )}
-
-        {/* Audio Playback Bar — always visible for voice entries */}
-        {isVoiceEntry && (
-          <View style={styles.audioBar}>
-            {/* Play button / Loading spinner / Error icon */}
-            <Pressable
-              onPress={() => {
-                if (audioHasError || audioMissing || audioIsLoading) return;
-                player.isPlaying ? player.pause() : player.play();
-              }}
-              style={styles.playBtn}
-              disabled={!player.isLoaded}
-            >
-              {audioIsLoading ? (
-                <ActivityIndicator size={14} color={colors.accent} />
-              ) : audioHasError ? (
-                <Ionicons name="alert-circle" size={16} color={colors.danger} />
-              ) : (
-                <Ionicons
-                  name={player.isPlaying ? 'pause' : 'play'}
-                  size={16}
-                  color={player.isLoaded ? colors.accent : colors.textMuted}
-                />
-              )}
-            </Pressable>
-
-            {/* Waveform area / Error text / No-audio text */}
-            {audioHasError ? (
-              <View style={styles.waveformMessageArea}>
-                <Text style={styles.audioErrorText}>Couldn't load audio</Text>
-                <Text style={styles.audioErrorDot}> · </Text>
-                <Pressable onPress={handleAudioRetry} hitSlop={hitSlop.icon}>
-                  <Text style={styles.audioRetryLink}>Retry</Text>
-                </Pressable>
-              </View>
-            ) : audioMissing ? (
-              <View style={styles.waveformMessageArea}>
-                <Text style={styles.audioMissingText}>Audio unavailable</Text>
-              </View>
-            ) : (
-              <Pressable
-                style={styles.waveformArea}
-                onPress={handleWaveformPress}
-                onLayout={(e) => { waveformWidthRef.current = e.nativeEvent.layout.width; }}
-                disabled={!player.isLoaded}
-              >
-                {BAR_REST_HEIGHTS.map((barHeight, i) => {
-                  // Figure out if this bar is "played" (behind the
-                  // playback position) or "unplayed" (ahead of it)
-                  const barRatio = i / (WAVEFORM_BAR_COUNT - 1);
-                  const playedRatio = player.duration > 0
-                    ? player.position / player.duration
-                    : 0;
-                  const isPlayed = barRatio <= playedRatio;
-                  const barHex = barColors[i];
-
-                  return (
-                    <View
-                      key={i}
-                      style={{
-                        width: WAVEFORM_BAR_WIDTH,
-                        height: barHeight,
-                        borderRadius: WAVEFORM_BAR_WIDTH / 2,
-                        backgroundColor: isPlayed
-                          ? barHex
-                          : childColorWithOpacity(barHex, 0.3),
-                      }}
-                    />
-                  );
-                })}
-              </Pressable>
-            )}
-
-            {/* Duration / Loading text */}
-            {!audioHasError && !audioMissing && (
-              <Text style={styles.audioDuration}>
-                {audioIsLoading
-                  ? 'Loading...'
-                  : player.duration > 0
-                    ? formatDuration(player.isPlaying ? player.position : player.duration, true)
-                    : '--:--'}
-              </Text>
-            )}
-
-            {/* Re-record button (hidden during loading) */}
-            {!audioIsLoading && (
-              <Pressable
-                onPress={() => setShowReRecordDialog(true)}
-                hitSlop={hitSlop.icon}
-                style={({ pressed }) => [styles.reRecordBtn, pressed && { opacity: 0.6 }]}
-              >
-                <Ionicons name="mic-outline" size={16} color={colors.accent} />
-              </Pressable>
-            )}
-          </View>
-        )}
       </ScrollView>
 
       {/* Delete confirmation */}
@@ -1370,7 +1441,6 @@ export default function EntryDetailScreen() {
         title="Delete this memory?"
         body="Deleted entries can be recovered for 30 days."
         confirmLabel="Delete"
-        variant="danger"
         onConfirm={handleDelete}
         onCancel={() => setShowDeleteDialog(false)}
       />
@@ -1378,12 +1448,40 @@ export default function EntryDetailScreen() {
       {/* Re-record confirmation */}
       <ConfirmationDialog
         visible={showReRecordDialog}
-        title="Re-record this memory?"
-        body="Your current recording will be replaced with a new one. The transcript will update to match."
-        confirmLabel="Re-record"
-        variant="default"
+        title="Record this again?"
+        body="This will replace your current recording."
+        confirmLabel="Record again"
         onConfirm={handleReRecord}
         onCancel={() => setShowReRecordDialog(false)}
+      />
+
+      {/* Append audio confirmation */}
+      <ConfirmationDialog
+        visible={showAppendDialog}
+        title="Keep going?"
+        body="Your new recording will be added to the end of this one."
+        confirmLabel="Keep going"
+        onConfirm={handleAppendAudio}
+        onCancel={() => setShowAppendDialog(false)}
+      />
+
+      {/* Child selection modal — shown when no child names were detected */}
+      <ChildSelectModal
+        visible={needsChildSelection}
+        familyChildren={allChildren}
+        onConfirm={async (selectedIds) => {
+          setNeedsChildSelection(false);
+          // Update local state immediately so the UI reflects the choice
+          setEntry((prev) => prev ? { ...prev, childIds: selectedIds } : prev);
+          if (entry) {
+            updateEntryLocal(entry.id, { childIds: selectedIds });
+            try {
+              await entriesService.setEntryChildren(entry.id, selectedIds);
+            } catch (err) {
+              console.warn('Failed to save child selection:', err);
+            }
+          }
+        }}
       />
     </KeyboardAvoidingView>
   );
@@ -1453,29 +1551,80 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontWeight: '600',
   },
-  // ─── Title ─────────────────────────
+  // ─── Title (hero element) ────────────
   titleText: {
-    ...typography.onboardingHeading, // Merriweather Bold, 20px
+    fontFamily: fonts.serifBold,
+    fontSize: 22,
     color: colors.text,
-    lineHeight: 26,
+    lineHeight: 29,
     textAlign: 'left',
     marginBottom: spacing(2),
   },
-  // ─── Metadata ───────────────────────
-  dateLine: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: spacing(2),
-    marginBottom: spacing(3),
+  // ─── Gradient Divider ────────────────
+  gradientDivider: {
+    height: 3,
+    borderRadius: 2,
+    marginBottom: spacing(2),
   },
-  dateText: {
-    ...typography.formLabel,
+  // ─── Mini Child Pills ────────────────
+  miniPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    gap: 4,
+  },
+  miniPillDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  miniPillName: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  miniPillAge: {
+    fontSize: 11,
+    fontWeight: '400',
+  },
+  miniPillRemove: {
+    fontSize: 11,
+    opacity: 0.6,
+    fontWeight: '700',
+    marginLeft: 2,
+  },
+  // ─── Metadata Line ───────────────────
+  metaLine: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    marginBottom: spacing(2),
+    minHeight: minTouchTarget,
+  },
+  metaText: {
+    fontSize: 12,
+    color: colors.textMuted,
+    lineHeight: 16,
+  },
+  metaLocationAdd: {
+    fontSize: 12,
+    color: colors.textMuted,
+    lineHeight: 16,
+    fontStyle: 'italic',
+  },
+  // ─── Overflow Button ─────────────────
+  overflowBtn: {
+    minWidth: minTouchTarget,
+    minHeight: minTouchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  overflowText: {
+    fontSize: 20,
     fontWeight: '700',
     color: colors.text,
-  },
-  timeText: {
-    ...typography.caption,
-    color: colors.textMuted,
+    letterSpacing: 2,
   },
   // ─── Date Picker ──────────────────
   datePickerContainer: {
@@ -1497,17 +1646,6 @@ const styles = StyleSheet.create({
     color: colors.accent,
   },
   // ─── Location ─────────────────────
-  locationLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(1),
-    marginBottom: spacing(3),
-    minHeight: minTouchTarget,
-  },
-  locationText: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
   locationEditorCard: {
     backgroundColor: colors.card,
     borderWidth: 1,
@@ -1551,23 +1689,18 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     alignItems: 'center',
     gap: spacing(2),
-    marginBottom: spacing(2),
+    marginBottom: spacing(1),
   },
   addBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: colors.accent,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: colors.textMuted,
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: minTouchTarget,
     minHeight: minTouchTarget,
-  },
-  ageLine: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginBottom: spacing(4),
   },
   // ─── Child Picker ───────────────────
   pickerCard: {
@@ -1601,27 +1734,29 @@ const styles = StyleSheet.create({
     ...typography.formLabel,
     color: colors.accent,
   },
-  // ─── Tags ───────────────────────────
+  // ─── Tags (footnote-style at bottom) ─
   tagsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
-    gap: spacing(2),
+    gap: spacing(1.5),
+    marginTop: spacing(5),
     marginBottom: spacing(4),
   },
   addTagPill: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 2,
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     borderRadius: radii.sm,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: colors.accent,
+    borderColor: colors.border,
   },
   addTagPillText: {
-    ...typography.tag,
-    color: colors.accent,
+    fontSize: 10,
+    fontWeight: '500',
+    color: colors.textMuted,
   },
   // ─── Tag Editor ─────────────────────
   tagEditorCard: {
@@ -1657,6 +1792,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: spacing(2),
     borderRadius: radii.sm,
+    flexGrow: 1,
+    alignItems: 'center',
   },
   frequentPillActive: {
     backgroundColor: colors.accentSoft,
@@ -1668,13 +1805,12 @@ const styles = StyleSheet.create({
   frequentPillTextActive: {
     color: colors.accent,
   },
-  // ─── Transcript ─────────────────────
+  // ─── Transcript (flows on page bg) ──
   transcriptHint: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing(2),
     marginBottom: spacing(2),
-    paddingHorizontal: spacing(1),
   },
   transcriptHintText: {
     ...typography.caption,
@@ -1683,19 +1819,19 @@ const styles = StyleSheet.create({
   },
   transcriptCard: {
     backgroundColor: colors.card,
-    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    ...shadows.sm,
-    overflow: 'hidden',
+    borderRadius: radii.lg,
     padding: spacing(4),
-    minHeight: 200,
+    marginTop: spacing(3),
     marginBottom: spacing(2),
   },
   transcriptInput: {
     ...typography.transcript,
+    lineHeight: 25,
     color: colors.text,
     minHeight: 180,
+    maxHeight: 400,
   },
   savedIndicator: {
     ...typography.caption,
@@ -1708,12 +1844,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing(3),
-    backgroundColor: colors.card,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing(3),
-    marginTop: spacing(2),
+    paddingVertical: spacing(3),
   },
   playBtn: {
     width: 36,
@@ -1759,9 +1890,13 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textMuted,
   },
+  audioActions: {
+    flexDirection: 'row',
+    gap: spacing(2),
+  },
   reRecordBtn: {
-    width: 28,
-    height: 28,
+    width: 36,
+    height: 36,
     borderRadius: radii.full,
     backgroundColor: colors.accentSoft,
     alignItems: 'center' as const,

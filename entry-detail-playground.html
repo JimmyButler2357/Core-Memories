@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forever Fireflies — Entry Detail Redesign Playground</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #FAF8F5;
+    --card: #FEFCF9;
+    --text: #2C2420;
+    --textSoft: #8C7E74;
+    --textMuted: #B5AAA0;
+    --accent: #E8724A;
+    --accentSoft: rgba(232,114,74,0.08);
+    --accentPressed: #CC6441;
+    --border: #EDE8E3;
+    --tag: #F3EDE8;
+    --childBlue: #7BAFD4;
+    --childAmber: #D4A07B;
+    --danger: #D94F4F;
+    --shadow-sm: 0 1px 3px rgba(44,36,32,0.06);
+    --shadow-md: 0 4px 12px rgba(44,36,32,0.10);
+    --overlay: rgba(44,36,32,0.45);
+    --ui-bg: #1a1a1a;
+    --ui-surface: #242424;
+    --ui-border: #333;
+    --ui-text: #e0e0e0;
+    --ui-muted: #888;
+  }
+
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--ui-bg);
+    color: var(--ui-text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Top bar */
+  .top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--ui-border);
+    flex-shrink: 0;
+  }
+  .top-bar h1 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    letter-spacing: -0.3px;
+  }
+  .top-bar .subtitle {
+    font-size: 12px;
+    color: var(--ui-muted);
+    margin-top: 2px;
+  }
+
+  /* Main layout */
+  .main-layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* Controls panel */
+  .controls {
+    width: 280px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--ui-border);
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .control-group label {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--ui-muted);
+    margin-bottom: 8px;
+  }
+
+  /* Tab switcher */
+  .tab-switcher {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .tab-btn {
+    background: transparent;
+    border: 1px solid var(--ui-border);
+    color: var(--ui-text);
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    font-size: 13px;
+    font-family: inherit;
+    transition: all 150ms;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .tab-btn:hover { border-color: #555; background: var(--ui-surface); }
+  .tab-btn.active {
+    border-color: var(--accent);
+    background: rgba(232,114,74,0.1);
+    color: #fff;
+  }
+  .tab-btn .tab-name { font-weight: 600; }
+  .tab-btn .tab-desc { font-size: 11px; color: var(--ui-muted); }
+  .tab-btn.active .tab-desc { color: rgba(232,114,74,0.7); }
+
+  /* Toggle controls */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+  }
+  .toggle-row span {
+    font-size: 13px;
+  }
+  .toggle {
+    width: 40px;
+    height: 22px;
+    background: #444;
+    border-radius: 11px;
+    position: relative;
+    cursor: pointer;
+    transition: background 150ms;
+    border: none;
+    flex-shrink: 0;
+  }
+  .toggle.on { background: var(--accent); }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    background: #fff;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: transform 150ms;
+  }
+  .toggle.on::after { transform: translateX(18px); }
+
+  /* Segmented control */
+  .segmented {
+    display: flex;
+    background: var(--ui-surface);
+    border-radius: 8px;
+    padding: 2px;
+    border: 1px solid var(--ui-border);
+  }
+  .seg-btn {
+    flex: 1;
+    padding: 6px 8px;
+    background: transparent;
+    border: none;
+    color: var(--ui-muted);
+    font-size: 12px;
+    font-family: inherit;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 150ms;
+  }
+  .seg-btn.active {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  /* Description box */
+  .layout-desc {
+    font-size: 12px;
+    color: var(--ui-muted);
+    line-height: 1.5;
+    padding: 12px;
+    background: var(--ui-surface);
+    border-radius: 8px;
+    border: 1px solid var(--ui-border);
+  }
+  .layout-desc strong { color: var(--ui-text); }
+
+  /* Phone preview area */
+  .preview-area {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    overflow: auto;
+  }
+
+  /* Phone frame */
+  .phone-frame {
+    width: 375px;
+    height: 812px;
+    background: var(--bg);
+    border-radius: 40px;
+    border: 8px solid #333;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 8px 32px rgba(44,36,32,0.3), inset 0 0 0 1px rgba(255,255,255,0.05);
+    flex-shrink: 0;
+  }
+
+  /* Status bar */
+  .status-bar {
+    height: 54px;
+    padding: 14px 24px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    flex-shrink: 0;
+  }
+  .status-icons {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    font-size: 12px;
+  }
+
+  /* Phone content */
+  .phone-content {
+    height: calc(100% - 54px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+  }
+  .phone-content::-webkit-scrollbar { width: 0; }
+
+  /* Nav bar inside phone */
+  .nav-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 16px 8px;
+    flex-shrink: 0;
+  }
+  .nav-left, .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .nav-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(243,237,232,0.5);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--text);
+    transition: opacity 150ms;
+  }
+  .nav-btn:hover { opacity: 0.7; }
+  .nav-btn.heart-filled { color: var(--accent); }
+  .nav-btn.danger-btn:hover { color: var(--danger); }
+
+  /* Entry content styles */
+  .entry-pad { padding: 0 20px; }
+
+  .meta-line {
+    font-family: system-ui, sans-serif;
+    font-size: 12px;
+    color: var(--textMuted);
+    line-height: 1.4;
+  }
+  .meta-line-lg {
+    font-family: system-ui, sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.4;
+  }
+  .meta-line-sub {
+    font-family: system-ui, sans-serif;
+    font-size: 13px;
+    color: var(--textSoft);
+    line-height: 1.4;
+  }
+
+  .entry-title {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.3;
+    border: none;
+    outline: none;
+    width: 100%;
+    background: transparent;
+  }
+  .entry-title-xl {
+    font-size: 22px;
+  }
+
+  .child-byline {
+    font-size: 13px;
+    color: var(--textSoft);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .child-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+  .byline-sep {
+    color: var(--textMuted);
+    margin: 0 2px;
+  }
+
+  /* Child pills */
+  .child-pills {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .child-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .child-pill.blue {
+    background: rgba(123,175,212,0.12);
+    color: var(--childBlue);
+  }
+  .child-pill.amber {
+    background: rgba(212,160,123,0.12);
+    color: var(--childAmber);
+  }
+  .child-pill .pill-x {
+    font-size: 11px;
+    opacity: 0.6;
+    cursor: pointer;
+  }
+  .child-pill .pill-x:hover { opacity: 1; }
+
+  .age-line {
+    font-size: 11px;
+    color: var(--textMuted);
+    font-family: system-ui, sans-serif;
+  }
+
+  /* Transcript */
+  .transcript {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--text);
+  }
+  .transcript-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+  }
+
+  /* Photo gallery */
+  .photo-gallery {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .photo-thumb {
+    width: 80px;
+    height: 80px;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .photo-thumb.p1 {
+    background: linear-gradient(135deg, #d4c4b0, #e8d5c4, #c9b8a8);
+  }
+  .photo-thumb.p2 {
+    background: linear-gradient(135deg, #b8c8d8, #c4d4e4, #a8b8c8);
+  }
+  .photo-thumb .cam-icon {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255,255,255,0.6);
+    font-size: 20px;
+  }
+  .photo-add {
+    width: 80px;
+    height: 80px;
+    border-radius: 12px;
+    border: 2px dashed var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--textMuted);
+    font-size: 24px;
+    cursor: pointer;
+    background: transparent;
+    transition: border-color 150ms;
+    flex-shrink: 0;
+  }
+  .photo-add:hover { border-color: var(--accent); color: var(--accent); }
+
+  .photo-strip {
+    display: flex;
+    gap: 8px;
+    padding: 0 20px;
+    overflow-x: auto;
+  }
+  .photo-strip .photo-thumb { width: 120px; height: 90px; border-radius: 8px; }
+  .photo-strip .photo-add { width: 60px; height: 90px; border-radius: 8px; }
+
+  /* Audio bar */
+  .audio-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+  }
+  .play-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--accentSoft);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--accent);
+    font-size: 14px;
+    flex-shrink: 0;
+    transition: background 150ms;
+  }
+  .play-btn:hover { background: rgba(232,114,74,0.15); }
+
+  .waveform {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 36px;
+  }
+  .wave-bar {
+    width: 3px;
+    border-radius: 2px;
+    min-height: 4px;
+    transition: opacity 150ms;
+  }
+
+  .audio-duration {
+    font-size: 12px;
+    color: var(--textMuted);
+    font-family: system-ui, sans-serif;
+    flex-shrink: 0;
+    min-width: 32px;
+    text-align: right;
+  }
+
+  .audio-actions {
+    display: flex;
+    gap: 4px;
+  }
+  .audio-action-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    color: var(--textSoft);
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .audio-action-btn:hover { color: var(--accent); }
+
+  /* Tags */
+  .tags-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .tag-pill {
+    background: var(--tag);
+    color: var(--textSoft);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: system-ui, sans-serif;
+    cursor: default;
+  }
+  .tag-pill .tag-x {
+    font-size: 10px;
+    color: var(--textMuted);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 150ms;
+  }
+  .tag-pill:hover .tag-x { opacity: 1; }
+  .tag-add {
+    background: transparent;
+    border: 1px dashed var(--border);
+    color: var(--textMuted);
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: system-ui, sans-serif;
+    transition: all 150ms;
+  }
+  .tag-add:hover { border-color: var(--accent); color: var(--accent); }
+
+  .tags-muted .tag-pill {
+    font-size: 10px;
+    padding: 2px 7px;
+    background: rgba(243,237,232,0.6);
+    color: var(--textMuted);
+  }
+
+  /* Section card */
+  .section-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    box-shadow: var(--shadow-sm);
+  }
+  .section-header {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--textMuted);
+    margin-bottom: 8px;
+  }
+
+  /* Accent divider */
+  .accent-divider {
+    height: 3px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--childBlue), var(--childAmber));
+    margin: 8px 0;
+  }
+
+  /* Floating tag bar */
+  .floating-tags {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    padding: 10px 20px;
+    box-shadow: 0 -4px 12px rgba(44,36,32,0.06);
+    z-index: 10;
+  }
+
+  /* Spacer helper */
+  .sp-4 { height: 4px; }
+  .sp-8 { height: 8px; }
+  .sp-12 { height: 12px; }
+  .sp-16 { height: 16px; }
+  .sp-20 { height: 20px; }
+  .sp-24 { height: 24px; }
+
+  /* Prompt output */
+  .prompt-area {
+    border-top: 1px solid var(--ui-border);
+    padding: 16px 24px;
+    flex-shrink: 0;
+  }
+  .prompt-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .prompt-header span {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--ui-muted);
+  }
+  .copy-btn {
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    color: var(--ui-text);
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 150ms;
+  }
+  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .prompt-text {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--ui-muted);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    white-space: pre-wrap;
+    max-height: 80px;
+    overflow-y: auto;
+  }
+
+  /* Metadata two-col */
+  .meta-two-col {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  /* Home indicator */
+  .home-indicator {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 134px;
+    height: 5px;
+    background: rgba(44,36,32,0.2);
+    border-radius: 3px;
+    z-index: 20;
+  }
+
+  /* Overflow menu btn */
+  .overflow-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(243,237,232,0.5);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 18px;
+    color: var(--text);
+    font-weight: 700;
+    letter-spacing: 2px;
+  }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div>
+    <h1>Entry Detail — Redesign Playground</h1>
+    <div class="subtitle">Forever Fireflies</div>
+  </div>
+</div>
+
+<div class="main-layout">
+  <!-- Controls -->
+  <div class="controls">
+    <div class="control-group">
+      <label>Layout</label>
+      <div class="tab-switcher">
+        <button class="tab-btn active" data-tab="journal" onclick="setTab('journal')">
+          <span class="tab-name">Journal Page</span>
+          <span class="tab-desc">Reading-focused. The story leads.</span>
+        </button>
+        <button class="tab-btn" data-tab="google" onclick="setTab('google')">
+          <span class="tab-name">Google Photos</span>
+          <span class="tab-desc">Date anchors, floating tags.</span>
+        </button>
+        <button class="tab-btn" data-tab="sections" onclick="setTab('sections')">
+          <span class="tab-name">Sectioned Cards</span>
+          <span class="tab-desc">Organized, scannable sections.</span>
+        </button>
+        <button class="tab-btn" data-tab="story" onclick="setTab('story')">
+          <span class="tab-name">Story Flow</span>
+          <span class="tab-desc">Immersive. Minimal chrome.</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>Options</label>
+      <div class="toggle-row">
+        <span>Show photos</span>
+        <button class="toggle on" id="togglePhotos" onclick="toggleOpt('photos')"></button>
+      </div>
+      <div class="toggle-row">
+        <span>Voice entry</span>
+        <button class="toggle on" id="toggleVoice" onclick="toggleOpt('voice')"></button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>Children Display</label>
+      <div class="segmented">
+        <button class="seg-btn active" onclick="setChildStyle('pills')">Pills</button>
+        <button class="seg-btn" onclick="setChildStyle('byline')">Byline</button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>About this layout</label>
+      <div class="layout-desc" id="layoutDesc">
+        <strong>Journal Page</strong> — Clean, reading-focused. Title and transcript are the heroes. Metadata is a quiet subtitle. Tags are footnotes at the bottom. Feels like opening a journal entry.
+      </div>
+    </div>
+  </div>
+
+  <!-- Phone preview -->
+  <div class="preview-area">
+    <div class="phone-frame">
+      <div class="status-bar">
+        <span>9:41</span>
+        <div class="status-icons">
+          <span>●●●●</span>
+          <span style="margin-left:4px">🔋</span>
+        </div>
+      </div>
+      <div class="phone-content" id="phoneContent">
+        <!-- Rendered by JS -->
+      </div>
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Prompt output -->
+<div class="prompt-area">
+  <div class="prompt-header">
+    <span>Prompt Output</span>
+    <button class="copy-btn" onclick="copyPrompt()">Copy</button>
+  </div>
+  <div class="prompt-text" id="promptText"></div>
+</div>
+
+<script>
+const state = {
+  tab: 'journal',
+  photos: true,
+  voice: true,
+  childStyle: 'pills'
+};
+
+const DESCRIPTIONS = {
+  journal: '<strong>Journal Page</strong> — Clean, reading-focused. Title and transcript are the heroes. Metadata is a quiet subtitle. Tags are footnotes at the bottom. Feels like opening a journal entry.',
+  google: '<strong>Google Photos</strong> — Date anchors the top. Photos lead if present. Tags float at the bottom like Google Photos details. Clear information hierarchy.',
+  sections: '<strong>Sectioned Cards</strong> — Every category has its own card: metadata, story, media, tags. Organized and scannable. Good for finding specific info fast.',
+  story: '<strong>Story Flow</strong> — Most immersive. Title is the first thing you see. All metadata compressed into one quiet line. The narrative flows uninterrupted, like reading a blog post.'
+};
+
+// SVG icons
+const ICONS = {
+  back: `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12 4L6 10L12 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  heartFilled: `<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path d="M10 17.5s-7-4.5-7-9A4 4 0 0110 5.5a4 4 0 017 3c0 4.5-7 9-7 9z"/></svg>`,
+  trash: `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 5h12M7 5V3.5a1 1 0 011-1h2a1 1 0 011 1V5m2 0v10a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 013.5 15V5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+  play: `<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M3 1.5v11l9-5.5-9-5.5z"/></svg>`,
+  mic: `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v6m0 0a2 2 0 002-2V3a2 2 0 00-4 0v2a2 2 0 002 2zm-4-1a4 4 0 008 0M7 11v2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>`,
+  camera: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="13" r="4" stroke="currentColor" stroke-width="1.5"/></svg>`,
+  plus: `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+  location: `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1C3.79 1 2 2.79 2 5c0 3 4 6 4 6s4-3 4-6c0-2.21-1.79-4-4-4z" stroke="currentColor" stroke-width="1.2"/><circle cx="6" cy="5" r="1.5" stroke="currentColor" stroke-width="1"/></svg>`,
+};
+
+function navBar(minimal) {
+  if (minimal) {
+    return `<div class="nav-bar">
+      <div class="nav-left"><button class="nav-btn">${ICONS.back}</button></div>
+      <div class="nav-right">
+        <button class="nav-btn heart-filled">${ICONS.heartFilled}</button>
+        <button class="overflow-btn">···</button>
+      </div>
+    </div>`;
+  }
+  return `<div class="nav-bar">
+    <div class="nav-left"><button class="nav-btn">${ICONS.back}</button></div>
+    <div class="nav-right">
+      <button class="nav-btn heart-filled">${ICONS.heartFilled}</button>
+      <button class="nav-btn danger-btn">${ICONS.trash}</button>
+    </div>
+  </div>`;
+}
+
+function childrenPills() {
+  return `<div class="child-pills">
+    <span class="child-pill blue"><span class="child-dot" style="background:var(--childBlue)"></span>Emma<span class="pill-x">✕</span></span>
+    <span class="child-pill amber"><span class="child-dot" style="background:var(--childAmber)"></span>Oliver<span class="pill-x">✕</span></span>
+  </div>`;
+}
+
+function childrenByline() {
+  return `<div class="child-byline">
+    <span class="child-dot" style="background:var(--childBlue)"></span> Emma (3y 4m)
+    <span class="byline-sep">·</span>
+    <span class="child-dot" style="background:var(--childAmber)"></span> Oliver (1y 2w)
+  </div>`;
+}
+
+function childrenDisplay() {
+  return state.childStyle === 'pills' ? childrenPills() : childrenByline();
+}
+
+function ageLine() {
+  return `<div class="age-line">Emma 3y 4m · Oliver 1y 2w</div>`;
+}
+
+function photoGallery() {
+  if (!state.photos) return '';
+  return `<div class="photo-gallery">
+    <div class="photo-thumb p1"><div class="cam-icon">${ICONS.camera}</div></div>
+    <div class="photo-thumb p2"><div class="cam-icon">${ICONS.camera}</div></div>
+    <button class="photo-add">+</button>
+  </div>`;
+}
+
+function photoStrip() {
+  if (!state.photos) return '';
+  return `<div class="photo-strip">
+    <div class="photo-thumb p1"><div class="cam-icon">${ICONS.camera}</div></div>
+    <div class="photo-thumb p2"><div class="cam-icon">${ICONS.camera}</div></div>
+    <button class="photo-add">+</button>
+  </div>`;
+}
+
+function waveformBars() {
+  const heights = [12,18,8,22,14,28,10,24,16,30,12,20,26,14,32,18,24,10,28,16,22,8,20,14,26];
+  return heights.map((h, i) => {
+    const t = i / (heights.length - 1);
+    const r = Math.round(123 + (212 - 123) * t);
+    const g = Math.round(175 + (160 - 175) * t);
+    const b = Math.round(212 + (123 - 212) * t);
+    const played = i < 10;
+    const opacity = played ? 1 : 0.3;
+    return `<div class="wave-bar" style="height:${h}px;background:rgba(${r},${g},${b},${opacity})"></div>`;
+  }).join('');
+}
+
+function audioBar() {
+  if (!state.voice) return '';
+  return `<div class="audio-bar">
+    <button class="play-btn">${ICONS.play}</button>
+    <div class="waveform">${waveformBars()}</div>
+    <span class="audio-duration">0:32</span>
+    <div class="audio-actions">
+      <button class="audio-action-btn">${ICONS.mic}</button>
+      <button class="audio-action-btn">${ICONS.plus}</button>
+    </div>
+  </div>`;
+}
+
+function tagsRow(muted) {
+  const cls = muted ? 'tags-row tags-muted' : 'tags-row';
+  return `<div class="${cls}">
+    <span class="tag-pill">bedtime<span class="tag-x">✕</span></span>
+    <span class="tag-pill">funny<span class="tag-x">✕</span></span>
+    <span class="tag-pill">imagination<span class="tag-x">✕</span></span>
+    <span class="tag-pill">car ride<span class="tag-x">✕</span></span>
+    <button class="tag-add">+ add tag</button>
+  </div>`;
+}
+
+const TRANSCRIPT = `Emma looked out the window tonight and told me the moon was following her car. She was so serious about it — like she'd discovered something nobody else had noticed. Oliver was babbling in his car seat, completely unaware. She leaned over and whispered to him, "Don't worry, the moon is our friend." I almost missed it.`;
+
+function renderJournal() {
+  return `
+    ${navBar(false)}
+    <div class="entry-pad">
+      <div class="meta-line">March 12, 2026 · 8:47 PM · Portland, OR</div>
+      <div class="sp-12"></div>
+      <div class="entry-title">The Moon Follows Her Car</div>
+      <div class="sp-8"></div>
+      ${childrenDisplay()}
+      <div class="sp-20"></div>
+      <div class="transcript">${TRANSCRIPT}</div>
+      <div class="sp-16"></div>
+      ${photoGallery()}
+      ${state.photos ? '<div class="sp-16"></div>' : ''}
+      ${audioBar()}
+      <div class="sp-20"></div>
+      ${tagsRow(false)}
+      <div class="sp-24"></div>
+    </div>`;
+}
+
+function renderGoogle() {
+  return `
+    ${navBar(false)}
+    ${state.photos ? photoStrip() + '<div class="sp-12"></div>' : ''}
+    <div class="entry-pad">
+      <div class="meta-line-lg">March 12, 2026</div>
+      <div class="sp-4"></div>
+      <div class="meta-line-sub">8:47 PM · Portland, OR</div>
+      <div class="sp-12"></div>
+      <div class="entry-title">The Moon Follows Her Car</div>
+      <div class="sp-8"></div>
+      ${childrenDisplay()}
+      <div class="sp-4"></div>
+      ${state.childStyle === 'pills' ? ageLine() : ''}
+      <div class="sp-16"></div>
+      <div class="transcript-card">
+        <div class="transcript">${TRANSCRIPT}</div>
+      </div>
+      <div class="sp-12"></div>
+      ${audioBar()}
+      <div class="sp-24"></div>
+      <div class="sp-24"></div>
+      <div class="sp-24"></div>
+    </div>
+    <div class="floating-tags">${tagsRow(false)}</div>`;
+}
+
+function renderSections() {
+  return `
+    ${navBar(false)}
+    <div class="entry-pad">
+      <div class="section-card">
+        <div class="meta-two-col">
+          <div>
+            <div style="font-size:14px;font-weight:600;color:var(--text)">March 12, 2026</div>
+            <div style="font-size:12px;color:var(--textMuted);margin-top:2px">8:47 PM</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:12px;color:var(--textSoft);display:flex;align-items:center;gap:4px;justify-content:flex-end">${ICONS.location} Portland, OR</div>
+          </div>
+        </div>
+        <div class="sp-8"></div>
+        ${childrenDisplay()}
+      </div>
+      <div class="sp-16"></div>
+      <div class="entry-title">The Moon Follows Her Car</div>
+      <div class="sp-12"></div>
+      <div class="transcript">${TRANSCRIPT}</div>
+      <div class="sp-16"></div>
+      ${(state.photos || state.voice) ? `
+        <div class="section-card">
+          ${state.photos ? `<div class="photo-gallery">
+            <div class="photo-thumb p1" style="width:72px;height:72px"><div class="cam-icon">${ICONS.camera}</div></div>
+            <div class="photo-thumb p2" style="width:72px;height:72px"><div class="cam-icon">${ICONS.camera}</div></div>
+            <button class="photo-add" style="width:72px;height:72px">+</button>
+          </div>` : ''}
+          ${(state.photos && state.voice) ? '<div class="sp-8"></div>' : ''}
+          ${audioBar()}
+        </div>
+        <div class="sp-16"></div>` : ''}
+      <div class="section-header">Tags</div>
+      ${tagsRow(false)}
+      <div class="sp-24"></div>
+    </div>`;
+}
+
+function renderStory() {
+  return `
+    ${navBar(true)}
+    <div class="entry-pad">
+      <div class="entry-title entry-title-xl">The Moon Follows Her Car</div>
+      <div class="accent-divider"></div>
+      <div class="meta-line" style="font-size:12px">
+        March 12, 2026 · Portland, OR ·
+        <span class="child-dot" style="background:var(--childBlue);width:6px;height:6px;vertical-align:middle;display:inline-block;margin:0 2px"></span> Emma 3y 4m,
+        <span class="child-dot" style="background:var(--childAmber);width:6px;height:6px;vertical-align:middle;display:inline-block;margin:0 2px"></span> Oliver 1y 2w
+      </div>
+      <div class="sp-20"></div>
+      <div class="transcript">${TRANSCRIPT}</div>
+      <div class="sp-16"></div>
+      ${photoGallery()}
+      ${state.photos ? '<div class="sp-16"></div>' : ''}
+      ${audioBar()}
+      <div class="sp-24"></div>
+      ${tagsRow(true)}
+      <div class="sp-24"></div>
+    </div>`;
+}
+
+function render() {
+  const el = document.getElementById('phoneContent');
+  switch (state.tab) {
+    case 'journal': el.innerHTML = renderJournal(); break;
+    case 'google': el.innerHTML = renderGoogle(); break;
+    case 'sections': el.innerHTML = renderSections(); break;
+    case 'story': el.innerHTML = renderStory(); break;
+  }
+  el.scrollTop = 0;
+  document.getElementById('layoutDesc').innerHTML = DESCRIPTIONS[state.tab];
+  updatePrompt();
+}
+
+function setTab(tab) {
+  state.tab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+  render();
+}
+
+function toggleOpt(key) {
+  state[key] = !state[key];
+  const el = document.getElementById(key === 'photos' ? 'togglePhotos' : 'toggleVoice');
+  el.classList.toggle('on', state[key]);
+  render();
+}
+
+function setChildStyle(style) {
+  state.childStyle = style;
+  document.querySelectorAll('.seg-btn').forEach((b, i) => {
+    b.classList.toggle('active', (i === 0 && style === 'pills') || (i === 1 && style === 'byline'));
+  });
+  render();
+}
+
+function updatePrompt() {
+  const names = { journal: 'Journal Page', google: 'Google Photos', sections: 'Sectioned Cards', story: 'Story Flow' };
+  const parts = [`Redesign the Entry Detail page using the "${names[state.tab]}" layout concept.`];
+
+  switch (state.tab) {
+    case 'journal':
+      parts.push('Lead with a subtle metadata line (date, time, location) at the top in muted text.');
+      parts.push('Title is the hero — large Georgia serif, 20px bold.');
+      parts.push('Transcript flows directly below with no card wrapper — just text on the page background, Georgia serif 15px, 1.65 line-height.');
+      parts.push('Tags are at the very bottom as small footnote-style pills.');
+      break;
+    case 'google':
+      parts.push('Date is the anchor at the top in large sans-serif (16px, 600 weight).');
+      parts.push('Time + location on a secondary line below the date.');
+      parts.push('Transcript sits inside a subtle card (1px border, card background, 14px radius).');
+      parts.push('Tags float in a sticky bottom bar that appears when scrolling — thin strip with upward shadow.');
+      if (state.photos) parts.push('Photos appear as a horizontal strip at the very top, edge-to-edge.');
+      break;
+    case 'sections':
+      parts.push('Group metadata (date, time, location, children) into a "When & Where" card at the top.');
+      parts.push('Title + transcript flow as the main section — no card wrapper.');
+      if (state.photos || state.voice) parts.push('Media (photos + audio) grouped in their own card.');
+      parts.push('Tags in a separate section at the bottom with a small-caps "TAGS" header.');
+      break;
+    case 'story':
+      parts.push('Title is the FIRST element — large Georgia serif, 22px bold. Nothing above it except the nav bar.');
+      parts.push('A thin gradient divider line (child colors) below the title.');
+      parts.push('All metadata compressed into ONE line below the divider: date, location, children names with ages — all in 12px muted text.');
+      parts.push('Transcript flows uninterrupted on the cream background. No card, no border.');
+      parts.push('Tags are very small and muted at the bottom — almost afterthought styling (10px, lighter background).');
+      parts.push('Nav bar is ultra-minimal: back + heart only. Trash moved to overflow menu (···).');
+      break;
+  }
+
+  if (state.childStyle === 'pills') {
+    parts.push('Children displayed as colored pills with dot + name + removable ✕.');
+  } else {
+    parts.push('Children displayed as a subtle byline: colored dot + "Name (age)" in soft text.');
+  }
+
+  if (state.photos) {
+    parts.push('Include a small photo gallery (2 thumbnails + add button, 80px tall, 12px radius).');
+  }
+  if (state.voice) {
+    parts.push('Keep the prominent audio playback bar with waveform (25 bars, child-color gradient), play button, duration, and mic/add actions.');
+  } else {
+    parts.push('This is a text entry — no audio playback bar.');
+  }
+
+  document.getElementById('promptText').textContent = parts.join('\n');
+}
+
+function copyPrompt() {
+  const text = document.getElementById('promptText').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+  });
+}
+
+// Initial render
+render();
+</script>
+</body>
+</html>

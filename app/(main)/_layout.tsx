@@ -18,6 +18,10 @@ export default function MainLayout() {
       <Stack.Screen name="entry-detail" />
       <Stack.Screen name="core-memories" />
       <Stack.Screen name="settings" />
+      <Stack.Screen name="prompts" />
+      <Stack.Screen name="discover" />
+      <Stack.Screen name="faq" />
+      <Stack.Screen name="contact" />
       <Stack.Screen name="empty-state" />
     </Stack>
   );

@@ -12,7 +12,6 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ExpoSpeechRecognitionModule } from 'expo-speech-recognition';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   colors,
   fonts,
@@ -33,6 +32,7 @@ import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { ageInMonths, formatDuration } from '@/lib/dateUtils';
 import { useLocation } from '@/hooks/useLocation';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
+import { concatWavFiles, getWavDurationSeconds } from '@/lib/audioConcat';
 import ErrorState from '@/components/ErrorState';
 import WarmGlow from '@/components/WarmGlow';
 
@@ -44,18 +44,21 @@ const FALLBACK_PROMPTS = [
   "What's something small you don't want to forget?",
 ];
 
-const PROMPTS_ENABLED_KEY = 'prompts_enabled';
-
 // ─── Recording Screen ─────────────────────────────────────
 
 export default function RecordingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { reRecordEntryId, onboarding } = useLocalSearchParams<{
+  const { reRecordEntryId, appendEntryId, appendStoragePath, appendTranscript, onboarding, promptText } = useLocalSearchParams<{
     reRecordEntryId?: string;
+    appendEntryId?: string;
+    appendStoragePath?: string;
+    appendTranscript?: string;
     onboarding?: string;
+    promptText?: string;
   }>();
   const isReRecord = !!reRecordEntryId;
+  const isAppend = !!appendEntryId;
 
   const children = useChildrenStore((s) => s.children);
   const updateEntryLocal = useEntriesStore((s) => s.updateEntryLocal);
@@ -70,14 +73,31 @@ export default function RecordingScreen() {
 
   const [seconds, setSeconds] = useState(0);
   const [activePrompt, setActivePrompt] = useState<string | null>(null);
-  const [promptsEnabled, setPromptsEnabled] = useState(true);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const transcriptScrollRef = useRef<ScrollView>(null);
 
   // Tracks when we've called stop() but speech hasn't finalized yet.
   const [isStopping, setIsStopping] = useState(false);
 
   // Shows a brief "too short" message when user stops immediately
   const [tooShortMessage, setTooShortMessage] = useState(false);
+
+  // Append mode: download existing audio in the background while the
+  // user records. Think of it like ordering pizza while you cook the
+  // sides — both happen at the same time so everything's ready faster.
+  const existingAudioRef = useRef<Promise<string> | null>(null);
+  const existingAudioUriRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!isAppend || !appendStoragePath) return;
+    // Start downloading immediately — don't wait for recording to finish
+    const downloadPromise = storageService.downloadAudio(appendStoragePath)
+      .then((uri) => {
+        existingAudioUriRef.current = uri;
+        return uri;
+      });
+    existingAudioRef.current = downloadPromise;
+  }, [isAppend, appendStoragePath]);
 
   // Breathing circle animation (built-in Animated, not Reanimated)
   const breatheAnim = useRef(new Animated.Value(1)).current;
@@ -124,28 +144,6 @@ export default function RecordingScreen() {
       });
   }, []);
 
-  // ─── Load Prompt Toggle Preference ────────────────────
-  //
-  // Read the user's saved preference from AsyncStorage on mount.
-  // Default is true (prompts visible). Think of it like a light
-  // switch — it remembers its last position.
-
-  useEffect(() => {
-    AsyncStorage.getItem(PROMPTS_ENABLED_KEY)
-      .then((val) => {
-        if (val !== null) setPromptsEnabled(val === 'true');
-      })
-      .catch(() => {});
-  }, []);
-
-  const togglePrompts = useCallback(() => {
-    setPromptsEnabled((prev) => {
-      const next = !prev;
-      AsyncStorage.setItem(PROMPTS_ENABLED_KEY, String(next)).catch(() => {});
-      return next;
-    });
-  }, []);
-
   // ─── Load Daily Prompts ────────────────────────────────
   //
   // Fetches 3 prompts per day from Supabase, then caches them
@@ -155,11 +153,21 @@ export default function RecordingScreen() {
   // renames take effect immediately without clearing the cache.
 
   useEffect(() => {
+    // If a promptText was passed from the Prompts screen, use it directly
+    if (promptText) {
+      setActivePrompt(promptText);
+      return;
+    }
+
     if (!profile?.id) return;
 
     // Special cases: use a custom single prompt instead of fetching
+    if (isAppend) {
+      setActivePrompt('Pick up where you left off');
+      return;
+    }
     if (isReRecord) {
-      setActivePrompt('Take your time and re-record this memory');
+      setActivePrompt('Try this one again');
       return;
     }
     if (onboarding === 'true') {
@@ -362,7 +370,60 @@ export default function RecordingScreen() {
       return;
     }
 
-    if (isReRecord && reRecordEntryId) {
+    if (isAppend && appendEntryId) {
+      // Append: concatenate new audio onto the existing recording,
+      // then append the new transcript below the original.
+      (async () => {
+        try {
+          // Wait for the background download that started on mount.
+          // It's likely already finished by now since the user was
+          // recording while it downloaded.
+          const existingUri = await existingAudioRef.current;
+          if (!existingUri || !s.audioUri) {
+            console.warn('Append failed — missing audio files');
+            router.back();
+            return;
+          }
+
+          // Stitch old + new audio into one WAV file
+          const combinedUri = await concatWavFiles([existingUri, s.audioUri]);
+
+          // Upload the combined file (upsert overwrites the original)
+          await storageService.uploadAudio(appendEntryId, combinedUri);
+
+          // Get the combined duration for the DB
+          const combinedDuration = await getWavDurationSeconds(combinedUri);
+
+          // Build the combined transcript: original, blank line, new text
+          const combinedTranscript = appendTranscript
+            ? appendTranscript + '\n\n' + (s.transcript || '')
+            : s.transcript || '';
+
+          // Update the entry in Supabase
+          await entriesService.update(appendEntryId, {
+            transcript: combinedTranscript,
+            audio_duration_seconds: Math.round(combinedDuration),
+          });
+
+          // Update local cache so the UI reflects changes immediately
+          updateEntryLocal(appendEntryId, {
+            text: combinedTranscript,
+            hasAudio: true,
+          });
+
+          // Re-run AI so the title reflects the combined content
+          entriesService.processWithAI(appendEntryId).catch(() => {});
+
+          // Clean up all temp files
+          audioCleanupService.deleteLocalFile(existingUri);
+          audioCleanupService.deleteLocalFile(s.audioUri);
+          audioCleanupService.deleteLocalFile(combinedUri);
+        } catch (err) {
+          console.warn('Append save failed:', err);
+        }
+        router.back();
+      })();
+    } else if (isReRecord && reRecordEntryId) {
       // Re-record: update existing entry's audio + transcript
       // via Supabase, then go back to the entry detail screen.
       (async () => {
@@ -427,6 +488,10 @@ export default function RecordingScreen() {
   useEffect(() => {
     return () => {
       speech.stop();
+      // If we downloaded existing audio for append mode, clean it up
+      if (existingAudioUriRef.current) {
+        audioCleanupService.deleteLocalFile(existingAudioUriRef.current);
+      }
     };
   }, []);
 
@@ -473,34 +538,10 @@ export default function RecordingScreen() {
           <Ionicons name="close" size={24} color={colors.text} />
         </Pressable>
 
-        <View style={{ flex: 1 }} />
-
-        {/* Prompt toggle chip */}
-        <Pressable
-          onPress={togglePrompts}
-          hitSlop={hitSlop.icon}
-          style={({ pressed }) => [
-            styles.promptToggle,
-            promptsEnabled ? styles.promptToggleOn : styles.promptToggleOff,
-            pressed && { opacity: 0.7 },
-          ]}
-        >
-          <Ionicons
-            name="bulb-outline"
-            size={14}
-            color={promptsEnabled ? colors.accent : colors.textMuted}
-          />
-          <Text style={[
-            styles.promptToggleText,
-            { color: promptsEnabled ? colors.accent : colors.textMuted },
-          ]}>
-            {promptsEnabled ? 'Prompts' : 'Prompts off'}
-          </Text>
-        </Pressable>
       </View>
 
       {/* Single prompt — a gentle nudge, not a menu */}
-      {promptsEnabled && activePrompt && (
+      {activePrompt && (
         <View style={styles.promptList}>
           <Text style={styles.promptHint} numberOfLines={2}>
             {activePrompt}
@@ -524,9 +565,13 @@ export default function RecordingScreen() {
 
             {/* Live transcript — updates in real-time as you speak */}
             <ScrollView
+              ref={transcriptScrollRef}
               style={styles.transcriptScroll}
               contentContainerStyle={styles.transcriptContent}
               showsVerticalScrollIndicator={false}
+              onContentSizeChange={() => {
+                transcriptScrollRef.current?.scrollToEnd({ animated: true });
+              }}
             >
               <Text style={speech.transcript ? styles.liveTranscript : styles.transcriptPlaceholder}>
                 {speech.transcript || 'Start speaking...'}
@@ -627,26 +672,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // ─── Prompt Toggle ────────────────────
-  promptToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(1),
-    paddingVertical: spacing(2),
-    paddingHorizontal: spacing(3),
-    borderRadius: radii.full,
-    minHeight: minTouchTarget,
-  },
-  promptToggleOn: {
-    backgroundColor: colors.accentSoft,
-  },
-  promptToggleOff: {
-    backgroundColor: colors.tag,
-  },
-  promptToggleText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
   // ─── Prompt Hint ────────────────────
   promptList: {
     alignItems: 'center',
@@ -688,6 +713,8 @@ const styles = StyleSheet.create({
   },
   ring: {
     position: 'absolute',
+    top: 20,
+    left: 20,
     width: 120,
     height: 120,
     borderRadius: 60,
@@ -696,6 +723,8 @@ const styles = StyleSheet.create({
   },
   breatheCircle: {
     position: 'absolute',
+    top: 20,
+    left: 20,
     width: 120,
     height: 120,
     borderRadius: 60,

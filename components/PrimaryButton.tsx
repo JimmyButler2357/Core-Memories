@@ -5,7 +5,6 @@ interface PrimaryButtonProps {
   label: string;
   onPress: () => void;
   disabled?: boolean;
-  variant?: 'accent' | 'danger';
 }
 
 /**
@@ -16,15 +15,9 @@ export default function PrimaryButton({
   label,
   onPress,
   disabled = false,
-  variant = 'accent',
 }: PrimaryButtonProps) {
-  const bgColor = disabled
-    ? colors.border
-    : variant === 'danger'
-      ? colors.danger
-      : colors.accent;
-
-  const pressedBgColor = variant === 'danger' ? colors.danger : colors.accentPressed;
+  const bgColor = disabled ? colors.border : colors.accent;
+  const pressedBgColor = colors.accentPressed;
 
   return (
     <Pressable

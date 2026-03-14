@@ -17,6 +17,14 @@
 - **Transitions**: Maximum 300ms for user-initiated actions. Respect `prefers-reduced-motion`
 - **Screen states**: Every screen must handle empty, loading, and error states — never show blank screens
 
+## Brand Voice
+
+**Before writing any user-facing copy**, read `/BRAND_VOICE.md`. It governs tone, word choice, and channel-specific rules for all text that users see — in-app strings, push notifications, onboarding flows, app store copy, and marketing content.
+
+- **When to apply:** Any task involving user-facing text — UI strings, notifications, empty states, error messages, onboarding, app store descriptions, email templates
+- **When to skip:** Pure refactoring, infrastructure, backend logic, database migrations, or code-only changes with no user-facing text
+- **For in-app copy specifically:** The Tone & Language table in `docs/design/design-style.md` remains the primary reference. `BRAND_VOICE.md` extends those rules to external channels (email, social, marketing)
+
 ## General Coding Patterns
 
 - **Validate at the boundary, trust internally.** Service methods should check auth and validate inputs. Internal helpers can trust what the service passes them.

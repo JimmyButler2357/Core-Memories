@@ -8,12 +8,11 @@ interface ConfirmationDialogProps {
   confirmLabel: string;
   onConfirm: () => void;
   onCancel: () => void;
-  variant?: 'danger' | 'default';
 }
 
 /**
- * Full-screen overlay dialog for destructive actions and confirmations.
- * Two buttons: Cancel (neutral) and confirm (accent or danger).
+ * Full-screen overlay dialog for confirmations.
+ * Two buttons: Cancel (neutral) and confirm (accent).
  */
 export default function ConfirmationDialog({
   visible,
@@ -22,14 +21,12 @@ export default function ConfirmationDialog({
   confirmLabel,
   onConfirm,
   onCancel,
-  variant = 'default',
 }: ConfirmationDialogProps) {
-  const confirmColor = variant === 'danger' ? colors.danger : colors.accent;
 
   return (
-    <Modal visible={visible} transparent animationType="fade">
-      <View style={styles.overlay}>
-        <View style={[styles.card, shadows.lg]}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <Pressable style={styles.overlay} onPress={onCancel}>
+        <Pressable onPress={() => {}} style={[styles.card, shadows.lg]}>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.body}>{body}</Text>
           <View style={styles.buttons}>
@@ -47,15 +44,15 @@ export default function ConfirmationDialog({
               onPress={onConfirm}
               style={({ pressed }) => [
                 styles.button,
-                { backgroundColor: confirmColor },
+                { backgroundColor: colors.accent },
                 pressed && { opacity: 0.85 },
               ]}
             >
               <Text style={styles.confirmLabel}>{confirmLabel}</Text>
             </Pressable>
           </View>
-        </View>
-      </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }

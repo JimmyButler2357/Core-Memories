@@ -137,6 +137,7 @@ Daily habit loop drives nightly recording.
 - [ ] Prompt cards on Recording screen shuffled by child age range
 - [ ] Notification time configurable in Settings
 - [ ] Notification backoff logic — if `notification_log` shows 5+ ignored days, reduce frequency (edge function or client-side)
+- [ ] "No memories yet" nudge — if a child has zero entries by day 2-3 after being added, send a gentle notification (e.g., "Emma doesn't have any memories yet — capture your first one tonight!")
 
 ### Phase 8: Subscription & Paywall
 

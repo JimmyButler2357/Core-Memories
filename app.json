@@ -20,6 +20,9 @@
         "NSLocationWhenInUseUsageDescription": "Forever Fireflies tags where your memories happen so you can look back on them later."
       }
     },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#FAF8F5"
@@ -33,10 +36,7 @@
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
-      ],
-      "runtimeVersion": {
-        "policy": "appVersion"
-      }
+      ]
     },
     "web": {
       "bundler": "metro",

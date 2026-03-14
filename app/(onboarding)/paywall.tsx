@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import {
   colors,
+  fonts,
   typography,
   spacing,
   radii,
@@ -16,32 +17,35 @@ import { useAuthStore } from '@/stores/authStore';
 import { profilesService } from '@/services/profiles.service';
 import PrimaryButton from '@/components/PrimaryButton';
 
+/**
+ * Paywall — "gift" framing inspired by Dwell.
+ *
+ * Instead of showing pricing cards and plan selection, we present
+ * the free trial as a gift: "7 days of Forever Fireflies — on us."
+ *
+ * The celebratory illustration is built with styled Views + Ionicons
+ * (golden glow circle with sparkle icons), not external images.
+ *
+ * No plan selection here — annual is pre-selected. RevenueCat's
+ * native purchase sheet handles the actual pricing when the user
+ * subscribes after the trial.
+ */
+
 const VALUE_PROPS = [
   { icon: 'mic' as const, text: 'Unlimited voice & text memories' },
-  { icon: 'cloud-done' as const, text: 'Recordings preserved forever' },
-  { icon: 'search' as const, text: 'Search, organize, relive anytime' },
+  { icon: 'cloud-done' as const, text: 'Recordings saved and searchable forever' },
+  { icon: 'pricetag' as const, text: 'Organized by child, tag, or date' },
 ];
-
-function getTrialEndDate(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 7);
-  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-}
 
 export default function PaywallScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const setOnboarded = useAuthStore((s) => s.setOnboarded);
-  const [selectedPlan, setSelectedPlan] = useState<'annual' | 'monthly'>('annual');
   const [isLoading, setIsLoading] = useState(false);
 
   // Mark onboarding complete in TWO places:
   // 1. Supabase (server) — so the flag survives across devices
   // 2. Local store — so the router redirects immediately
-  //
-  // We do both because: the local flag makes routing instant
-  // (no network delay), and the server flag means if they sign
-  // in on another phone, they skip onboarding there too.
   const handleContinue = async () => {
     setIsLoading(true);
     try {
@@ -58,7 +62,7 @@ export default function PaywallScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Dismiss button */}
+      {/* Dismiss button — subtle, top right */}
       <View style={[styles.topBar, { paddingTop: insets.top + spacing(3) }]}>
         <View style={{ flex: 1 }} />
         <Pressable
@@ -69,14 +73,47 @@ export default function PaywallScreen() {
             pressed && { opacity: 0.6 },
           ]}
         >
-          <Ionicons name="close" size={22} color={colors.textSoft} />
+          <Ionicons name="close" size={22} color={colors.textMuted} />
         </Pressable>
       </View>
 
-      <View style={styles.content}>
-        <Text style={styles.heading}>Keep every memory safe.</Text>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentInner}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ─── Celebratory Illustration ──────────────── */}
+        {/* A golden glow circle with sparkle icons scattered
+            around it — warm confetti, not party-store colors.
+            Think: a firefly jar glowing on a summer evening. */}
+        <View style={styles.illustrationArea}>
+          {/* Outer glow ring */}
+          <View style={styles.glowRingOuter} />
+          {/* Inner glow circle */}
+          <View style={styles.glowCircle}>
+            <Ionicons name="gift" size={48} color={colors.glow} />
+          </View>
 
-        {/* Value props */}
+          {/* Sparkles — absolutely positioned around the circle */}
+          <Ionicons name="sparkles" size={16} color={colors.glow} style={styles.sparkle1} />
+          <Ionicons name="star" size={12} color={colors.accent} style={styles.sparkle2} />
+          <Ionicons name="sparkles" size={14} color={colors.glow} style={styles.sparkle3} />
+          <Ionicons name="star" size={10} color={colors.glow} style={styles.sparkle4} />
+          <Ionicons name="sparkles" size={12} color={colors.accent} style={styles.sparkle5} />
+          <Ionicons name="star" size={14} color={colors.glow} style={styles.sparkle6} />
+        </View>
+
+        {/* ─── Heading — serif italic ────────────────── */}
+        <Text style={styles.heading}>
+          7 days of Forever Fireflies — on us.
+        </Text>
+
+        {/* ─── Body ──────────────────────────────────── */}
+        <Text style={styles.body}>
+          Enjoy full access, no strings attached.
+        </Text>
+
+        {/* ─── Value props ───────────────────────────── */}
         <View style={styles.valueProps}>
           {VALUE_PROPS.map((prop) => (
             <View key={prop.text} style={styles.valuePropRow}>
@@ -87,45 +124,17 @@ export default function PaywallScreen() {
             </View>
           ))}
         </View>
+      </ScrollView>
 
-        {/* Pricing cards */}
-        <View style={styles.pricingRow}>
-          {/* Monthly */}
-          <Pressable
-            onPress={() => setSelectedPlan('monthly')}
-            style={[
-              styles.pricingCard,
-              selectedPlan === 'monthly' && styles.pricingCardSelected,
-            ]}
-          >
-            <Text style={styles.planName}>Monthly</Text>
-            <Text style={styles.planPrice}>$5.99</Text>
-            <Text style={styles.planPeriod}>/month</Text>
-          </Pressable>
-
-          {/* Annual */}
-          <Pressable
-            onPress={() => setSelectedPlan('annual')}
-            style={[
-              styles.pricingCard,
-              selectedPlan === 'annual' && styles.pricingCardSelected,
-            ]}
-          >
-            <View style={styles.saveBadge}>
-              <Text style={styles.saveBadgeText}>Save 30%</Text>
-            </View>
-            <Text style={styles.planName}>Annual</Text>
-            <Text style={styles.planPrice}>$49.99</Text>
-            <Text style={styles.planPeriod}>/year</Text>
-            <Text style={styles.planBreakdown}>$4.17/mo</Text>
-          </Pressable>
-        </View>
-      </View>
-
+      {/* ─── Bottom: CTA + fine print + restore ─────── */}
       <View style={[styles.bottom, { paddingBottom: insets.bottom + spacing(12) }]}>
-        <PrimaryButton label="Start your free trial" onPress={handleContinue} />
-        <Text style={styles.trialText}>
-          7-day free trial · Ends {getTrialEndDate()}
+        <PrimaryButton
+          label="Start my free week"
+          onPress={handleContinue}
+          disabled={isLoading}
+        />
+        <Text style={styles.finePrint}>
+          $5.99/month  |  $49.99/year
         </Text>
         <Pressable onPress={handleContinue}>
           <Text style={styles.restoreLink}>Already subscribed? Restore purchase</Text>
@@ -153,17 +162,68 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
   },
+  contentInner: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: spacing(28),
+  },
+  // ─── Celebratory Illustration ─────────────────────
+  illustrationArea: {
+    width: 120,
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing(6),
+  },
+  glowRingOuter: {
+    position: 'absolute',
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    backgroundColor: colors.glowGlow,
+  },
+  glowCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.glowSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.md,
+    shadowColor: colors.glow,
+    shadowOpacity: 0.25,
+  },
+  // Each sparkle is positioned relative to the illustrationArea
+  sparkle1: { position: 'absolute', top: 8, right: 20 },
+  sparkle2: { position: 'absolute', top: 24, left: 16 },
+  sparkle3: { position: 'absolute', bottom: 20, right: 12 },
+  sparkle4: { position: 'absolute', top: 4, left: 40 },
+  sparkle5: { position: 'absolute', bottom: 12, left: 24 },
+  sparkle6: { position: 'absolute', bottom: 40, right: 4 },
+  // ─── Heading ──────────────────────────────────────
   heading: {
-    ...typography.onboardingHeading,
+    fontFamily: fonts.serifBold,
+    fontSize: 20,
+    fontStyle: 'italic',
     color: colors.text,
     textAlign: 'center',
-    marginBottom: spacing(8),
+    marginBottom: spacing(3),
   },
+  // ─── Body ─────────────────────────────────────────
+  body: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: colors.textSoft,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: spacing(6),
+  },
+  // ─── Value Props ──────────────────────────────────
   valueProps: {
     gap: spacing(4),
-    marginBottom: spacing(8),
+    width: '100%',
   },
   valuePropRow: {
     flexDirection: 'row',
@@ -183,62 +243,13 @@ const styles = StyleSheet.create({
     color: colors.text,
     flex: 1,
   },
-  pricingRow: {
-    flexDirection: 'row',
-    gap: spacing(3),
-  },
-  pricingCard: {
-    flex: 1,
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    borderWidth: 2,
-    borderColor: colors.border,
-    padding: spacing(4),
-    alignItems: 'center',
-    position: 'relative',
-  },
-  pricingCardSelected: {
-    borderColor: colors.accent,
-  },
-  saveBadge: {
-    position: 'absolute',
-    top: -spacing(3),
-    backgroundColor: colors.accent,
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(1),
-    borderRadius: radii.sm,
-  },
-  saveBadgeText: {
-    ...typography.caption,
-    color: colors.card,
-    fontWeight: '700',
-  },
-  planName: {
-    ...typography.formLabel,
-    color: colors.textSoft,
-    marginBottom: spacing(2),
-    marginTop: spacing(1),
-  },
-  planPrice: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  planPeriod: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  planBreakdown: {
-    ...typography.caption,
-    color: colors.accent,
-    marginTop: spacing(1),
-  },
+  // ─── Bottom ───────────────────────────────────────
   bottom: {
     gap: spacing(3),
     alignItems: 'center',
     paddingBottom: spacing(12),
   },
-  trialText: {
+  finePrint: {
     ...typography.caption,
     color: colors.textMuted,
   },

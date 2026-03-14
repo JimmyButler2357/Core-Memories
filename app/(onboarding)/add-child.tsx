@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import {
   colors,
   fonts,
@@ -21,12 +22,14 @@ import {
   spacing,
   radii,
   shadows,
+  hitSlop,
+  minTouchTarget,
   childColors,
 } from '@/constants/theme';
 import { useChildrenStore, mapSupabaseChild } from '@/stores/childrenStore';
 import { childrenService } from '@/services/children.service';
+import { formatDate } from '@/lib/dateUtils';
 import PrimaryButton from '@/components/PrimaryButton';
-import ChildPill from '@/components/ChildPill';
 import BirthdayPicker from '@/components/BirthdayPicker';
 import ColorPicker from '@/components/ColorPicker';
 
@@ -56,7 +59,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 export default function AddChildScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { children, addChildLocal, removeChildLocal } = useChildrenStore();
+  const { children, addChildLocal, removeChildLocal, updateChildLocal } = useChildrenStore();
 
   const [name, setName] = useState('');
   const [nickname, setNickname] = useState('');
@@ -64,6 +67,7 @@ export default function AddChildScreen() {
   const [colorIndex, setColorIndex] = useState(children.length % 6);
   const [isLoading, setIsLoading] = useState(false);
   const [showForm, setShowForm] = useState(true);
+  const [editingChildId, setEditingChildId] = useState<string | null>(null);
 
   const hasChildren = children.length > 0;
   const nameEntered = name.trim().length > 0;
@@ -71,18 +75,23 @@ export default function AddChildScreen() {
   const formReady = nameEntered && birthdaySet;
 
   // Dynamic heading — changes based on what stage you're at:
-  // 1. No children, nothing typed → welcoming question
-  // 2. No children, typing a name → personalized encouragement
-  // 3. Has children, form hidden → celebration + clear next step
-  // 4. Has children, form open → asking about more children
+  // 1. No children yet → welcoming question
+  // 2. Has children, form hidden → celebration + clear next step
+  // 3. Has children, form open → asking about more children
   const lastChild = children[children.length - 1];
-  const heading = hasChildren
-    ? showForm
-      ? 'Anyone else?'
-      : `${lastChild?.name} is all set!`
-    : nameEntered
-      ? `Let's start ${name.trim()}'s memory book.`
-      : 'Who are we capturing moments for?';
+  // When editing, show the child's name in the heading so it's clear
+  // which child you're modifying. Otherwise, normal add flow headings.
+  const editingChild = editingChildId
+    ? children.find((c) => c.id === editingChildId)
+    : null;
+
+  const heading = editingChildId && editingChild
+    ? `Edit ${editingChild.name}`
+    : hasChildren
+      ? showForm
+        ? 'Anyone else?'
+        : `${lastChild?.name} is all set!`
+      : 'Who are we keeping memories for?';
 
   // Button label — depends on whether the form is showing or hidden
   const getButtonLabel = () => {
@@ -90,6 +99,7 @@ export default function AddChildScreen() {
     if (isLoading) return 'Saving...';
     if (!nameEntered) return 'Enter a name to continue';
     if (!birthdaySet) return 'Add a birthday to continue';
+    if (editingChildId) return 'Save changes';
     return `Add ${name.trim()}`;
   };
 
@@ -98,20 +108,39 @@ export default function AddChildScreen() {
   const saveChildToSupabase = async (): Promise<boolean> => {
     setIsLoading(true);
     try {
-      // Send to Supabase. The `color_index` auto-increments based
-      // on how many children we already have (0, 1, 2... up to 5,
-      // then wraps around). `display_order` works the same way.
-      const row = await childrenService.createChild({
-        name: name.trim(),
-        birthday,
-        nickname: nickname.trim() || null,
-        color_index: colorIndex,
-        display_order: children.length,
-      });
+      if (editingChildId) {
+        // ── Edit mode ──
+        // Update the existing child in Supabase, then sync local store.
+        const updates = {
+          name: name.trim(),
+          birthday,
+          nickname: nickname.trim() || null,
+          color_index: colorIndex,
+        };
+        await childrenService.updateChild(editingChildId, updates);
+        updateChildLocal(editingChildId, {
+          name: updates.name,
+          birthday: updates.birthday,
+          nickname: updates.nickname,
+          colorIndex: updates.color_index,
+        });
+      } else {
+        // ── Add mode ──
+        // Send to Supabase. The `color_index` auto-increments based
+        // on how many children we already have (0, 1, 2... up to 5,
+        // then wraps around). `display_order` works the same way.
+        const row = await childrenService.createChild({
+          name: name.trim(),
+          birthday,
+          nickname: nickname.trim() || null,
+          color_index: colorIndex,
+          display_order: children.length,
+        });
 
-      // Convert the snake_case database row to our camelCase UI shape
-      // and add it to the local store for instant display.
-      addChildLocal(mapSupabaseChild(row));
+        // Convert the snake_case database row to our camelCase UI shape
+        // and add it to the local store for instant display.
+        addChildLocal(mapSupabaseChild(row));
+      }
 
       // Reset form fields and collapse it. LayoutAnimation makes
       // the form smoothly shrink away instead of popping out.
@@ -120,6 +149,7 @@ export default function AddChildScreen() {
       setNickname('');
       setBirthday('');
       setColorIndex((children.length + 1) % 6);
+      setEditingChildId(null);
       setShowForm(false);
       return true;
     } catch (error) {
@@ -156,12 +186,27 @@ export default function AddChildScreen() {
     setShowForm(true);
   };
 
+  // Tap a child card to edit — pre-fills the form with that child's data.
+  const handleEditChild = (childId: string) => {
+    const child = children.find((c) => c.id === childId);
+    if (!child) return;
+
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setName(child.name);
+    setNickname(child.nickname ?? '');
+    setBirthday(child.birthday ?? '');
+    setColorIndex(child.colorIndex);
+    setEditingChildId(child.id);
+    setShowForm(true);
+  };
+
   // Collapse the form without saving
   const handleCancelForm = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setName('');
     setNickname('');
     setBirthday('');
+    setEditingChildId(null);
     setShowForm(false);
   };
 
@@ -189,19 +234,43 @@ export default function AddChildScreen() {
         {/* Heading */}
         <Text style={styles.heading}>{heading}</Text>
 
-        {/* Existing children pills */}
+        {/* Saved children cards */}
         {hasChildren && (
-          <View style={styles.pillRow}>
+          <View style={styles.childCards}>
             {children.map((child) => {
               const color = childColors[child.colorIndex]?.hex ?? childColors[0].hex;
               return (
-                <ChildPill
-                  key={child.id}
-                  name={child.name}
-                  color={color}
-                  showRemove
-                  onRemove={() => handleRemoveChild(child.id)}
-                />
+                <View key={child.id} style={styles.childCard}>
+                  <View style={[styles.childCardAccent, { backgroundColor: color }]} />
+                  <Pressable
+                    onPress={() => handleEditChild(child.id)}
+                    style={({ pressed }) => [
+                      styles.childCardBody,
+                      pressed && styles.childCardPressed,
+                    ]}
+                  >
+                    <View style={[styles.initialCircle, { backgroundColor: color }]}>
+                      <Text style={styles.initialText}>
+                        {child.name.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={styles.childCardInfo}>
+                      <Text style={styles.childCardName}>{child.name}</Text>
+                      {child.birthday && (
+                        <Text style={styles.childCardBirthday}>
+                          {formatDate(child.birthday, 'long')}
+                        </Text>
+                      )}
+                    </View>
+                    <Pressable
+                      onPress={() => handleRemoveChild(child.id)}
+                      hitSlop={hitSlop.icon}
+                      style={styles.childCardRemove}
+                    >
+                      <Ionicons name="close" size={16} color={color} style={{ opacity: 0.6 }} />
+                    </Pressable>
+                  </Pressable>
+                </View>
               );
             })}
           </View>
@@ -263,8 +332,8 @@ export default function AddChildScreen() {
             disabled={showForm && (!formReady || isLoading)}
           />
 
-          {/* When form is hidden: offer to add another child */}
-          {hasChildren && !showForm && (
+          {/* When form is hidden and not editing: offer to add another child */}
+          {hasChildren && !showForm && !editingChildId && (
             <Pressable onPress={handleShowForm}>
               <Text style={styles.addAnotherLink}>+ Add another child</Text>
             </Pressable>
@@ -298,11 +367,62 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing(5),
   },
-  pillRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing(2),
+  childCards: {
+    gap: spacing(3),
     marginBottom: spacing(5),
+  },
+  childCard: {
+    flexDirection: 'row',
+    backgroundColor: colors.card,
+    borderRadius: radii.card,
+    ...shadows.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  childCardAccent: {
+    width: 3,
+  },
+  childCardBody: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing(3),
+    gap: spacing(3),
+  },
+  initialCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  initialText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  childCardInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  childCardName: {
+    fontFamily: fonts.serif,
+    fontSize: 16,
+    color: colors.text,
+  },
+  childCardBirthday: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  childCardPressed: {
+    backgroundColor: colors.bg,
+  },
+  childCardRemove: {
+    minWidth: minTouchTarget,
+    minHeight: minTouchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   card: {
     backgroundColor: colors.card,

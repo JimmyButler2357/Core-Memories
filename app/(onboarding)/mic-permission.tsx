@@ -41,10 +41,10 @@ export default function MicPermissionScreen() {
           <Ionicons name="mic" size={40} color={colors.accent} />
         </View>
 
-        <Text style={styles.heading}>One tap to capture a memory</Text>
+        <Text style={styles.heading}>Your voice tells the story best.</Text>
 
         <Text style={styles.body}>
-          Nothing is ever recorded until you press the button. Your voice, your memories.
+          Nothing records until you say so. Just tap, talk, and the moment is saved.
         </Text>
 
         {showSkipCard && (

@@ -3,7 +3,7 @@
 // so each user can only access their own audio files.
 // Path pattern: {user_id}/{entry_id}.wav
 
-import { File as ExpoFile } from 'expo-file-system';
+import { File as ExpoFile, Paths } from 'expo-file-system';
 import { supabase } from '@/lib/supabase';
 
 const BUCKET = 'audio-recordings';
@@ -73,5 +73,26 @@ export const storageService = {
       .remove([storagePath]);
 
     if (error) throw new Error(`Failed to delete audio: ${error.message}`, { cause: error });
+  },
+
+  /** Download an audio file to local cache for concatenation.
+   *  Gets a signed URL, fetches the bytes, and writes them locally.
+   *  Returns the local file URI so it can be passed to concatWavFiles(). */
+  async downloadAudio(storagePath: string): Promise<string> {
+    // getPlaybackUrl already validates auth + ownership
+    const signedUrl = await this.getPlaybackUrl(storagePath);
+
+    // Fetch the audio bytes from the signed URL
+    const response = await fetch(signedUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to download audio: HTTP ${response.status}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+
+    // Write to a temp file in cache (auto-cleaned by the OS when space is needed)
+    const localFile = new ExpoFile(Paths.cache, `download_${Date.now()}.wav`);
+    await localFile.write(new Uint8Array(arrayBuffer));
+
+    return localFile.uri;
   },
 };

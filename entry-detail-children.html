@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clean Divide — Children Display Options</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #FAF8F5; --card: #FEFCF9; --text: #2C2420; --textSoft: #8C7E74;
+    --textMuted: #B5AAA0; --accent: #E8724A; --accentSoft: rgba(232,114,74,0.08);
+    --border: #EDE8E3; --tag: #F3EDE8; --childBlue: #7BAFD4; --childAmber: #D4A07B;
+    --shadow-sm: 0 1px 3px rgba(44,36,32,0.06);
+    --ui-bg: #1a1a1a; --ui-surface: #242424; --ui-border: #333; --ui-text: #e0e0e0; --ui-muted: #888;
+  }
+  body { font-family: system-ui, -apple-system, sans-serif; background: var(--ui-bg); color: var(--ui-text); min-height: 100vh; display: flex; flex-direction: column; }
+
+  .top-bar { display: flex; align-items: center; padding: 16px 24px; border-bottom: 1px solid var(--ui-border); flex-shrink: 0; }
+  .top-bar h1 { font-size: 16px; font-weight: 600; color: #fff; }
+  .top-bar .subtitle { font-size: 12px; color: var(--ui-muted); margin-top: 2px; }
+
+  .main-layout { display: flex; flex: 1; overflow: hidden; }
+
+  .controls { width: 280px; flex-shrink: 0; border-right: 1px solid var(--ui-border); padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 24px; }
+  .control-group label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--ui-muted); margin-bottom: 8px; }
+
+  .tab-switcher { display: flex; flex-direction: column; gap: 4px; }
+  .tab-btn { background: transparent; border: 1px solid var(--ui-border); color: var(--ui-text); padding: 10px 12px; border-radius: 8px; cursor: pointer; text-align: left; font-size: 13px; font-family: inherit; transition: all 150ms; display: flex; flex-direction: column; gap: 2px; }
+  .tab-btn:hover { border-color: #555; background: var(--ui-surface); }
+  .tab-btn.active { border-color: var(--accent); background: rgba(232,114,74,0.1); color: #fff; }
+  .tab-btn .tab-name { font-weight: 600; }
+  .tab-btn .tab-desc { font-size: 11px; color: var(--ui-muted); }
+  .tab-btn.active .tab-desc { color: rgba(232,114,74,0.7); }
+
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+  .toggle-row span { font-size: 13px; }
+  .toggle { width: 40px; height: 22px; background: #444; border-radius: 11px; position: relative; cursor: pointer; transition: background 150ms; border: none; flex-shrink: 0; }
+  .toggle.on { background: var(--accent); }
+  .toggle::after { content: ''; position: absolute; width: 18px; height: 18px; background: #fff; border-radius: 50%; top: 2px; left: 2px; transition: transform 150ms; }
+  .toggle.on::after { transform: translateX(18px); }
+
+  .layout-desc { font-size: 12px; color: var(--ui-muted); line-height: 1.5; padding: 12px; background: var(--ui-surface); border-radius: 8px; border: 1px solid var(--ui-border); }
+  .layout-desc strong { color: var(--ui-text); }
+
+  .preview-area { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; overflow: auto; }
+
+  .phone-frame { width: 375px; height: 812px; background: var(--bg); border-radius: 40px; border: 8px solid #333; overflow: hidden; position: relative; box-shadow: 0 8px 32px rgba(44,36,32,0.3), inset 0 0 0 1px rgba(255,255,255,0.05); flex-shrink: 0; }
+  .status-bar { height: 54px; padding: 14px 24px 0; display: flex; justify-content: space-between; align-items: flex-start; font-size: 14px; font-weight: 600; color: var(--text); flex-shrink: 0; }
+  .status-icons { display: flex; gap: 4px; align-items: center; font-size: 12px; }
+  .phone-content { height: calc(100% - 54px); overflow-y: auto; overflow-x: hidden; }
+  .phone-content::-webkit-scrollbar { width: 0; }
+  .home-indicator { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 134px; height: 5px; background: rgba(44,36,32,0.2); border-radius: 3px; z-index: 20; }
+
+  /* Phone UI */
+  .nav-bar { display: flex; align-items: center; justify-content: space-between; padding: 4px 16px 8px; }
+  .nav-left, .nav-right { display: flex; align-items: center; gap: 8px; }
+  .nav-btn { width: 36px; height: 36px; border-radius: 50%; background: rgba(243,237,232,0.5); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text); }
+  .nav-btn.heart-filled { color: var(--accent); }
+  .overflow-btn { width: 36px; height: 36px; border-radius: 50%; background: rgba(243,237,232,0.5); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; color: var(--text); font-weight: 700; letter-spacing: 2px; }
+
+  .entry-pad { padding: 0 20px; }
+  .entry-title { font-family: Georgia, serif; font-size: 22px; font-weight: 700; color: var(--text); line-height: 1.3; }
+  .accent-divider { height: 3px; border-radius: 2px; background: linear-gradient(90deg, var(--childBlue), var(--childAmber)); }
+  .meta-line { font-family: system-ui, sans-serif; font-size: 12px; color: var(--textMuted); line-height: 1.4; }
+  .transcript { font-family: Georgia, serif; font-size: 15px; line-height: 1.65; color: var(--text); }
+
+  .child-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; vertical-align: middle; }
+  .child-dot-sm { width: 6px; height: 6px; border-radius: 50%; display: inline-block; vertical-align: middle; }
+
+  /* Colored name text */
+  .child-colored-name { font-weight: 600; }
+  .child-colored-name.blue { color: var(--childBlue); }
+  .child-colored-name.amber { color: var(--childAmber); }
+
+  /* Mini pills */
+  .child-mini-pills { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .child-mini-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+  .child-mini-pill.blue { background: rgba(123,175,212,0.12); color: var(--childBlue); }
+  .child-mini-pill.amber { background: rgba(212,160,123,0.12); color: var(--childAmber); }
+  .child-mini-pill .pill-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .child-mini-pill .pill-age { font-weight: 400; font-size: 11px; opacity: 0.7; margin-left: 2px; }
+
+  /* Full pills (for option C) */
+  .child-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+  .child-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 12px; font-size: 13px; font-weight: 700; }
+  .child-pill.blue { background: rgba(123,175,212,0.12); color: var(--childBlue); }
+  .child-pill.amber { background: rgba(212,160,123,0.12); color: var(--childAmber); }
+  .child-pill .pill-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .child-pill .pill-age { font-weight: 400; font-size: 11px; opacity: 0.65; margin-left: 1px; }
+
+  .photo-gallery { display: flex; gap: 8px; align-items: center; }
+  .photo-thumb { width: 80px; height: 80px; border-radius: 12px; overflow: hidden; position: relative; flex-shrink: 0; }
+  .photo-thumb.p1 { background: linear-gradient(135deg, #d4c4b0, #e8d5c4, #c9b8a8); }
+  .photo-thumb.p2 { background: linear-gradient(135deg, #b8c8d8, #c4d4e4, #a8b8c8); }
+  .photo-thumb .cam-icon { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.6); font-size: 20px; }
+  .photo-add { width: 80px; height: 80px; border-radius: 12px; border: 2px dashed var(--border); display: flex; align-items: center; justify-content: center; color: var(--textMuted); font-size: 24px; cursor: pointer; background: transparent; flex-shrink: 0; }
+
+  .audio-bar { display: flex; align-items: center; gap: 12px; padding: 12px 0; }
+  .play-btn { width: 36px; height: 36px; border-radius: 50%; background: var(--accentSoft); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--accent); flex-shrink: 0; }
+  .waveform { flex: 1; display: flex; align-items: center; gap: 2px; height: 36px; }
+  .wave-bar { width: 3px; border-radius: 2px; min-height: 4px; }
+  .audio-duration { font-size: 12px; color: var(--textMuted); font-family: system-ui, sans-serif; flex-shrink: 0; }
+  .audio-actions { display: flex; gap: 4px; }
+  .audio-action-btn { width: 28px; height: 28px; border-radius: 50%; background: transparent; border: none; color: var(--textSoft); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+  .tags-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .tag-pill { background: var(--tag); color: var(--textSoft); font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 8px; display: flex; align-items: center; gap: 4px; font-family: system-ui, sans-serif; background: rgba(243,237,232,0.6); color: var(--textMuted); }
+  .tag-pill .tag-x { font-size: 9px; color: var(--textMuted); cursor: pointer; opacity: 0; transition: opacity 150ms; }
+  .tag-pill:hover .tag-x { opacity: 1; }
+  .tag-add { background: transparent; border: 1px dashed var(--border); color: var(--textMuted); font-size: 10px; padding: 2px 7px; border-radius: 8px; cursor: pointer; font-family: system-ui, sans-serif; }
+
+  .sp-4 { height: 4px; } .sp-8 { height: 8px; } .sp-12 { height: 12px; }
+  .sp-16 { height: 16px; } .sp-20 { height: 20px; } .sp-24 { height: 24px; }
+
+  /* Prompt */
+  .prompt-area { border-top: 1px solid var(--ui-border); padding: 16px 24px; flex-shrink: 0; }
+  .prompt-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .prompt-header span { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--ui-muted); }
+  .copy-btn { background: var(--ui-surface); border: 1px solid var(--ui-border); color: var(--ui-text); padding: 4px 12px; border-radius: 6px; font-size: 12px; font-family: inherit; cursor: pointer; }
+  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .prompt-text { font-size: 13px; line-height: 1.6; color: var(--ui-muted); font-family: 'SF Mono', 'Fira Code', monospace; white-space: pre-wrap; max-height: 100px; overflow-y: auto; }
+
+  /* Highlight annotation */
+  .annotation {
+    position: relative;
+    outline: 2px dashed rgba(232,114,74,0.4);
+    outline-offset: 4px;
+    border-radius: 6px;
+  }
+  .annotation::after {
+    content: attr(data-label);
+    position: absolute;
+    right: -4px;
+    top: -10px;
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: system-ui, sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: var(--bg);
+    padding: 0 4px;
+  }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div>
+    <h1>Clean Divide — Children Display</h1>
+    <div class="subtitle">Which style makes children visible without breaking the flow?</div>
+  </div>
+</div>
+
+<div class="main-layout">
+  <div class="controls">
+    <div class="control-group">
+      <label>Children Display</label>
+      <div class="tab-switcher">
+        <button class="tab-btn active" data-tab="colored" onclick="setTab('colored')">
+          <span class="tab-name">A — Colored Names</span>
+          <span class="tab-desc">Names in child colors within byline</span>
+        </button>
+        <button class="tab-btn" data-tab="mini" onclick="setTab('mini')">
+          <span class="tab-name">B — Mini Pills</span>
+          <span class="tab-desc">Small colored pills between divider & meta</span>
+        </button>
+        <button class="tab-btn" data-tab="split" onclick="setTab('split')">
+          <span class="tab-name">C — Two-Line Split</span>
+          <span class="tab-desc">Meta line 1: date/time. Line 2: child pills</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>Options</label>
+      <div class="toggle-row">
+        <span>Show photos</span>
+        <button class="toggle on" id="togglePhotos" onclick="toggleOpt('photos')"></button>
+      </div>
+      <div class="toggle-row">
+        <span>Voice entry</span>
+        <button class="toggle on" id="toggleVoice" onclick="toggleOpt('voice')"></button>
+      </div>
+      <div class="toggle-row">
+        <span>Highlight children area</span>
+        <button class="toggle" id="toggleHighlight" onclick="toggleOpt('highlight')"></button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>About this option</label>
+      <div class="layout-desc" id="layoutDesc"></div>
+    </div>
+  </div>
+
+  <div class="preview-area">
+    <div class="phone-frame">
+      <div class="status-bar">
+        <span>9:41</span>
+        <div class="status-icons"><span>●●●●</span><span style="margin-left:4px">🔋</span></div>
+      </div>
+      <div class="phone-content" id="phoneContent"></div>
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+</div>
+
+<div class="prompt-area">
+  <div class="prompt-header">
+    <span>Prompt Output</span>
+    <button class="copy-btn" onclick="copyPrompt()">Copy</button>
+  </div>
+  <div class="prompt-text" id="promptText"></div>
+</div>
+
+<script>
+const state = { tab: 'colored', photos: true, voice: true, highlight: false };
+
+const DESCRIPTIONS = {
+  colored: `<strong>A — Colored Names</strong> — Children stay in the metadata line, but their names render in their assigned color (blue for Emma, amber for Oliver) with a small colored dot before each name. Subtle but instantly recognizable — you see the color association without any extra UI weight. The metadata line reads: "March 12 · 8:47 PM · Portland, OR" then below it: colored dot + colored name + age.`,
+  mini: `<strong>B — Mini Pills</strong> — Small colored pill badges on their own line between the gradient divider and the date/location metadata. Each pill has a tiny dot + name + age. They're smaller than the current pills (12px text instead of 13px, less padding) to stay proportional with the clean layout. The metadata line below only shows date · time · location.`,
+  split: `<strong>C — Two-Line Split</strong> — Metadata splits into two clear lines. Line 1: date · time · location in muted text (the "when & where"). Line 2: full-size colored child pills with ages (the "who"). This gives children the most visual weight — they're unmissable — but adds a bit more vertical space before the transcript.`
+};
+
+const ICONS = {
+  back: `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12 4L6 10L12 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  heartFilled: `<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path d="M10 17.5s-7-4.5-7-9A4 4 0 0110 5.5a4 4 0 017 3c0 4.5-7 9-7 9z"/></svg>`,
+  play: `<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M3 1.5v11l9-5.5-9-5.5z"/></svg>`,
+  mic: `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v6m0 0a2 2 0 002-2V3a2 2 0 00-4 0v2a2 2 0 002 2zm-4-1a4 4 0 008 0M7 11v2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>`,
+  camera: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="13" r="4" stroke="currentColor" stroke-width="1.5"/></svg>`,
+  plus: `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+};
+
+const TRANSCRIPT = `Emma looked out the window tonight and told me the moon was following her car. She was so serious about it — like she'd discovered something nobody else had noticed. Oliver was babbling in his car seat, completely unaware. She leaned over and whispered to him, "Don't worry, the moon is our friend." I almost missed it.`;
+
+function navBar() {
+  return `<div class="nav-bar">
+    <div class="nav-left"><button class="nav-btn">${ICONS.back}</button></div>
+    <div class="nav-right">
+      <button class="nav-btn heart-filled">${ICONS.heartFilled}</button>
+      <button class="overflow-btn">···</button>
+    </div>
+  </div>`;
+}
+
+function waveformBars() {
+  const heights = [12,18,8,22,14,28,10,24,16,30,12,20,26,14,32,18,24,10,28,16,22,8,20,14,26];
+  return heights.map((h, i) => {
+    const r = Math.round(123 + (212-123)*(i/24));
+    const g = Math.round(175 + (160-175)*(i/24));
+    const b = Math.round(212 + (123-212)*(i/24));
+    return `<div class="wave-bar" style="height:${h}px;background:rgba(${r},${g},${b},${i<10?1:0.3})"></div>`;
+  }).join('');
+}
+
+function audioBar() {
+  if (!state.voice) return '';
+  return `<div class="audio-bar">
+    <button class="play-btn">${ICONS.play}</button>
+    <div class="waveform">${waveformBars()}</div>
+    <span class="audio-duration">0:32</span>
+    <div class="audio-actions">
+      <button class="audio-action-btn">${ICONS.mic}</button>
+      <button class="audio-action-btn">${ICONS.plus}</button>
+    </div>
+  </div>`;
+}
+
+function photoGallery() {
+  if (!state.photos) return '';
+  return `<div class="photo-gallery">
+    <div class="photo-thumb p1"><div class="cam-icon">${ICONS.camera}</div></div>
+    <div class="photo-thumb p2"><div class="cam-icon">${ICONS.camera}</div></div>
+    <button class="photo-add">+</button>
+  </div>`;
+}
+
+function tagsRow() {
+  return `<div class="tags-row">
+    <span class="tag-pill">bedtime<span class="tag-x">✕</span></span>
+    <span class="tag-pill">funny<span class="tag-x">✕</span></span>
+    <span class="tag-pill">imagination<span class="tag-x">✕</span></span>
+    <span class="tag-pill">car ride<span class="tag-x">✕</span></span>
+    <button class="tag-add">+ add tag</button>
+  </div>`;
+}
+
+function hl(content, label) {
+  if (!state.highlight) return content;
+  return `<div class="annotation" data-label="${label}">${content}</div>`;
+}
+
+// ===== OPTION A: Colored Names =====
+function renderColored() {
+  const children = `<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:13px;line-height:1.4">
+    <span class="child-dot" style="background:var(--childBlue)"></span>
+    <span class="child-colored-name blue">Emma</span>
+    <span style="color:var(--textMuted);font-size:11px">3y 4m</span>
+    <span style="color:var(--textMuted);margin:0 2px">·</span>
+    <span class="child-dot" style="background:var(--childAmber)"></span>
+    <span class="child-colored-name amber">Oliver</span>
+    <span style="color:var(--textMuted);font-size:11px">1y 2w</span>
+  </div>`;
+
+  return `
+    ${navBar()}
+    <div class="entry-pad">
+      <div class="entry-title">The Moon Follows Her Car</div>
+      <div class="sp-8"></div>
+      <div class="accent-divider"></div>
+      <div class="sp-8"></div>
+      ${hl(children, 'children')}
+      <div class="sp-4"></div>
+      <div class="meta-line">March 12, 2026 · 8:47 PM · Portland, OR</div>
+      <div class="sp-20"></div>
+      <div class="transcript">${TRANSCRIPT}</div>
+      <div class="sp-16"></div>
+      ${photoGallery()}
+      ${state.photos ? '<div class="sp-16"></div>' : ''}
+      ${audioBar()}
+      <div class="sp-20"></div>
+      ${tagsRow()}
+      <div class="sp-24"></div>
+    </div>`;
+}
+
+// ===== OPTION B: Mini Pills =====
+function renderMini() {
+  const children = `<div class="child-mini-pills">
+    <span class="child-mini-pill blue">
+      <span class="pill-dot" style="background:var(--childBlue)"></span>
+      Emma<span class="pill-age">3y 4m</span>
+    </span>
+    <span class="child-mini-pill amber">
+      <span class="pill-dot" style="background:var(--childAmber)"></span>
+      Oliver<span class="pill-age">1y 2w</span>
+    </span>
+  </div>`;
+
+  return `
+    ${navBar()}
+    <div class="entry-pad">
+      <div class="entry-title">The Moon Follows Her Car</div>
+      <div class="sp-8"></div>
+      <div class="accent-divider"></div>
+      <div class="sp-8"></div>
+      ${hl(children, 'children')}
+      <div class="sp-4"></div>
+      <div class="meta-line">March 12, 2026 · 8:47 PM · Portland, OR</div>
+      <div class="sp-20"></div>
+      <div class="transcript">${TRANSCRIPT}</div>
+      <div class="sp-16"></div>
+      ${photoGallery()}
+      ${state.photos ? '<div class="sp-16"></div>' : ''}
+      ${audioBar()}
+      <div class="sp-20"></div>
+      ${tagsRow()}
+      <div class="sp-24"></div>
+    </div>`;
+}
+
+// ===== OPTION C: Two-Line Split =====
+function renderSplit() {
+  const children = `<div class="child-pills">
+    <span class="child-pill blue">
+      <span class="pill-dot" style="background:var(--childBlue);width:8px;height:8px;border-radius:50%"></span>
+      Emma<span class="pill-age">3y 4m</span>
+    </span>
+    <span class="child-pill amber">
+      <span class="pill-dot" style="background:var(--childAmber);width:8px;height:8px;border-radius:50%"></span>
+      Oliver<span class="pill-age">1y 2w</span>
+    </span>
+  </div>`;
+
+  return `
+    ${navBar()}
+    <div class="entry-pad">
+      <div class="entry-title">The Moon Follows Her Car</div>
+      <div class="sp-8"></div>
+      <div class="accent-divider"></div>
+      <div class="sp-8"></div>
+      <div class="meta-line">March 12, 2026 · 8:47 PM · Portland, OR</div>
+      <div class="sp-8"></div>
+      ${hl(children, 'children')}
+      <div class="sp-20"></div>
+      <div class="transcript">${TRANSCRIPT}</div>
+      <div class="sp-16"></div>
+      ${photoGallery()}
+      ${state.photos ? '<div class="sp-16"></div>' : ''}
+      ${audioBar()}
+      <div class="sp-20"></div>
+      ${tagsRow()}
+      <div class="sp-24"></div>
+    </div>`;
+}
+
+function render() {
+  const el = document.getElementById('phoneContent');
+  switch (state.tab) {
+    case 'colored': el.innerHTML = renderColored(); break;
+    case 'mini': el.innerHTML = renderMini(); break;
+    case 'split': el.innerHTML = renderSplit(); break;
+  }
+  el.scrollTop = 0;
+  document.getElementById('layoutDesc').innerHTML = DESCRIPTIONS[state.tab];
+  updatePrompt();
+}
+
+function setTab(tab) {
+  state.tab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  render();
+}
+
+function toggleOpt(key) {
+  state[key] = !state[key];
+  const ids = { photos: 'togglePhotos', voice: 'toggleVoice', highlight: 'toggleHighlight' };
+  document.getElementById(ids[key]).classList.toggle('on', state[key]);
+  render();
+}
+
+function updatePrompt() {
+  const parts = [
+    'Redesign the Entry Detail page using the "Story Flow — Clean Divide" layout.',
+    'Ultra-minimal nav: back + heart + overflow (···). No visible trash button.',
+    'Title (22px Georgia bold) is the first element after the nav bar.',
+    'Below the title: a 3px gradient divider using child colors (blue→amber).',
+  ];
+
+  switch (state.tab) {
+    case 'colored':
+      parts.push('Below the divider: children displayed with colored dots and their NAMES in their assigned color (e.g., Emma in blue, Oliver in amber). Ages in muted text (11px). Font-weight 600.');
+      parts.push('Below children: date · time · location in a single muted text line (12px).');
+      break;
+    case 'mini':
+      parts.push('Below the divider: children as small colored pill badges (12px, 10px radius). Each pill has a dot + name + age. Background at 12% child color opacity.');
+      parts.push('Below pills: date · time · location in a single muted text line (12px).');
+      break;
+    case 'split':
+      parts.push('Below the divider: Line 1 = date · time · location in muted text (12px).');
+      parts.push('Line 2 = full-size colored child pills (13px, 12px radius, 12% opacity background) with dot + name + age.');
+      break;
+  }
+
+  parts.push('Transcript flows directly on the page background — no card, no border. Georgia serif 15px, 1.65 line-height.');
+  parts.push('Tags at the bottom in small muted pills (10px, lighter background).');
+
+  if (state.photos) parts.push('Photo gallery: 2 thumbnails (80px, 12px radius) + add button.');
+  if (state.voice) parts.push('Prominent audio bar: play button + 25-bar waveform (child color gradient) + duration + mic/add actions.');
+
+  document.getElementById('promptText').textContent = parts.join('\n');
+}
+
+function copyPrompt() {
+  navigator.clipboard.writeText(document.getElementById('promptText').textContent).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+  });
+}
+
+render();
+</script>
+</body>
+</html>

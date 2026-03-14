@@ -29,6 +29,7 @@ export const colors = {
   warningSoft: '#FFF5E6',
   danger: '#D94F4F',
   overlay: 'rgba(44,36,32,0.45)',
+  overlayLight: 'rgba(44,36,32,0.3)',
   general: '#B5AAA0',
   cardPressed: '#F7F4F1',
   borderWarm: 'rgba(180,160,140,0.35)',

@@ -95,7 +95,9 @@ export async function concatWavFiles(uris: string[]): Promise<string> {
  */
 export async function getWavDurationSeconds(uri: string): Promise<number> {
   const file = new File(uri);
-  const ab = await file.arrayBuffer();
+  // Only read the 44-byte header — no need to load the entire file
+  // (which could be 5-11MB) just to read a few numeric fields.
+  const ab = await file.slice(0, WAV_HEADER_SIZE).arrayBuffer();
   const view = new DataView(ab);
 
   // WAV header layout (all little-endian):

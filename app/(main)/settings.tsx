@@ -32,7 +32,6 @@ import {
 import { useChildrenStore, mapSupabaseChild, type Child } from '@/stores/childrenStore';
 import { useEntriesStore, mapSupabaseEntry, type Entry } from '@/stores/entriesStore';
 import { useAuthStore } from '@/stores/authStore';
-import { useDraftStore } from '@/stores/draftStore';
 import { authService } from '@/services/auth.service';
 import { childrenService } from '@/services/children.service';
 import { entriesService } from '@/services/entries.service';
@@ -303,46 +302,17 @@ export default function SettingsScreen() {
 
   // ─── Delete Account Handler ────────────────────────────
 
-  const handleDeleteAccount = () => {
+  const handleDeleteAccount = async () => {
     setShowDeleteAccountDialog(false);
     // For MVP: sign out (simulates account deletion).
     // Real account deletion will be added in a future phase.
-    handleSignOut();
-  };
-
-  // Sign out — clears Supabase session + all local stores,
-  // then routes back to onboarding/sign-in.
-  // If there are unsent drafts, warn the user first (drafts are
-  // namespaced by userId, so they'll still be there when they
-  // sign back in — like leaving a letter in the outbox).
-  const handleSignOut = async () => {
-    const userId = user?.id;
-    const pendingDrafts = userId
-      ? useDraftStore.getState().getDraftsForUser(userId)
-      : [];
-
-    const doSignOut = async () => {
-      try {
-        await signOut();
-        clearChildren();
-        clearEntries();
-        router.replace('/(onboarding)');
-      } catch (error) {
-        console.warn('Sign out error:', error);
-      }
-    };
-
-    if (pendingDrafts.length > 0) {
-      Alert.alert(
-        'Unsent memories',
-        `You have ${pendingDrafts.length} ${pendingDrafts.length === 1 ? 'memory' : 'memories'} waiting to sync. They'll be here when you sign back in.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Sign Out', style: 'destructive', onPress: doSignOut },
-        ],
-      );
-    } else {
-      await doSignOut();
+    try {
+      await signOut();
+      clearChildren();
+      clearEntries();
+      router.replace('/(onboarding)');
+    } catch (error) {
+      console.warn('Delete account sign-out error:', error);
     }
   };
 
@@ -597,7 +567,7 @@ export default function SettingsScreen() {
               <Ionicons
                 name="chevron-forward"
                 size={16}
-                color={colors.danger}
+                color={colors.accent}
               />
             </Pressable>
           </View>
@@ -656,24 +626,6 @@ export default function SettingsScreen() {
                 size={16}
                 color={colors.textMuted}
               />
-            </Pressable>
-          </View>
-        </View>
-
-        {/* ─── 8. Sign Out ─────────────────────── */}
-        <View style={styles.section}>
-          <View style={styles.card}>
-            <Pressable
-              onPress={handleSignOut}
-              style={({ pressed }) => [
-                styles.row,
-                pressed && { backgroundColor: colors.cardPressed },
-              ]}
-            >
-              <View style={styles.addRow}>
-                <Ionicons name="log-out-outline" size={18} color={colors.danger} />
-                <Text style={styles.dangerLabel}>Sign Out</Text>
-              </View>
             </Pressable>
           </View>
         </View>
@@ -1133,7 +1085,6 @@ export default function SettingsScreen() {
         title="Delete your account?"
         body="This will permanently delete all your memories, children, and settings. This cannot be undone."
         confirmLabel="Delete"
-        variant="danger"
         onConfirm={handleDeleteAccount}
         onCancel={() => setShowDeleteAccountDialog(false)}
       />
@@ -1201,7 +1152,7 @@ const styles = StyleSheet.create({
   },
   dangerLabel: {
     ...typography.formLabel,
-    color: colors.danger,
+    color: colors.accent,
   },
   // ─── Child Info ────────────────────────
   childInfo: {
@@ -1467,7 +1418,7 @@ const styles = StyleSheet.create({
   },
   permDeleteLabel: {
     ...typography.caption,
-    color: colors.danger,
+    color: colors.accent,
     fontWeight: '600',
   },
 });

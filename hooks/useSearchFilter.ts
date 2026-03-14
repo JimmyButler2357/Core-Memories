@@ -34,6 +34,17 @@ export function collectLocations(entries: Entry[]): string[] {
   return Array.from(locSet).sort();
 }
 
+/** Return tags that exist on at least one filtered entry, excluding already-selected tags */
+export function getAvailableTags(filteredEntries: Entry[], selectedTags: string[]): string[] {
+  const tagSet = new Set<string>();
+  filteredEntries.forEach((e) => {
+    e.tags.forEach((t) => {
+      if (!selectedTags.includes(t)) tagSet.add(t);
+    });
+  });
+  return Array.from(tagSet).sort();
+}
+
 // ─── Hook ────────────────────────────────────────────────
 
 export function useSearchFilter() {
@@ -78,10 +89,10 @@ export function useSearchFilter() {
     (entries: Entry[]): Entry[] => {
       let filtered = entries;
 
-      // Filter by selected tags (OR logic)
+      // Filter by selected tags (AND logic — entry must have ALL selected tags)
       if (selectedTags.length > 0) {
         filtered = filtered.filter((e) =>
-          e.tags.some((t) => selectedTags.includes(t)),
+          selectedTags.every((t) => e.tags.includes(t)),
         );
       }
 

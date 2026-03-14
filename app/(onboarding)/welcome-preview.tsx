@@ -1,4 +1,13 @@
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { useState, useRef } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  Dimensions,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,122 +29,165 @@ import PrimaryButton from '@/components/PrimaryButton';
 // No-op handler — preview cards are visual-only
 const noop = () => {};
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const SLIDE_COUNT = 3;
+
 /**
  * Welcome Preview — onboarding screen 8.
  *
- * Shows what the app looks like with months of sample data so parents
- * see what they're building toward. Three vertical sections:
- * 1. "Your daily feed" — Home-style entry cards
- * 2. "Your favorite moments" — Core Memory elevated cards
- * 3. "Find any memory instantly" — Mock search with highlighted results
+ * Horizontal swipeable carousel — one feature per slide.
+ * Each slide breathes: one idea, one visual, one moment.
+ *
+ * Slide 1: "Your daily feed" — sample home entry cards
+ * Slide 2: "Your favorite moments" — core memory cards with golden glow
+ * Slide 3: "Find any memory in seconds" — mock search + highlighted results
  */
 export default function WelcomePreviewScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [activeSlide, setActiveSlide] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
+
+  // Track which slide is active based on scroll position.
+  // Think of it like a ruler — we divide the total scroll distance
+  // by the screen width to figure out which "page" we're on.
+  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offsetX = e.nativeEvent.contentOffset.x;
+    const slideIndex = Math.round(offsetX / SCREEN_WIDTH);
+    if (slideIndex !== activeSlide && slideIndex >= 0 && slideIndex < SLIDE_COUNT) {
+      setActiveSlide(slideIndex);
+    }
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* ─── Carousel ─────────────────────────────────── */}
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: insets.bottom + spacing(32) },
-        ]}
-        showsVerticalScrollIndicator={false}
+        ref={scrollRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        style={styles.carousel}
       >
-        {/* ─── Header ─────────────────────────────────── */}
-        <View style={styles.header}>
-          <Text style={styles.heading}>
-            Here's what your journal looks like, 6 months from now...
-          </Text>
-          <Text style={styles.subheading}>
-            Every bedtime story, every funny thing they said — all in one place.
-          </Text>
-        </View>
-
-        {/* ─── Section 1: Daily Feed ──────────────────── */}
-        <View style={styles.section}>
-          <View style={styles.sectionLabelRow}>
-            <Ionicons name="home-outline" size={16} color={colors.textSoft} />
-            <Text style={styles.sectionLabel}>Your daily feed</Text>
-          </View>
-          <View style={styles.cardList}>
-            {PREVIEW_FEED_ENTRIES.map((entry, i) => (
-              <EntryCard
-                key={`feed-${i}`}
-                entry={entry}
-                variant="home"
-                index={i}
-                onPress={noop}
-                showTags={false}
-              />
-            ))}
-          </View>
-        </View>
-
-        {/* ─── Section 2: Favorite Moments ────────────── */}
-        <View style={styles.section}>
-          <View style={styles.sectionLabelRow}>
-            <Ionicons name="heart-outline" size={16} color={colors.glow} />
-            <Text style={[styles.sectionLabel, { color: colors.glow }]}>
-              Your favorite moments
+        {/* ─── Slide 1: Daily Feed ──────────────────── */}
+        <View style={styles.slide}>
+          <ScrollView
+            style={styles.slideScroll}
+            contentContainerStyle={styles.slideScrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={styles.heading}>
+              Here's what your journal looks like, 6 months from now.
             </Text>
-          </View>
-          <View style={styles.cardList}>
-            {PREVIEW_CORE_MEMORIES.map((entry, i) => (
-              <EntryCard
-                key={`core-${i}`}
-                entry={entry}
-                variant="coreMemory"
-                index={i}
-                onPress={noop}
-                onPlayAudio={noop}
-              />
-            ))}
-          </View>
+            <Text style={styles.subheading}>
+              Every bedtime story, every funny thing they said.
+            </Text>
+            <View style={styles.cardList}>
+              {PREVIEW_FEED_ENTRIES.slice(0, 3).map((entry, i) => (
+                <EntryCard
+                  key={`feed-${i}`}
+                  entry={entry}
+                  variant="home"
+                  index={i}
+                  onPress={noop}
+                  showTags={false}
+                />
+              ))}
+            </View>
+          </ScrollView>
         </View>
 
-        {/* ─── Section 3: Search ──────────────────────── */}
-        <View style={styles.section}>
-          <View style={styles.sectionLabelRow}>
-            <Ionicons name="search-outline" size={16} color={colors.textSoft} />
-            <Text style={styles.sectionLabel}>Find any memory instantly</Text>
-          </View>
+        {/* ─── Slide 2: Favorite Moments ────────────── */}
+        <View style={styles.slide}>
+          <ScrollView
+            style={styles.slideScroll}
+            contentContainerStyle={styles.slideScrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={styles.heading}>
+              Your favorite moments, all in one place.
+            </Text>
+            <Text style={styles.subheading}>
+              The ones you'll come back to again and again.
+            </Text>
+            <View style={styles.cardList}>
+              {PREVIEW_CORE_MEMORIES.map((entry, i) => (
+                <EntryCard
+                  key={`core-${i}`}
+                  entry={entry}
+                  variant="coreMemory"
+                  index={i}
+                  onPress={noop}
+                  onPlayAudio={noop}
+                />
+              ))}
+            </View>
+          </ScrollView>
+        </View>
 
-          {/* Mock search bar */}
-          <View style={styles.mockSearchBar}>
-            <Ionicons
-              name="search-outline"
-              size={16}
-              color={colors.textMuted}
-            />
-            <Text style={styles.mockSearchText}>first</Text>
-          </View>
+        {/* ─── Slide 3: Search ──────────────────────── */}
+        <View style={styles.slide}>
+          <ScrollView
+            style={styles.slideScroll}
+            contentContainerStyle={styles.slideScrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={styles.heading}>
+              Find any memory in seconds.
+            </Text>
+            <Text style={styles.subheading}>
+              Search by word, by child, by date.
+            </Text>
 
-          {/* Search results with highlighted matches */}
-          <View style={styles.cardList}>
-            {PREVIEW_SEARCH_ENTRIES.map((entry, i) => (
-              <EntryCard
-                key={`search-${i}`}
-                entry={entry}
-                variant="home"
-                index={i}
-                onPress={noop}
-                highlightQuery="first"
-                showTags={false}
+            {/* Mock search bar */}
+            <View style={styles.mockSearchBar}>
+              <Ionicons
+                name="search-outline"
+                size={16}
+                color={colors.textMuted}
               />
-            ))}
-          </View>
+              <Text style={styles.mockSearchText}>first</Text>
+            </View>
 
-          {/* Result count pill */}
-          <View style={styles.resultCountPill}>
-            <Text style={styles.resultCountText}>2 memories found</Text>
-          </View>
+            <View style={styles.cardList}>
+              {PREVIEW_SEARCH_ENTRIES.map((entry, i) => (
+                <EntryCard
+                  key={`search-${i}`}
+                  entry={entry}
+                  variant="home"
+                  index={i}
+                  onPress={noop}
+                  highlightQuery="first"
+                  showTags={false}
+                />
+              ))}
+            </View>
+
+            {/* Result count pill */}
+            <View style={styles.resultCountPill}>
+              <Text style={styles.resultCountText}>2 memories found</Text>
+            </View>
+          </ScrollView>
         </View>
       </ScrollView>
 
-      {/* ─── Fixed CTA at bottom ─────────────────────── */}
+      {/* ─── Bottom: dots + CTA ───────────────────────── */}
       <View style={[styles.bottom, { paddingBottom: insets.bottom + spacing(12) }]}>
+        {/* Dot indicators */}
+        <View style={styles.dots}>
+          {Array.from({ length: SLIDE_COUNT }).map((_, i) => (
+            <View
+              key={i}
+              style={[
+                styles.dot,
+                i === activeSlide ? styles.dotActive : styles.dotInactive,
+              ]}
+            />
+          ))}
+        </View>
+
         <PrimaryButton
           label="Keep going"
           onPress={() => router.push('/(onboarding)/paywall')}
@@ -150,17 +202,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
-  scroll: {
+  carousel: {
     flex: 1,
   },
-  scrollContent: {
-    paddingHorizontal: spacing(5),
+  // ─── Slides ────────────────────────────────────────
+  slide: {
+    width: SCREEN_WIDTH,
   },
-  // ─── Header ─────────────────────────────────────
-  header: {
+  slideScroll: {
+    flex: 1,
+  },
+  slideScrollContent: {
+    paddingHorizontal: spacing(5),
     paddingTop: spacing(8),
-    paddingBottom: spacing(6),
-    alignItems: 'center',
+    paddingBottom: spacing(24), // room above fixed bottom bar
   },
   heading: {
     ...typography.onboardingHeading,
@@ -174,28 +229,12 @@ const styles = StyleSheet.create({
     color: colors.textSoft,
     textAlign: 'center',
     lineHeight: 22,
-  },
-  // ─── Sections ───────────────────────────────────
-  section: {
-    marginBottom: spacing(8),
-  },
-  sectionLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing(2),
-    marginBottom: spacing(3),
-  },
-  sectionLabel: {
-    ...typography.timestamp,
-    color: colors.textSoft,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    marginBottom: spacing(6),
   },
   cardList: {
     gap: 10,
   },
-  // ─── Mock Search Bar ────────────────────────────
+  // ─── Mock Search Bar ──────────────────────────────
   mockSearchBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -213,7 +252,7 @@ const styles = StyleSheet.create({
     ...typography.formLabel,
     color: colors.text,
   },
-  // ─── Result Count ───────────────────────────────
+  // ─── Result Count ─────────────────────────────────
   resultCountPill: {
     alignSelf: 'center',
     backgroundColor: colors.text,
@@ -227,7 +266,7 @@ const styles = StyleSheet.create({
     color: colors.card,
     fontWeight: '600',
   },
-  // ─── Bottom CTA ─────────────────────────────────
+  // ─── Bottom: Dots + CTA ───────────────────────────
   bottom: {
     position: 'absolute',
     bottom: 0,
@@ -236,5 +275,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing(5),
     paddingTop: spacing(3),
     backgroundColor: colors.bg,
+    alignItems: 'center',
+    gap: spacing(4),
+  },
+  dots: {
+    flexDirection: 'row',
+    gap: spacing(2),
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  dotActive: {
+    backgroundColor: colors.accent,
+  },
+  dotInactive: {
+    backgroundColor: colors.border,
   },
 });

@@ -551,7 +551,7 @@ Each screen has a distinct emotional weight, created through background treatmen
 |---|---|---|---|---|
 | Home | Flat `bg` cream | Merriweather serif (app title only) | Standard cards (system sans preview) | Inbox — scan, capture, move on |
 | Recording | Radial warm gradient | — | Prompt cards (Merriweather serif) | Focus — calm, encouraging |
-| Entry Detail | Flat `bg` cream | — | Transcript area (Merriweather serif, paper texture) | Workshop — edit, refine, enrich |
+| Entry Detail | Flat `bg` cream | Georgia serif 22px title (hero) | No card — transcript flows on page bg (Georgia serif, 15px) | Story — immersive, title-first, minimal chrome |
 | Search | Flat `bg` cream | System sans | Standard cards with highlights | Utility — find, filter |
 | Firefly Jar | Warm gradient top (#F9F2EB→cream) | Merriweather serif | Larger cards (serif preview, inline audio, amber glow) | Treasure box — slow down, savor |
 | Settings | Flat `bg` cream | System sans | Grouped list rows | Configuration — functional |

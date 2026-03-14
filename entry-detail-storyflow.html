@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Story Flow Iterations — Entry Detail Redesign</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #FAF8F5;
+    --card: #FEFCF9;
+    --text: #2C2420;
+    --textSoft: #8C7E74;
+    --textMuted: #B5AAA0;
+    --accent: #E8724A;
+    --accentSoft: rgba(232,114,74,0.08);
+    --border: #EDE8E3;
+    --tag: #F3EDE8;
+    --childBlue: #7BAFD4;
+    --childAmber: #D4A07B;
+    --danger: #D94F4F;
+    --shadow-sm: 0 1px 3px rgba(44,36,32,0.06);
+    --ui-bg: #1a1a1a;
+    --ui-surface: #242424;
+    --ui-border: #333;
+    --ui-text: #e0e0e0;
+    --ui-muted: #888;
+  }
+
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--ui-bg);
+    color: var(--ui-text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--ui-border);
+    flex-shrink: 0;
+  }
+  .top-bar h1 { font-size: 16px; font-weight: 600; color: #fff; letter-spacing: -0.3px; }
+  .top-bar .subtitle { font-size: 12px; color: var(--ui-muted); margin-top: 2px; }
+
+  .main-layout { display: flex; flex: 1; overflow: hidden; }
+
+  /* Controls */
+  .controls {
+    width: 280px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--ui-border);
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  .control-group label {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--ui-muted);
+    margin-bottom: 8px;
+  }
+
+  .tab-switcher { display: flex; flex-direction: column; gap: 4px; }
+  .tab-btn {
+    background: transparent;
+    border: 1px solid var(--ui-border);
+    color: var(--ui-text);
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    font-size: 13px;
+    font-family: inherit;
+    transition: all 150ms;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .tab-btn:hover { border-color: #555; background: var(--ui-surface); }
+  .tab-btn.active { border-color: var(--accent); background: rgba(232,114,74,0.1); color: #fff; }
+  .tab-btn .tab-name { font-weight: 600; }
+  .tab-btn .tab-desc { font-size: 11px; color: var(--ui-muted); }
+  .tab-btn.active .tab-desc { color: rgba(232,114,74,0.7); }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+  }
+  .toggle-row span { font-size: 13px; }
+  .toggle {
+    width: 40px; height: 22px; background: #444; border-radius: 11px;
+    position: relative; cursor: pointer; transition: background 150ms; border: none; flex-shrink: 0;
+  }
+  .toggle.on { background: var(--accent); }
+  .toggle::after {
+    content: ''; position: absolute; width: 18px; height: 18px; background: #fff;
+    border-radius: 50%; top: 2px; left: 2px; transition: transform 150ms;
+  }
+  .toggle.on::after { transform: translateX(18px); }
+
+  .layout-desc {
+    font-size: 12px; color: var(--ui-muted); line-height: 1.5;
+    padding: 12px; background: var(--ui-surface); border-radius: 8px; border: 1px solid var(--ui-border);
+  }
+  .layout-desc strong { color: var(--ui-text); }
+
+  .preview-area {
+    flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; overflow: auto;
+  }
+
+  .phone-frame {
+    width: 375px; height: 812px; background: var(--bg); border-radius: 40px;
+    border: 8px solid #333; overflow: hidden; position: relative;
+    box-shadow: 0 8px 32px rgba(44,36,32,0.3), inset 0 0 0 1px rgba(255,255,255,0.05);
+    flex-shrink: 0;
+  }
+
+  .status-bar {
+    height: 54px; padding: 14px 24px 0; display: flex; justify-content: space-between;
+    align-items: flex-start; font-size: 14px; font-weight: 600; color: var(--text); flex-shrink: 0;
+  }
+  .status-icons { display: flex; gap: 4px; align-items: center; font-size: 12px; }
+
+  .phone-content {
+    height: calc(100% - 54px); overflow-y: auto; overflow-x: hidden; position: relative;
+  }
+  .phone-content::-webkit-scrollbar { width: 0; }
+
+  .home-indicator {
+    position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+    width: 134px; height: 5px; background: rgba(44,36,32,0.2); border-radius: 3px; z-index: 20;
+  }
+
+  /* Phone UI elements */
+  .nav-bar {
+    display: flex; align-items: center; justify-content: space-between; padding: 4px 16px 8px;
+  }
+  .nav-left, .nav-right { display: flex; align-items: center; gap: 8px; }
+  .nav-btn {
+    width: 36px; height: 36px; border-radius: 50%; background: rgba(243,237,232,0.5);
+    border: none; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 16px; color: var(--text); transition: opacity 150ms;
+  }
+  .nav-btn:hover { opacity: 0.7; }
+  .nav-btn.heart-filled { color: var(--accent); }
+  .overflow-btn {
+    width: 36px; height: 36px; border-radius: 50%; background: rgba(243,237,232,0.5);
+    border: none; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 18px; color: var(--text); font-weight: 700; letter-spacing: 2px;
+  }
+
+  .entry-pad { padding: 0 20px; }
+
+  .entry-title {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 22px; font-weight: 700; color: var(--text); line-height: 1.3;
+    width: 100%; background: transparent;
+  }
+  .entry-title-sm { font-size: 20px; }
+  .entry-title-lg { font-size: 24px; }
+
+  .meta-line {
+    font-family: system-ui, sans-serif; font-size: 12px; color: var(--textMuted); line-height: 1.4;
+  }
+
+  .child-dot {
+    width: 6px; height: 6px; border-radius: 50%; display: inline-block; vertical-align: middle; margin: 0 2px;
+  }
+
+  .transcript {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 15px; line-height: 1.65; color: var(--text);
+  }
+
+  .accent-divider {
+    height: 3px; border-radius: 2px;
+    background: linear-gradient(90deg, var(--childBlue), var(--childAmber));
+  }
+  .accent-divider-thin {
+    height: 2px; border-radius: 1px;
+    background: linear-gradient(90deg, var(--childBlue), var(--childAmber));
+  }
+  .accent-divider-dot {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .accent-divider-dot .dot-line {
+    flex: 1; height: 1px; background: var(--border);
+  }
+  .accent-divider-dot .dot-center {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+  }
+
+  .photo-gallery { display: flex; gap: 8px; align-items: center; }
+  .photo-thumb {
+    width: 80px; height: 80px; border-radius: 12px; overflow: hidden; position: relative; flex-shrink: 0;
+  }
+  .photo-thumb.p1 { background: linear-gradient(135deg, #d4c4b0, #e8d5c4, #c9b8a8); }
+  .photo-thumb.p2 { background: linear-gradient(135deg, #b8c8d8, #c4d4e4, #a8b8c8); }
+  .photo-thumb .cam-icon {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: rgba(255,255,255,0.6); font-size: 20px;
+  }
+  .photo-add {
+    width: 80px; height: 80px; border-radius: 12px; border: 2px dashed var(--border);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--textMuted); font-size: 24px; cursor: pointer; background: transparent;
+    transition: border-color 150ms; flex-shrink: 0;
+  }
+  .photo-add:hover { border-color: var(--accent); color: var(--accent); }
+
+  .photo-full { display: flex; gap: 8px; }
+  .photo-full .photo-thumb { width: 100%; height: 120px; flex: 1; }
+  .photo-full .photo-add { width: 48px; height: 120px; flex-shrink: 0; }
+
+  .audio-bar { display: flex; align-items: center; gap: 12px; padding: 12px 0; }
+  .play-btn {
+    width: 36px; height: 36px; border-radius: 50%; background: var(--accentSoft);
+    border: none; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--accent); font-size: 14px; flex-shrink: 0;
+  }
+  .waveform { flex: 1; display: flex; align-items: center; gap: 2px; height: 36px; }
+  .wave-bar { width: 3px; border-radius: 2px; min-height: 4px; }
+  .audio-duration {
+    font-size: 12px; color: var(--textMuted); font-family: system-ui, sans-serif;
+    flex-shrink: 0; min-width: 32px; text-align: right;
+  }
+  .audio-actions { display: flex; gap: 4px; }
+  .audio-action-btn {
+    width: 28px; height: 28px; border-radius: 50%; background: transparent;
+    border: none; color: var(--textSoft); font-size: 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .tags-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .tag-pill {
+    background: var(--tag); color: var(--textSoft); font-size: 11px; font-weight: 500;
+    padding: 3px 8px; border-radius: 8px; display: flex; align-items: center; gap: 4px;
+    font-family: system-ui, sans-serif;
+  }
+  .tag-pill .tag-x {
+    font-size: 10px; color: var(--textMuted); cursor: pointer; opacity: 0; transition: opacity 150ms;
+  }
+  .tag-pill:hover .tag-x { opacity: 1; }
+  .tag-add {
+    background: transparent; border: 1px dashed var(--border); color: var(--textMuted);
+    font-size: 11px; padding: 3px 8px; border-radius: 8px; cursor: pointer;
+    font-family: system-ui, sans-serif;
+  }
+
+  .tags-muted .tag-pill {
+    font-size: 10px; padding: 2px 7px; background: rgba(243,237,232,0.6); color: var(--textMuted);
+  }
+
+  /* Variant-specific: left border accent */
+  .left-accent {
+    border-left: 3px solid;
+    border-image: linear-gradient(to bottom, var(--childBlue), var(--childAmber)) 1;
+    padding-left: 16px;
+  }
+
+  /* Variant-specific: date badge */
+  .date-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 11px;
+    color: var(--textSoft);
+    font-family: system-ui, sans-serif;
+    box-shadow: var(--shadow-sm);
+  }
+  .date-badge .date-text { font-weight: 600; color: var(--text); font-size: 12px; }
+
+  /* Variant-specific: inline meta chips */
+  .meta-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .meta-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; color: var(--textSoft); font-family: system-ui, sans-serif;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 3px 8px;
+  }
+  .meta-chip svg { width: 10px; height: 10px; }
+
+  /* Floating tag bar */
+  .floating-tags {
+    position: sticky; bottom: 0; left: 0; right: 0;
+    background: var(--card); border-top: 1px solid var(--border);
+    padding: 10px 20px; box-shadow: 0 -4px 12px rgba(44,36,32,0.06); z-index: 10;
+  }
+
+  /* Subtle section divider */
+  .section-divider {
+    height: 1px; background: var(--border); margin: 0 0;
+  }
+
+  /* Saved indicator */
+  .saved-indicator {
+    font-size: 11px; color: var(--textMuted); font-family: system-ui, sans-serif;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .saved-dot { width: 5px; height: 5px; border-radius: 50%; background: #4CAF7C; }
+
+  .sp-4 { height: 4px; } .sp-8 { height: 8px; } .sp-12 { height: 12px; }
+  .sp-16 { height: 16px; } .sp-20 { height: 20px; } .sp-24 { height: 24px; }
+  .sp-32 { height: 32px; }
+
+  /* Prompt */
+  .prompt-area {
+    border-top: 1px solid var(--ui-border); padding: 16px 24px; flex-shrink: 0;
+  }
+  .prompt-header {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;
+  }
+  .prompt-header span {
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--ui-muted);
+  }
+  .copy-btn {
+    background: var(--ui-surface); border: 1px solid var(--ui-border); color: var(--ui-text);
+    padding: 4px 12px; border-radius: 6px; font-size: 12px; font-family: inherit; cursor: pointer;
+  }
+  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .prompt-text {
+    font-size: 13px; line-height: 1.6; color: var(--ui-muted);
+    font-family: 'SF Mono', 'Fira Code', monospace; white-space: pre-wrap;
+    max-height: 100px; overflow-y: auto;
+  }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div>
+    <h1>Story Flow — Iterations</h1>
+    <div class="subtitle">Forever Fireflies · Entry Detail Redesign</div>
+  </div>
+</div>
+
+<div class="main-layout">
+  <div class="controls">
+    <div class="control-group">
+      <label>Variation</label>
+      <div class="tab-switcher">
+        <button class="tab-btn active" data-tab="v1" onclick="setTab('v1')">
+          <span class="tab-name">A — Clean Divide</span>
+          <span class="tab-desc">Gradient divider, one metadata line</span>
+        </button>
+        <button class="tab-btn" data-tab="v2" onclick="setTab('v2')">
+          <span class="tab-name">B — Left Accent</span>
+          <span class="tab-desc">Journal-style left border on transcript</span>
+        </button>
+        <button class="tab-btn" data-tab="v3" onclick="setTab('v3')">
+          <span class="tab-name">C — Chip Metadata</span>
+          <span class="tab-desc">Date, location, children as small chips</span>
+        </button>
+        <button class="tab-btn" data-tab="v4" onclick="setTab('v4')">
+          <span class="tab-name">D — Breathing Room</span>
+          <span class="tab-desc">Extra whitespace, floating tags, minimal</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>Options</label>
+      <div class="toggle-row">
+        <span>Show photos</span>
+        <button class="toggle on" id="togglePhotos" onclick="toggleOpt('photos')"></button>
+      </div>
+      <div class="toggle-row">
+        <span>Voice entry</span>
+        <button class="toggle on" id="toggleVoice" onclick="toggleOpt('voice')"></button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>About this variation</label>
+      <div class="layout-desc" id="layoutDesc"></div>
+    </div>
+  </div>
+
+  <div class="preview-area">
+    <div class="phone-frame">
+      <div class="status-bar">
+        <span>9:41</span>
+        <div class="status-icons"><span>●●●●</span><span style="margin-left:4px">🔋</span></div>
+      </div>
+      <div class="phone-content" id="phoneContent"></div>
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+</div>
+
+<div class="prompt-area">
+  <div class="prompt-header">
+    <span>Prompt Output</span>
+    <button class="copy-btn" onclick="copyPrompt()">Copy</button>
+  </div>
+  <div class="prompt-text" id="promptText"></div>
+</div>
+
+<script>
+const state = { tab: 'v1', photos: true, voice: true };
+
+const DESCRIPTIONS = {
+  v1: `<strong>A — Clean Divide</strong> — The original Story Flow. Title leads at 22px serif. A thin gradient divider (child colors) separates the title from metadata. All metadata compressed into one line. Transcript flows directly below — no card, no border. Tags at the bottom, small and muted. Ultra-minimal nav (back + heart + overflow).`,
+  v2: `<strong>B — Left Accent</strong> — Same title-first hierarchy, but the transcript gets a colored left border (gradient from child blue to amber) — like a journal margin. This adds a subtle visual anchor and makes the transcript area feel more defined without a card wrapper. Date shown as a small badge above the title.`,
+  v3: `<strong>C — Chip Metadata</strong> — Instead of cramming everything into one metadata line, date/location/children each get their own small chip with a subtle border. These sit below the title in a horizontal wrap. Feels like structured metadata without being a full card. A dot-divider separates metadata from transcript.`,
+  v4: `<strong>D — Breathing Room</strong> — Maximum whitespace. Title at 24px for emphasis. Larger gaps between sections (32px). A thin border separator between transcript and media. Tags float in a sticky bottom bar (like Google Photos iteration). The page breathes — every element has space around it. Feels the most "premium magazine" of the four.`
+};
+
+const ICONS = {
+  back: `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12 4L6 10L12 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  heartFilled: `<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path d="M10 17.5s-7-4.5-7-9A4 4 0 0110 5.5a4 4 0 017 3c0 4.5-7 9-7 9z"/></svg>`,
+  play: `<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M3 1.5v11l9-5.5-9-5.5z"/></svg>`,
+  mic: `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v6m0 0a2 2 0 002-2V3a2 2 0 00-4 0v2a2 2 0 002 2zm-4-1a4 4 0 008 0M7 11v2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>`,
+  camera: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="13" r="4" stroke="currentColor" stroke-width="1.5"/></svg>`,
+  plus: `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+  location: `<svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 1C3.79 1 2 2.79 2 5c0 3 4 6 4 6s4-3 4-6c0-2.21-1.79-4-4-4z" stroke="currentColor" stroke-width="1.2"/><circle cx="6" cy="5" r="1.5" stroke="currentColor" stroke-width="1"/></svg>`,
+  calendar: `<svg width="11" height="11" viewBox="0 0 12 12" fill="none"><rect x="1" y="2" width="10" height="9" rx="1.5" stroke="currentColor" stroke-width="1.1"/><path d="M1 5h10M4 1v2M8 1v2" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>`,
+  clock: `<svg width="11" height="11" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.1"/><path d="M6 3v3l2 1.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>`,
+};
+
+const TRANSCRIPT = `Emma looked out the window tonight and told me the moon was following her car. She was so serious about it — like she'd discovered something nobody else had noticed. Oliver was babbling in his car seat, completely unaware. She leaned over and whispered to him, "Don't worry, the moon is our friend." I almost missed it.`;
+
+function navBar() {
+  return `<div class="nav-bar">
+    <div class="nav-left"><button class="nav-btn">${ICONS.back}</button></div>
+    <div class="nav-right">
+      <button class="nav-btn heart-filled">${ICONS.heartFilled}</button>
+      <button class="overflow-btn">···</button>
+    </div>
+  </div>`;
+}
+
+function waveformBars() {
+  const heights = [12,18,8,22,14,28,10,24,16,30,12,20,26,14,32,18,24,10,28,16,22,8,20,14,26];
+  return heights.map((h, i) => {
+    const t = i / (heights - 1 || 24);
+    const r = Math.round(123 + (212 - 123) * (i/24));
+    const g = Math.round(175 + (160 - 175) * (i/24));
+    const b = Math.round(212 + (123 - 212) * (i/24));
+    const played = i < 10;
+    return `<div class="wave-bar" style="height:${h}px;background:rgba(${r},${g},${b},${played ? 1 : 0.3})"></div>`;
+  }).join('');
+}
+
+function audioBar() {
+  if (!state.voice) return '';
+  return `<div class="audio-bar">
+    <button class="play-btn">${ICONS.play}</button>
+    <div class="waveform">${waveformBars()}</div>
+    <span class="audio-duration">0:32</span>
+    <div class="audio-actions">
+      <button class="audio-action-btn">${ICONS.mic}</button>
+      <button class="audio-action-btn">${ICONS.plus}</button>
+    </div>
+  </div>`;
+}
+
+function photoGallery() {
+  if (!state.photos) return '';
+  return `<div class="photo-gallery">
+    <div class="photo-thumb p1"><div class="cam-icon">${ICONS.camera}</div></div>
+    <div class="photo-thumb p2"><div class="cam-icon">${ICONS.camera}</div></div>
+    <button class="photo-add">+</button>
+  </div>`;
+}
+
+function photoFull() {
+  if (!state.photos) return '';
+  return `<div class="photo-full">
+    <div class="photo-thumb p1"><div class="cam-icon">${ICONS.camera}</div></div>
+    <div class="photo-thumb p2"><div class="cam-icon">${ICONS.camera}</div></div>
+    <button class="photo-add">+</button>
+  </div>`;
+}
+
+function tagsRow(muted) {
+  const cls = muted ? 'tags-row tags-muted' : 'tags-row';
+  return `<div class="${cls}">
+    <span class="tag-pill">bedtime<span class="tag-x">✕</span></span>
+    <span class="tag-pill">funny<span class="tag-x">✕</span></span>
+    <span class="tag-pill">imagination<span class="tag-x">✕</span></span>
+    <span class="tag-pill">car ride<span class="tag-x">✕</span></span>
+    <button class="tag-add">+ add tag</button>
+  </div>`;
+}
+
+function metaLineAll() {
+  return `<div class="meta-line">
+    March 12, 2026 · 8:47 PM · Portland, OR ·
+    <span class="child-dot" style="background:var(--childBlue)"></span> Emma 3y 4m,
+    <span class="child-dot" style="background:var(--childAmber)"></span> Oliver 1y 2w
+  </div>`;
+}
+
+// ========== VARIATION A: Clean Divide ==========
+function renderV1() {
+  return `
+    ${navBar()}
+    <div class="entry-pad">
+      <div class="entry-title">The Moon Follows Her Car</div>
+      <div class="sp-8"></div>
+      <div class="accent-divider"></div>
+      <div class="sp-8"></div>
+      ${metaLineAll()}
+      <div class="sp-20"></div>
+      <div class="transcript">${TRANSCRIPT}</div>
+      <div class="sp-16"></div>
+      ${photoGallery()}
+      ${state.photos ? '<div class="sp-16"></div>' : ''}
+      ${audioBar()}
+      <div class="sp-20"></div>
+      ${tagsRow(true)}
+      <div class="sp-24"></div>
+    </div>`;
+}
+
+// ========== VARIATION B: Left Accent ==========
+function renderV2() {
+  return `
+    ${navBar()}
+    <div class="entry-pad">
+      <div class="date-badge">
+        ${ICONS.calendar}
+        <span class="date-text">March 12, 2026</span>
+        <span style="color:var(--textMuted)">·</span>
+        <span style="color:var(--textMuted)">8:47 PM</span>
+        <span style="color:var(--textMuted)">·</span>
+        <span style="color:var(--textMuted)">${ICONS.location} Portland, OR</span>
+      </div>
+      <div class="sp-16"></div>
+      <div class="entry-title entry-title-sm">The Moon Follows Her Car</div>
+      <div class="sp-4"></div>
+      <div class="meta-line">
+        <span class="child-dot" style="background:var(--childBlue)"></span> Emma 3y 4m
+        <span style="margin:0 4px">·</span>
+        <span class="child-dot" style="background:var(--childAmber)"></span> Oliver 1y 2w
+      </div>
+      <div class="sp-16"></div>
+      <div class="left-accent">
+        <div class="transcript">${TRANSCRIPT}</div>
+      </div>
+      <div class="sp-16"></div>
+      ${photoGallery()}
+      ${state.photos ? '<div class="sp-16"></div>' : ''}
+      ${audioBar()}
+      <div class="sp-20"></div>
+      ${tagsRow(true)}
+      <div class="sp-24"></div>
+    </div>`;
+}
+
+// ========== VARIATION C: Chip Metadata ==========
+function renderV3() {
+  return `
+    ${navBar()}
+    <div class="entry-pad">
+      <div class="entry-title">The Moon Follows Her Car</div>
+      <div class="sp-12"></div>
+      <div class="meta-chips">
+        <span class="meta-chip">${ICONS.calendar} Mar 12, 2026</span>
+        <span class="meta-chip">${ICONS.clock} 8:47 PM</span>
+        <span class="meta-chip">${ICONS.location} Portland, OR</span>
+        <span class="meta-chip"><span class="child-dot" style="background:var(--childBlue)"></span> Emma 3y 4m</span>
+        <span class="meta-chip"><span class="child-dot" style="background:var(--childAmber)"></span> Oliver 1y 2w</span>
+      </div>
+      <div class="sp-16"></div>
+      <div class="accent-divider-dot">
+        <div class="dot-line"></div>
+        <div class="dot-center"></div>
+        <div class="dot-line"></div>
+      </div>
+      <div class="sp-16"></div>
+      <div class="transcript">${TRANSCRIPT}</div>
+      <div class="sp-16"></div>
+      ${photoGallery()}
+      ${state.photos ? '<div class="sp-16"></div>' : ''}
+      ${audioBar()}
+      <div class="sp-20"></div>
+      ${tagsRow(false)}
+      <div class="sp-24"></div>
+    </div>`;
+}
+
+// ========== VARIATION D: Breathing Room ==========
+function renderV4() {
+  return `
+    ${navBar()}
+    <div class="entry-pad">
+      <div class="sp-8"></div>
+      <div class="entry-title entry-title-lg">The Moon Follows Her Car</div>
+      <div class="sp-8"></div>
+      <div class="accent-divider-thin"></div>
+      <div class="sp-8"></div>
+      ${metaLineAll()}
+      <div class="sp-32"></div>
+      <div class="transcript">${TRANSCRIPT}</div>
+      <div class="sp-8"></div>
+      <div class="saved-indicator"><span class="saved-dot"></span> All changes saved</div>
+      <div class="sp-24"></div>
+      ${state.photos ? photoFull() : ''}
+      ${state.photos ? '<div class="sp-24"></div>' : ''}
+      ${state.voice ? '<div class="section-divider"></div>' : ''}
+      ${audioBar()}
+      ${state.voice ? '<div class="sp-24"></div>' : ''}
+      <div class="sp-24"></div>
+      <div class="sp-24"></div>
+    </div>
+    <div class="floating-tags">${tagsRow(false)}</div>`;
+}
+
+function render() {
+  const el = document.getElementById('phoneContent');
+  switch (state.tab) {
+    case 'v1': el.innerHTML = renderV1(); break;
+    case 'v2': el.innerHTML = renderV2(); break;
+    case 'v3': el.innerHTML = renderV3(); break;
+    case 'v4': el.innerHTML = renderV4(); break;
+  }
+  el.scrollTop = 0;
+  document.getElementById('layoutDesc').innerHTML = DESCRIPTIONS[state.tab];
+  updatePrompt();
+}
+
+function setTab(tab) {
+  state.tab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  render();
+}
+
+function toggleOpt(key) {
+  state[key] = !state[key];
+  document.getElementById(key === 'photos' ? 'togglePhotos' : 'toggleVoice').classList.toggle('on', state[key]);
+  render();
+}
+
+function updatePrompt() {
+  const parts = ['Redesign the Entry Detail page using the "Story Flow" layout concept.'];
+  parts.push('Ultra-minimal nav: back + heart + overflow (···). No visible trash button.');
+
+  switch (state.tab) {
+    case 'v1':
+      parts.push('Title (22px Georgia bold) is the first element after the nav bar.');
+      parts.push('Below the title: a 3px gradient divider using child colors (blue→amber).');
+      parts.push('One compressed metadata line below the divider: date · time · location · children with colored dots and ages.');
+      parts.push('Transcript flows directly on the page background — no card, no border. Georgia 15px, 1.65 line-height.');
+      parts.push('Tags at the bottom in small muted pills (10px, lighter background) — afterthought styling.');
+      break;
+    case 'v2':
+      parts.push('Date shown as a small badge/chip at top: calendar icon + date + time + location.');
+      parts.push('Title (20px Georgia bold) below the date badge.');
+      parts.push('Children as colored-dot byline below title: "Emma 3y 4m · Oliver 1y 2w".');
+      parts.push('Transcript has a left accent border — 3px gradient (child blue → amber) on the left side, like a journal margin. 16px left padding.');
+      parts.push('Tags at the bottom in small muted pills.');
+      break;
+    case 'v3':
+      parts.push('Title (22px Georgia bold) leads at the top.');
+      parts.push('Below the title: metadata displayed as small rounded chips (8px radius, card bg, 1px border). One chip each for date, time, location, and each child (with colored dot + age).');
+      parts.push('A decorative dot-divider (thin lines with accent dot center) separates metadata from transcript.');
+      parts.push('Transcript flows on the page background. Georgia 15px, 1.65 line-height.');
+      parts.push('Tags at the bottom in standard pills (not muted).');
+      break;
+    case 'v4':
+      parts.push('Title (24px Georgia bold) — larger than other variations for emphasis.');
+      parts.push('Thin 2px gradient divider (child colors) below title.');
+      parts.push('One compressed metadata line below.');
+      parts.push('Extra whitespace (32px) between metadata and transcript — the page breathes.');
+      parts.push('Transcript on page background. "All changes saved" indicator below transcript in 11px muted text with green dot.');
+      parts.push('Photos displayed larger (full-width, 120px tall) with side-by-side layout.');
+      parts.push('A thin 1px divider separates transcript area from audio bar.');
+      parts.push('Tags in a floating sticky bottom bar with upward shadow — stay visible but out of the way.');
+      break;
+  }
+
+  if (state.photos) parts.push('Include photo gallery with rounded thumbnails and add (+) button.');
+  if (state.voice) parts.push('Prominent audio bar: play button + 25-bar waveform (child color gradient) + duration + mic/add actions.');
+  else parts.push('Text entry — no audio playback bar.');
+
+  document.getElementById('promptText').textContent = parts.join('\n');
+}
+
+function copyPrompt() {
+  navigator.clipboard.writeText(document.getElementById('promptText').textContent).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+  });
+}
+
+render();
+</script>
+</body>
+</html>
