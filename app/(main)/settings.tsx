@@ -117,6 +117,10 @@ export default function SettingsScreen() {
   const [newChildPhotoPreviewUri, setNewChildPhotoPreviewUri] = useState<string | undefined>(undefined);
   const [newChildPhotoLocalUri, setNewChildPhotoLocalUri] = useState<string | undefined>(undefined);
   const [isNewChildPhotoBusy, setIsNewChildPhotoBusy] = useState(false);
+  // URI of the freshly-picked photo while the user adjusts the
+  // circular crop in the Add Child modal. Separate from `cropSourceUri`
+  // (which belongs to the Edit modal) so the two flows can't collide.
+  const [newChildCropSourceUri, setNewChildCropSourceUri] = useState<string | null>(null);
 
   // Change password modal state
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
@@ -484,11 +488,14 @@ export default function SettingsScreen() {
     setNewChildColorIndex(children.length % childColors.length);
     setNewChildPhotoPreviewUri(undefined);
     setNewChildPhotoLocalUri(undefined);
+    setNewChildCropSourceUri(null);
     setShowAddChildModal(true);
   };
 
-  // Photo picker for the Add modal. Stages the asset URI locally so
-  // the actual upload can run after createChild() returns the new id.
+  // Photo picker for the Add modal. Opens the gallery without the OS
+  // crop UI, then hands the raw URI to our circular PhotoCropper.
+  // The cropped result is staged locally; the actual upload runs after
+  // createChild() returns a real id (inside handleAddChild).
   const pickNewChildPhoto = async () => {
     let ImagePicker: typeof import('expo-image-picker');
     try {
@@ -507,22 +514,22 @@ export default function SettingsScreen() {
       return;
     }
 
-    setIsNewChildPhotoBusy(true);
-    try {
-      const picked = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: (ImagePicker as any).MediaTypeOptions?.Images ?? ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 1,
-      });
-      if (picked.canceled || !picked.assets[0]?.uri) return;
+    const picked = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: (ImagePicker as any).MediaTypeOptions?.Images ?? ['images'],
+      allowsEditing: false,
+      quality: 1,
+    });
+    if (picked.canceled || !picked.assets[0]?.uri) return;
 
-      const uri = picked.assets[0].uri;
-      setNewChildPhotoLocalUri(uri);
-      setNewChildPhotoPreviewUri(uri);
-    } finally {
-      setIsNewChildPhotoBusy(false);
-    }
+    setNewChildCropSourceUri(picked.assets[0].uri);
+  };
+
+  // Called by PhotoCropper after the user confirms their framing in
+  // the Add Child modal. Stages the cropped URI for display + upload.
+  const handleCroppedNewChildPhoto = (croppedUri: string) => {
+    setNewChildCropSourceUri(null);
+    setNewChildPhotoLocalUri(croppedUri);
+    setNewChildPhotoPreviewUri(croppedUri);
   };
 
   const removeNewChildPhoto = () => {
@@ -1554,6 +1561,15 @@ export default function SettingsScreen() {
         sourceUri={cropSourceUri}
         onCancel={() => setCropSourceUri(null)}
         onConfirm={handleCroppedChildPhoto}
+      />
+
+      {/* Circular cropper for the Add Child modal — separate instance
+          so its state can't collide with the Edit modal's cropper. */}
+      <PhotoCropper
+        visible={!!newChildCropSourceUri}
+        sourceUri={newChildCropSourceUri}
+        onCancel={() => setNewChildCropSourceUri(null)}
+        onConfirm={handleCroppedNewChildPhoto}
       />
 
       {/* ─── Deleting Account Overlay ────────────── */}
