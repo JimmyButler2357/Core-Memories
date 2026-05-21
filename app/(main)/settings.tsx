@@ -727,8 +727,8 @@ export default function SettingsScreen() {
                 swappingChildId === child.id ||
                 swappingChildId === children[i - 1]?.id ||
                 swappingChildId === children[i + 1]?.id;
-              const upDisabled = i === 0 || isSwapping;
-              const downDisabled = i === children.length - 1 || isSwapping;
+              const isFirst = i === 0;
+              const isLast = i === children.length - 1;
               const showReorder = children.length > 1;
 
               return (
@@ -762,45 +762,57 @@ export default function SettingsScreen() {
 
                     {showReorder && (
                       <View style={styles.reorderGroup}>
-                        <Pressable
-                          onPress={() => handleSwap(i, i - 1)}
-                          disabled={upDisabled}
-                          hitSlop={hitSlop.icon}
-                          style={({ pressed }) => [
-                            styles.reorderBtn,
-                            upDisabled && styles.reorderBtnDisabled,
-                            pressed && !upDisabled && { opacity: 0.6 },
-                          ]}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Move ${child.name} up`}
-                          accessibilityState={{ disabled: upDisabled }}
-                        >
-                          <Ionicons
-                            name="chevron-up"
-                            size={18}
-                            color={colors.textMuted}
-                          />
-                        </Pressable>
+                        {/* Up arrow — empty placeholder slot for the first
+                            child keeps the chevron-forward column aligned
+                            across all rows. */}
+                        {isFirst ? (
+                          <View style={styles.reorderBtn} />
+                        ) : (
+                          <Pressable
+                            onPress={() => handleSwap(i, i - 1)}
+                            disabled={isSwapping}
+                            hitSlop={hitSlop.icon}
+                            style={({ pressed }) => [
+                              styles.reorderBtn,
+                              isSwapping && styles.reorderBtnDisabled,
+                              pressed && !isSwapping && { opacity: 0.6 },
+                            ]}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Move ${child.name} up`}
+                            accessibilityState={{ disabled: isSwapping }}
+                          >
+                            <Ionicons
+                              name="chevron-up"
+                              size={18}
+                              color={colors.textMuted}
+                            />
+                          </Pressable>
+                        )}
 
-                        <Pressable
-                          onPress={() => handleSwap(i, i + 1)}
-                          disabled={downDisabled}
-                          hitSlop={hitSlop.icon}
-                          style={({ pressed }) => [
-                            styles.reorderBtn,
-                            downDisabled && styles.reorderBtnDisabled,
-                            pressed && !downDisabled && { opacity: 0.6 },
-                          ]}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Move ${child.name} down`}
-                          accessibilityState={{ disabled: downDisabled }}
-                        >
-                          <Ionicons
-                            name="chevron-down"
-                            size={18}
-                            color={colors.textMuted}
-                          />
-                        </Pressable>
+                        {/* Down arrow — empty placeholder slot for the last child. */}
+                        {isLast ? (
+                          <View style={styles.reorderBtn} />
+                        ) : (
+                          <Pressable
+                            onPress={() => handleSwap(i, i + 1)}
+                            disabled={isSwapping}
+                            hitSlop={hitSlop.icon}
+                            style={({ pressed }) => [
+                              styles.reorderBtn,
+                              isSwapping && styles.reorderBtnDisabled,
+                              pressed && !isSwapping && { opacity: 0.6 },
+                            ]}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Move ${child.name} down`}
+                            accessibilityState={{ disabled: isSwapping }}
+                          >
+                            <Ionicons
+                              name="chevron-down"
+                              size={18}
+                              color={colors.textMuted}
+                            />
+                          </Pressable>
+                        )}
                       </View>
                     )}
 
