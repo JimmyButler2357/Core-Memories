@@ -1478,10 +1478,13 @@ export default function EntryDetailScreen() {
                   const isLast = i === entryChildren.length - 1;
                   // Single child: include age (e.g. "CHARLIE, 2Y 1M")
                   // Multi child: ampersand-join names only (e.g. "CHARLIE & EMMA")
-                  const ageSuffix =
+                  // getAge returns '' on invalid birthday/date — skip the
+                  // comma in that case so the row doesn't render "CHARLIE, "
+                  const age =
                     entryChildren.length === 1
-                      ? `, ${getAge(child.birthday, entry.date).toUpperCase()}`
+                      ? getAge(child.birthday, entry.date)
                       : '';
+                  const ageSuffix = age ? `, ${age.toUpperCase()}` : '';
                   // Inner separator for 3+ kids: "CHARLIE, EMMA & SOPHIE"
                   const sep = isLast
                     ? ''

@@ -4,6 +4,31 @@
 // Centralizing them means any locale or format changes
 // only need to happen in one place.
 
+import { captureException } from '@/lib/sentry';
+
+// Birthday and entry_date come from Postgres DATE columns and are
+// expected to be plain YYYY-MM-DD. Anything else means upstream data
+// corruption — guard so we don't propagate NaN into the UI.
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function isValidDateString(value: string): boolean {
+  return typeof value === 'string' && ISO_DATE_RE.test(value);
+}
+
+// Dedupe Sentry sends — the same bad value would otherwise log on
+// every render (the entry-detail screen re-renders ~2x/sec during
+// audio playback).
+const _reportedBadDates = new Set<string>();
+
+function reportBadDate(fn: string, field: string, value: unknown) {
+  const key = `${fn}:${field}:${String(value)}`;
+  if (_reportedBadDates.has(key)) return;
+  _reportedBadDates.add(key);
+  captureException(new Error(`${fn}: invalid ${field}`), {
+    extra: { fn, field, value },
+  });
+}
+
 /**
  * Format a date for display.
  * 'short' → "Mon, Jan 5" (cards, lists)
@@ -44,6 +69,14 @@ export function formatDuration(value: number, ms = false): string {
  * Returns a compact string like "2y 3m", "8m", or "1y".
  */
 export function getAge(birthday: string, referenceDate?: string): string {
+  if (!isValidDateString(birthday)) {
+    reportBadDate('getAge', 'birthday', birthday);
+    return '';
+  }
+  if (referenceDate && !isValidDateString(referenceDate)) {
+    reportBadDate('getAge', 'referenceDate', referenceDate);
+    return '';
+  }
   const [by, bm, bd] = birthday.split('-').map(Number);
   const b = new Date(by, bm - 1, bd);
   const d = referenceDate
@@ -119,6 +152,14 @@ export function ageInMonths(birthday: string): number {
  * Reference < birthday returns 0 (treats future dates as newborn).
  */
 export function ageInMonthsAt(birthday: string, referenceDate: string): number {
+  if (!isValidDateString(birthday)) {
+    reportBadDate('ageInMonthsAt', 'birthday', birthday);
+    return 0;
+  }
+  if (!isValidDateString(referenceDate)) {
+    reportBadDate('ageInMonthsAt', 'referenceDate', referenceDate);
+    return 0;
+  }
   const [by, bm, bd] = birthday.split('-').map(Number);
   const [ry, rm, rd] = referenceDate.split('-').map(Number);
   const b = new Date(by, bm - 1, bd);
