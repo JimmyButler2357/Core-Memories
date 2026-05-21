@@ -1058,11 +1058,6 @@ export default function EntryDetailScreen() {
     );
   }
 
-  const untaggedChildren = allChildren.filter(
-    (c) => !entry.childIds.includes(c.id),
-  );
-  const allChildrenTagged = untaggedChildren.length === 0;
-
   // ─── Handlers ──────────────────────────────────────────
 
   // Debounced title save — same pattern as transcript below.
@@ -1502,7 +1497,7 @@ export default function EntryDetailScreen() {
                 })}
               </ScrollView>
             )}
-            {hasAccess && !allChildrenTagged && (
+            {hasAccess && (
               <Pressable
                 onPress={() => setShowChildPicker(!showChildPicker)}
                 hitSlop={hitSlop.icon}
@@ -2212,7 +2207,6 @@ const styles = StyleSheet.create({
   eyebrowRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     marginTop: spacing(1),
     marginBottom: spacing(2),
     minHeight: 18,
@@ -2220,10 +2214,13 @@ const styles = StyleSheet.create({
   childEyebrow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexShrink: 1,
+    flex: 1,
+    minWidth: 0,
   },
   eyebrowScroll: {
     flexShrink: 1,
+    flexGrow: 0,
+    minWidth: 0,
   },
   eyebrowScrollContent: {
     flexDirection: 'row',
@@ -2267,6 +2264,7 @@ const styles = StyleSheet.create({
     // synthesized italic clips glyphs on Android.
     fontStyle: 'italic',
     color: colors.textMuted,
+    marginLeft: spacing(2),
   },
   // ─── Caption row (below title) ───────
   // Time + optional location, sized small enough to read as
