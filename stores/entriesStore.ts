@@ -34,7 +34,25 @@ export interface Entry {
   audioDuration?: number; // seconds
   audioStoragePath?: string; // Supabase storage path (e.g. "user123/entry456.wav")
   entryType?: 'voice' | 'text';
-  photos?: { id: string; uri: string; storagePath?: string; displayOrder?: number }[];
+  photos?: {
+    // Stable React key across the upload lifecycle. For new optimistic uploads
+    // this is `temp_xxx`; for photos coming back from the server it echoes id.
+    // Never changes between renders for the same photo — keeps PhotoThumb's
+    // internal state (isLoaded, etc) intact when the URI swaps from local
+    // file to signed URL.
+    clientKey: string;
+    // DB id. Undefined while the photo is still uploading or failed before
+    // the DB insert ran. Used for server-side delete and edit operations.
+    id?: string;
+    uri: string;
+    storagePath?: string;
+    displayOrder?: number;
+    // Optimistic-upload bookkeeping. Present only on photos that originated
+    // from a local picker; never on photos hydrated from the server.
+    isUploading?: boolean;
+    uploadError?: string;
+    localUri?: string; // file:// path remembered for retry
+  }[];
 }
 
 // ─── Mapper ──────────────────────────────────────────────
@@ -96,6 +114,7 @@ export function mapSupabaseEntry(row: SupabaseTimelineRow): Entry {
       .filter((m) => m.media_type === 'photo')
       .sort((a, b) => a.display_order - b.display_order)
       .map((m) => ({
+        clientKey: m.id, // stable React key — for server photos, mirrors id
         id: m.id,
         uri: m.storage_path,
         storagePath: m.storage_path,
