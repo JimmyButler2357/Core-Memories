@@ -70,6 +70,13 @@ interface ChildrenState {
   /** Update a child in the local cache (used after updating in Supabase). */
   updateChildLocal: (id: string, updates: Partial<Omit<Child, 'id'>>) => void;
 
+  /** Swap two children's positions in the local cache.
+   *  Used optimistically before the server-side swap_child_order RPC
+   *  returns, so the UI updates immediately. The store doesn't track
+   *  display_order numerically — it just keeps the array in the right
+   *  order, which is all any screen actually renders. */
+  swapChildren: (idA: string, idB: string) => void;
+
   /** Clear all children (used on sign-out). */
   clearChildren: () => void;
 
@@ -103,6 +110,18 @@ export const useChildrenStore = create<ChildrenState>()(
             c.id === id ? { ...c, ...updates } : c,
           ),
         })),
+
+      swapChildren: (idA, idB) =>
+        set((state) => {
+          const a = state.children.findIndex((c) => c.id === idA);
+          const b = state.children.findIndex((c) => c.id === idB);
+          // Returning the same state reference is Zustand's no-op signal —
+          // subscribers aren't notified.
+          if (a === -1 || b === -1) return state;
+          const next = [...state.children];
+          [next[a], next[b]] = [next[b], next[a]];
+          return { children: next };
+        }),
 
       clearChildren: () => set({ children: [] }),
 

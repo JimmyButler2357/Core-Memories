@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       children: {
@@ -423,6 +398,7 @@ export type Database = {
       notification_log: {
         Row: {
           child_id: string | null
+          delivery_status: string
           id: string
           profile_id: string
           prompt_id: string | null
@@ -433,6 +409,7 @@ export type Database = {
         }
         Insert: {
           child_id?: string | null
+          delivery_status?: string
           id?: string
           profile_id: string
           prompt_id?: string | null
@@ -443,6 +420,7 @@ export type Database = {
         }
         Update: {
           child_id?: string | null
+          delivery_status?: string
           id?: string
           profile_id?: string
           prompt_id?: string | null
@@ -732,6 +710,10 @@ export type Database = {
         Returns: undefined
       }
       start_trial: { Args: never; Returns: undefined }
+      swap_child_order: {
+        Args: { p_a: string; p_b: string }
+        Returns: undefined
+      }
       toggle_entry_favorite: {
         Args: { target_entry_id: string }
         Returns: boolean
@@ -865,9 +847,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },

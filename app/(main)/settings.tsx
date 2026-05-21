@@ -21,6 +21,8 @@ import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import Animated, { LinearTransition } from 'react-native-reanimated';
+import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { config } from '@/lib/config';
 import {
   colors,
@@ -73,6 +75,15 @@ export default function SettingsScreen() {
   const removeChildLocal = useChildrenStore((s) => s.removeChildLocal);
   const updateChildLocal = useChildrenStore((s) => s.updateChildLocal);
   const addChildLocal = useChildrenStore((s) => s.addChildLocal);
+  const swapChildrenLocal = useChildrenStore((s) => s.swapChildren);
+  const reduceMotion = useReduceMotion();
+  // Memo the LinearTransition config so we hand the same object to every
+  // Animated.View on each render — otherwise we'd allocate one config
+  // per child per render (up to 15).
+  const childRowLayout = useMemo(
+    () => (reduceMotion ? undefined : LinearTransition.duration(250)),
+    [reduceMotion],
+  );
   const addEntryLocal = useEntriesStore((s) => s.addEntryLocal);
   const removeEntryLocal = useEntriesStore((s) => s.removeEntryLocal);
   const signOut = useAuthStore((s) => s.signOut);
@@ -121,6 +132,11 @@ export default function SettingsScreen() {
   // circular crop in the Add Child modal. Separate from `cropSourceUri`
   // (which belongs to the Edit modal) so the two flows can't collide.
   const [newChildCropSourceUri, setNewChildCropSourceUri] = useState<string | null>(null);
+
+  // ID of the child currently being swapped. While set, the up/down
+  // arrows on that child AND its neighbor are disabled so the user can't
+  // fire a second swap before the server confirms the first.
+  const [swappingChildId, setSwappingChildId] = useState<string | null>(null);
 
   // Change password modal state
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
@@ -492,6 +508,36 @@ export default function SettingsScreen() {
     setShowAddChildModal(true);
   };
 
+  // Swap is its own inverse, so rolling back on RPC failure just means
+  // calling swapChildrenLocal again — no separate undo state needed.
+  const handleSwap = useCallback(
+    async (indexA: number, indexB: number) => {
+      if (swappingChildId) return;
+      const a = children[indexA];
+      const b = children[indexB];
+      if (!a || !b) return;
+
+      setSwappingChildId(a.id);
+      swapChildrenLocal(a.id, b.id);
+
+      try {
+        await childrenService.swapChildOrder(a.id, b.id);
+        capture('child_reordered', {
+          from: indexA,
+          to: indexB,
+          totalChildren: children.length,
+        });
+      } catch (err) {
+        swapChildrenLocal(a.id, b.id);
+        const msg = err instanceof Error ? err.message : 'Could not reorder children';
+        Alert.alert('Reorder failed', msg);
+      } finally {
+        setSwappingChildId(null);
+      }
+    },
+    [children, swappingChildId, swapChildrenLocal],
+  );
+
   // Photo picker for the Add modal. Opens the gallery without the OS
   // crop UI, then hands the raw URI to our circular PhotoCropper.
   // The cropped result is staged locally; the actual upload runs after
@@ -673,41 +719,100 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>Children</Text>
           <View style={styles.card}>
-            {children.map((child, i) => (
-              <Pressable
-                key={child.id}
-                onPress={() => openEditChild(child)}
-                style={({ pressed }) => [
-                  styles.row,
-                  i < children.length - 1 && styles.rowBorder,
-                  pressed && { backgroundColor: colors.cardPressed },
-                ]}
-              >
-                <View style={styles.rowContent}>
-                  <View style={styles.childInfo}>
-                    <View
-                      style={[
-                        styles.childDot,
-                        {
-                          backgroundColor:
-                            childColors[child.colorIndex]?.hex ??
-                            childColors[0].hex,
-                        },
-                      ]}
+            {children.map((child, i) => {
+              // Lock both arrows on this row AND its neighbors while a
+              // swap is in flight, so a rapid second tap can't fire a
+              // racing RPC before the first one resolves.
+              const isSwapping =
+                swappingChildId === child.id ||
+                swappingChildId === children[i - 1]?.id ||
+                swappingChildId === children[i + 1]?.id;
+              const upDisabled = i === 0 || isSwapping;
+              const downDisabled = i === children.length - 1 || isSwapping;
+              const showReorder = children.length > 1;
+
+              return (
+                <Animated.View key={child.id} layout={childRowLayout}>
+                  <Pressable
+                    onPress={() => openEditChild(child)}
+                    style={({ pressed }) => [
+                      styles.row,
+                      i < children.length - 1 && styles.rowBorder,
+                      pressed && { backgroundColor: colors.cardPressed },
+                    ]}
+                  >
+                    <View style={styles.rowContent}>
+                      <View style={styles.childInfo}>
+                        <View
+                          style={[
+                            styles.childDot,
+                            {
+                              backgroundColor:
+                                childColors[child.colorIndex]?.hex ??
+                                childColors[0].hex,
+                            },
+                          ]}
+                        />
+                        <Text style={styles.rowLabel}>{child.name}</Text>
+                      </View>
+                      <Text style={styles.rowSublabel}>
+                        Born {formatBirthdayDisplay(child.birthday)}
+                      </Text>
+                    </View>
+
+                    {showReorder && (
+                      <View style={styles.reorderGroup}>
+                        <Pressable
+                          onPress={() => handleSwap(i, i - 1)}
+                          disabled={upDisabled}
+                          hitSlop={hitSlop.icon}
+                          style={({ pressed }) => [
+                            styles.reorderBtn,
+                            upDisabled && styles.reorderBtnDisabled,
+                            pressed && !upDisabled && { opacity: 0.6 },
+                          ]}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Move ${child.name} up`}
+                          accessibilityState={{ disabled: upDisabled }}
+                        >
+                          <Ionicons
+                            name="chevron-up"
+                            size={18}
+                            color={colors.textMuted}
+                          />
+                        </Pressable>
+
+                        <Pressable
+                          onPress={() => handleSwap(i, i + 1)}
+                          disabled={downDisabled}
+                          hitSlop={hitSlop.icon}
+                          style={({ pressed }) => [
+                            styles.reorderBtn,
+                            downDisabled && styles.reorderBtnDisabled,
+                            pressed && !downDisabled && { opacity: 0.6 },
+                          ]}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Move ${child.name} down`}
+                          accessibilityState={{ disabled: downDisabled }}
+                        >
+                          <Ionicons
+                            name="chevron-down"
+                            size={18}
+                            color={colors.textMuted}
+                          />
+                        </Pressable>
+                      </View>
+                    )}
+
+                    <Ionicons
+                      name="chevron-forward"
+                      size={16}
+                      color={colors.textMuted}
                     />
-                    <Text style={styles.rowLabel}>{child.name}</Text>
-                  </View>
-                  <Text style={styles.rowSublabel}>
-                    Born {formatBirthdayDisplay(child.birthday)}
-                  </Text>
-                </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={16}
-                  color={colors.textMuted}
-                />
-              </Pressable>
-            ))}
+                  </Pressable>
+                </Animated.View>
+              );
+            })}
 
             {/* Add child button */}
             {children.length < 15 ? (
@@ -1656,6 +1761,22 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
+  },
+  // ─── Reorder Arrows ────────────────────
+  reorderGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(2),
+    marginRight: spacing(2),
+  },
+  reorderBtn: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reorderBtnDisabled: {
+    opacity: 0.3,
   },
   // ─── Add Row ───────────────────────────
   addRow: {

@@ -70,4 +70,18 @@ export const childrenService = {
 
     if (error) throw new Error(`Failed to delete child: ${error.message}`, { cause: error });
   },
+
+  /** Atomically swap two children's display_order.
+   *  The RPC wraps both UPDATEs in a single transaction so we never leave
+   *  the family with two children sharing the same display_order (which
+   *  would happen if two separate UPDATE calls were used and the second
+   *  failed). The RPC also re-checks auth and family membership server-side. */
+  async swapChildOrder(childIdA: string, childIdB: string): Promise<void> {
+    const { error } = await supabase.rpc('swap_child_order', {
+      p_a: childIdA,
+      p_b: childIdB,
+    });
+
+    if (error) throw new Error(`Failed to reorder children: ${error.message}`, { cause: error });
+  },
 };
