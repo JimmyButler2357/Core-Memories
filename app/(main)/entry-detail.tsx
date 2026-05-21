@@ -248,17 +248,25 @@ function TranscriptShimmer() {
 const PHOTO_PAPER_BORDER = 6;
 
 function PhotoThumb({
+  clientKey,
   uri,
   hasUri,
   size,
   onLongPress,
   tiltDeg,
+  isUploading,
+  uploadError,
+  onRetryUpload,
 }: {
+  clientKey: string;
   uri: string | undefined;
   hasUri: boolean;
   size: number;
   onLongPress?: () => void;
   tiltDeg: number;
+  isUploading?: boolean;
+  uploadError?: string;
+  onRetryUpload?: () => void;
 }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -276,10 +284,16 @@ function PhotoThumb({
     return () => anim.stop();
   }, [isLoaded, pulse]);
 
+  // Reset load state only when this is a *different* photo (clientKey changed).
+  // The URI itself swaps from local file:// to signed https:// when an
+  // optimistic upload completes — if we reset on uri change, the skeleton
+  // would flash back in mid-swap. React Native's <Image> already keeps the
+  // old image visible until the new source loads, so leaving isLoaded=true
+  // produces a seamless cross-fade.
   useEffect(() => {
     setHasError(false);
     setIsLoaded(false);
-  }, [uri]);
+  }, [clientKey]);
 
   const showSkeleton = !hasUri || (!isLoaded && !hasError);
   const innerSize = size - PHOTO_PAPER_BORDER * 2;
@@ -342,6 +356,50 @@ function PhotoThumb({
           >
             <Ionicons name="image-outline" size={28} color={colors.textMuted} />
           </View>
+        )}
+        {/* Upload-in-flight: small corner badge with spinner. Sits on top
+            of the local photo so the user can see what's uploading. */}
+        {isUploading && !uploadError && (
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              bottom: 4,
+              right: 4,
+              width: 24,
+              height: 24,
+              borderRadius: 12,
+              backgroundColor: 'rgba(44,36,32,0.55)',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <ActivityIndicator size="small" color="#fff" />
+          </View>
+        )}
+        {/* Upload failed: full-card scrim with tap-to-retry. The local
+            photo stays underneath so the user still recognizes which
+            photo failed. Long-press still works to remove it locally. */}
+        {uploadError && (
+          <Pressable
+            onPress={onRetryUpload}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(44,36,32,0.7)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4,
+            }}
+          >
+            <Ionicons name="refresh" size={20} color="#fff" />
+            <Text style={{ color: '#fff', fontSize: 11, fontWeight: '600' }}>
+              Tap to retry
+            </Text>
+          </Pressable>
         )}
       </View>
     </Pressable>
@@ -458,7 +516,7 @@ export default function EntryDetailScreen() {
   const [showAudioMenu, setShowAudioMenu] = useState(false);
   // Long-press a photo opens a confirmation; we hold the pending
   // photo id here so the existing ConfirmationDialog can act on it.
-  const [pendingDeletePhotoId, setPendingDeletePhotoId] = useState<string | null>(null);
+  const [pendingDeletePhotoKey, setPendingDeletePhotoKey] = useState<string | null>(null);
   const [tagInput, setTagInput] = useState('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showSavedConfirmation, setShowSavedConfirmation] = useState(false);
@@ -1058,11 +1116,6 @@ export default function EntryDetailScreen() {
     );
   }
 
-  const untaggedChildren = allChildren.filter(
-    (c) => !entry.childIds.includes(c.id),
-  );
-  const allChildrenTagged = untaggedChildren.length === 0;
-
   // ─── Handlers ──────────────────────────────────────────
 
   // Debounced title save — same pattern as transcript below.
@@ -1167,8 +1220,82 @@ export default function EntryDetailScreen() {
     updateEntryLocal(entry.id, { tags: newTags });
   };
 
+  // The actual upload-and-persist work, factored out so handleAddPhoto and
+  // retryPhotoUpload can share it. Operates on an already-rendered optimistic
+  // photo identified by clientKey: it does compress → upload → DB insert →
+  // sign-URL, then either swaps the local file URI for the signed one or
+  // flags the photo as failed (keeping the card on screen for retry).
+  const uploadPhotoForKey = async (
+    clientKey: string,
+    localUri: string,
+    displayOrder: number,
+  ) => {
+    if (!entry) return;
+    // Track the uploaded storage path so we can delete the orphan if the
+    // DB insert fails after the file is already in the bucket. Each Supabase
+    // call is its own transaction — without this rollback, a network blip
+    // between upload and insert would leave a file with nothing pointing at it.
+    let uploadedStoragePath: string | null = null;
+    try {
+      const compressed = await compressPhoto(localUri);
+      const storagePath = await storageService.uploadEntryPhoto(entry.id, compressed.uri, displayOrder);
+      uploadedStoragePath = storagePath;
+      const mediaRow = await entriesService.addEntryPhoto(entry.id, {
+        storage_path: storagePath,
+        display_order: displayOrder,
+        width: compressed.width,
+        height: compressed.height,
+        file_size_bytes: compressed.size,
+      });
+      // DB insert succeeded — the file is now referenced, clear the rollback marker.
+      uploadedStoragePath = null;
+      const signedUri = await storageService.getEntryMediaUrl(storagePath, familyId ?? undefined);
+
+      // Replace the optimistic photo in place. The clientKey stays the same
+      // so React doesn't remount PhotoThumb — the URI just swaps underneath.
+      setEntry((prev) => {
+        if (!prev) return prev;
+        const next = (prev.photos ?? []).map((p) =>
+          p.clientKey === clientKey
+            ? {
+                ...p,
+                id: mediaRow.id,
+                uri: signedUri,
+                storagePath,
+                isUploading: false,
+                uploadError: undefined,
+              }
+            : p,
+        );
+        updateEntryLocal(entry.id, { photos: next });
+        return { ...prev, photos: next };
+      });
+    } catch (err) {
+      if (uploadedStoragePath) {
+        try {
+          await storageService.deleteEntryMedia(uploadedStoragePath);
+        } catch (cleanupErr) {
+          console.warn('Failed to clean up orphaned entry photo:', cleanupErr);
+        }
+      }
+      const msg = err instanceof Error ? err.message : 'Could not add photo';
+      // Keep the optimistic card on screen and flag it so the retry
+      // overlay appears — no Alert, no vanishing card.
+      setEntry((prev) => {
+        if (!prev) return prev;
+        const next = (prev.photos ?? []).map((p) =>
+          p.clientKey === clientKey
+            ? { ...p, isUploading: false, uploadError: msg }
+            : p,
+        );
+        updateEntryLocal(entry.id, { photos: next });
+        return { ...prev, photos: next };
+      });
+    }
+  };
+
   const handleAddPhoto = async () => {
-    if (!entry || isPhotoSaving) return;
+    if (!entry) return;
     if (!isOnline) {
       Alert.alert('No Internet', 'Photos can be added when you are back online.');
       return;
@@ -1203,69 +1330,70 @@ export default function EntryDetailScreen() {
     });
     if (picked.canceled || !picked.assets[0]?.uri) return;
 
-    setIsPhotoSaving(true);
-    // Track the uploaded storage path so we can delete the orphan if the
-    // DB insert fails after the file is already in the bucket. Each Supabase
-    // call is its own transaction — without this rollback, a network blip
-    // between upload and insert would leave a file with nothing pointing at it.
-    let uploadedStoragePath: string | null = null;
-    try {
-      const asset = picked.assets[0];
+    const asset = picked.assets[0];
+    const displayOrder = currentPhotos.length === 0
+      ? 0
+      : Math.max(...currentPhotos.map((photo, index) => photo.displayOrder ?? index)) + 1;
+    const clientKey = `temp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-      // Shrink + re-encode before upload. Metadata we store should match
-      // the bytes actually in storage, so we use the compressed result.
-      const compressed = await compressPhoto(asset.uri);
+    // Optimistic insert — render the polaroid immediately using the local
+    // file path from the picker. The corner spinner shows on the card itself
+    // while the upload runs in the background.
+    const optimisticPhoto = {
+      clientKey,
+      uri: asset.uri,
+      localUri: asset.uri,
+      displayOrder,
+      isUploading: true,
+    };
+    const optimisticPhotos = [...currentPhotos, optimisticPhoto];
+    setEntry((prev) => prev ? { ...prev, photos: optimisticPhotos } : prev);
+    updateEntryLocal(entry.id, { photos: optimisticPhotos });
 
-      const displayOrder = currentPhotos.length === 0
-        ? 0
-        : Math.max(...currentPhotos.map((photo, index) => photo.displayOrder ?? index)) + 1;
-      const storagePath = await storageService.uploadEntryPhoto(entry.id, compressed.uri, displayOrder);
-      uploadedStoragePath = storagePath;
-      const mediaRow = await entriesService.addEntryPhoto(entry.id, {
-        storage_path: storagePath,
-        display_order: displayOrder,
-        width: compressed.width,
-        height: compressed.height,
-        file_size_bytes: compressed.size,
-      });
-      // DB insert succeeded — the file is now referenced, clear the rollback marker.
-      uploadedStoragePath = null;
-      const signedUri = await storageService.getEntryMediaUrl(storagePath, familyId ?? undefined);
-      const updatedPhotos = [
-        ...currentPhotos,
-        { id: mediaRow.id, uri: signedUri, storagePath, displayOrder },
-      ];
-      setEntry((prev) => prev ? { ...prev, photos: updatedPhotos } : prev);
-      updateEntryLocal(entry.id, { photos: updatedPhotos });
-    } catch (err) {
-      if (uploadedStoragePath) {
-        try {
-          await storageService.deleteEntryMedia(uploadedStoragePath);
-        } catch (cleanupErr) {
-          // Don't mask the original failure — log and move on. The worst
-          // case is one orphaned file, not a confusing double-error Alert.
-          console.warn('Failed to clean up orphaned entry photo:', cleanupErr);
-        }
-      }
-      const msg = err instanceof Error ? err.message : 'Could not add photo';
-      Alert.alert('Add Photo Failed', msg);
-    } finally {
-      setIsPhotoSaving(false);
-    }
+    await uploadPhotoForKey(clientKey, asset.uri, displayOrder);
   };
 
-  const handleRemovePhoto = async (photoId: string) => {
-    if (!entry || isPhotoSaving) return;
-    const target = (entry.photos ?? []).find((photo) => photo.id === photoId);
+  const retryPhotoUpload = async (clientKey: string) => {
+    if (!entry) return;
+    const photo = (entry.photos ?? []).find((p) => p.clientKey === clientKey);
+    if (!photo || !photo.localUri || photo.displayOrder == null) return;
+    // Flip back to uploading state so the spinner returns and the retry
+    // overlay vanishes. The actual upload work runs in uploadPhotoForKey.
+    setEntry((prev) => {
+      if (!prev) return prev;
+      const next = (prev.photos ?? []).map((p) =>
+        p.clientKey === clientKey
+          ? { ...p, isUploading: true, uploadError: undefined }
+          : p,
+      );
+      return { ...prev, photos: next };
+    });
+    await uploadPhotoForKey(clientKey, photo.localUri, photo.displayOrder);
+  };
+
+  const handleRemovePhoto = async (clientKey: string) => {
+    if (!entry) return;
+    const target = (entry.photos ?? []).find((photo) => photo.clientKey === clientKey);
     if (!target) return;
 
+    // Optimistic-only photo (upload failed or never reached the DB) — nothing
+    // exists on the server, so just drop it from local state. No spinner gate
+    // needed: there's no network call to race against.
+    if (!target.id) {
+      const remaining = (entry.photos ?? []).filter((p) => p.clientKey !== clientKey);
+      setEntry((prev) => prev ? { ...prev, photos: remaining } : prev);
+      updateEntryLocal(entry.id, { photos: remaining });
+      return;
+    }
+
+    if (isPhotoSaving) return;
     setIsPhotoSaving(true);
     try {
-      await entriesService.removeEntryPhoto(photoId);
+      await entriesService.removeEntryPhoto(target.id);
       if (target.storagePath) {
         await storageService.deleteEntryMedia(target.storagePath);
       }
-      const remaining = (entry.photos ?? []).filter((photo) => photo.id !== photoId);
+      const remaining = (entry.photos ?? []).filter((photo) => photo.clientKey !== clientKey);
       setEntry((prev) => prev ? { ...prev, photos: remaining } : prev);
       updateEntryLocal(entry.id, { photos: remaining });
     } catch (err) {
@@ -1478,10 +1606,13 @@ export default function EntryDetailScreen() {
                   const isLast = i === entryChildren.length - 1;
                   // Single child: include age (e.g. "CHARLIE, 2Y 1M")
                   // Multi child: ampersand-join names only (e.g. "CHARLIE & EMMA")
-                  const ageSuffix =
+                  // getAge returns '' on invalid birthday/date — skip the
+                  // comma in that case so the row doesn't render "CHARLIE, "
+                  const age =
                     entryChildren.length === 1
-                      ? `, ${getAge(child.birthday, entry.date).toUpperCase()}`
+                      ? getAge(child.birthday, entry.date)
                       : '';
+                  const ageSuffix = age ? `, ${age.toUpperCase()}` : '';
                   // Inner separator for 3+ kids: "CHARLIE, EMMA & SOPHIE"
                   const sep = isLast
                     ? ''
@@ -1502,7 +1633,7 @@ export default function EntryDetailScreen() {
                 })}
               </ScrollView>
             )}
-            {hasAccess && !allChildrenTagged && (
+            {hasAccess && (
               <Pressable
                 onPress={() => setShowChildPicker(!showChildPicker)}
                 hitSlop={hitSlop.icon}
@@ -1829,24 +1960,32 @@ export default function EntryDetailScreen() {
             <Text style={styles.sectionEyebrow}>SNAPSHOTS FROM THE DAY</Text>
             <View style={styles.photoGrid}>
               {entry.photos.slice(0, 2).map((photo, index) => {
-                // Only treat the uri as usable when it's a signed http URL.
-                // Local file uris from the picker are shown inline during
-                // upload but the actual storage-backed uri lands later.
-                const hasUri = !!photo.uri && photo.uri.startsWith('http');
+                // Any URI is displayable now — local file:// paths from the
+                // picker render the optimistic polaroid before upload, then
+                // get swapped for the signed https:// URL underneath.
+                const hasUri = !!photo.uri;
                 // Deterministic alternating tilt: photo 0 leans left,
                 // photo 1 leans right. Same value across renders so the
                 // tilt feels intentional, not jittery.
                 const tiltDeg = index === 0 ? -1.5 : 1.5;
+                // Long-press removes the photo. Allowed for successful
+                // photos and failed-upload photos (clears local state),
+                // but blocked while an upload is actively in flight.
+                const canLongPress = hasAccess && !photo.isUploading;
                 return (
                   <PhotoThumb
-                    key={photo.id ?? index}
+                    key={photo.clientKey}
+                    clientKey={photo.clientKey}
                     uri={hasUri ? photo.uri : undefined}
                     hasUri={hasUri}
                     size={photoThumbSize}
                     tiltDeg={tiltDeg}
+                    isUploading={photo.isUploading}
+                    uploadError={photo.uploadError}
+                    onRetryUpload={() => retryPhotoUpload(photo.clientKey)}
                     onLongPress={
-                      hasAccess && !isPhotoSaving
-                        ? () => setPendingDeletePhotoId(photo.id)
+                      canLongPress
+                        ? () => setPendingDeletePhotoKey(photo.clientKey)
                         : undefined
                     }
                   />
@@ -1860,11 +1999,8 @@ export default function EntryDetailScreen() {
                   pressed && { opacity: 0.6 },
                 ]}
                 onPress={handleAddPhoto}
-                disabled={isPhotoSaving}
               >
-                <Text style={styles.addPhotoBtnText}>
-                  {isPhotoSaving ? 'Saving photo…' : 'Add a photo'}
-                </Text>
+                <Text style={styles.addPhotoBtnText}>Add a photo</Text>
               </Pressable>
             )}
           </View>
@@ -1881,11 +2017,8 @@ export default function EntryDetailScreen() {
               pressed && { opacity: 0.6 },
             ]}
             onPress={handleAddPhoto}
-            disabled={isPhotoSaving}
           >
-            <Text style={styles.addPhotoBtnText}>
-              {isPhotoSaving ? 'Saving photo…' : 'Add a photo'}
-            </Text>
+            <Text style={styles.addPhotoBtnText}>Add a photo</Text>
           </Pressable>
         )}
 
@@ -2034,17 +2167,17 @@ export default function EntryDetailScreen() {
 
       {/* Photo delete confirmation — fires after a long-press on a thumb */}
       <ConfirmationDialog
-        visible={pendingDeletePhotoId !== null}
+        visible={pendingDeletePhotoKey !== null}
         title="Remove this photo?"
         body="The photo is removed from this memory."
         confirmLabel="Remove"
         onConfirm={() => {
-          if (pendingDeletePhotoId) {
-            handleRemovePhoto(pendingDeletePhotoId);
+          if (pendingDeletePhotoKey) {
+            handleRemovePhoto(pendingDeletePhotoKey);
           }
-          setPendingDeletePhotoId(null);
+          setPendingDeletePhotoKey(null);
         }}
-        onCancel={() => setPendingDeletePhotoId(null)}
+        onCancel={() => setPendingDeletePhotoKey(null)}
       />
 
       {/* Audio overflow menu — re-record + append, hidden behind a dot menu
@@ -2212,7 +2345,6 @@ const styles = StyleSheet.create({
   eyebrowRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     marginTop: spacing(1),
     marginBottom: spacing(2),
     minHeight: 18,
@@ -2220,10 +2352,13 @@ const styles = StyleSheet.create({
   childEyebrow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexShrink: 1,
+    flex: 1,
+    minWidth: 0,
   },
   eyebrowScroll: {
     flexShrink: 1,
+    flexGrow: 0,
+    minWidth: 0,
   },
   eyebrowScrollContent: {
     flexDirection: 'row',
@@ -2267,6 +2402,7 @@ const styles = StyleSheet.create({
     // synthesized italic clips glyphs on Android.
     fontStyle: 'italic',
     color: colors.textMuted,
+    marginLeft: spacing(2),
   },
   // ─── Caption row (below title) ───────
   // Time + optional location, sized small enough to read as
