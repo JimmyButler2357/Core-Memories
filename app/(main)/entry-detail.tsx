@@ -58,6 +58,7 @@ import { startTrialIfNeeded } from '@/lib/subscriptionHelpers';
 import { capture } from '@/lib/posthog';
 import { compressPhoto } from '@/lib/imageCompression';
 import { getCachedPhotoUrl } from '@/lib/photoUrlCache';
+import ImageView from 'react-native-image-viewing';
 
 // ─── FadeInUp Wrapper ────────────────────────────────────
 
@@ -252,6 +253,7 @@ function PhotoThumb({
   uri,
   hasUri,
   size,
+  onPress,
   onLongPress,
   tiltDeg,
   isUploading,
@@ -262,6 +264,7 @@ function PhotoThumb({
   uri: string | undefined;
   hasUri: boolean;
   size: number;
+  onPress?: () => void;
   onLongPress?: () => void;
   tiltDeg: number;
   isUploading?: boolean;
@@ -300,8 +303,12 @@ function PhotoThumb({
 
   return (
     <Pressable
+      onPress={onPress}
       onLongPress={onLongPress}
       delayLongPress={400}
+      accessibilityRole={onPress ? 'imagebutton' : 'image'}
+      accessibilityLabel={onPress ? 'Open photo' : undefined}
+      accessibilityHint={onLongPress ? 'Double tap to view. Long press to remove.' : undefined}
       style={{
         width: size,
         height: size,
@@ -517,6 +524,25 @@ export default function EntryDetailScreen() {
   // Long-press a photo opens a confirmation; we hold the pending
   // photo id here so the existing ConfirmationDialog can act on it.
   const [pendingDeletePhotoKey, setPendingDeletePhotoKey] = useState<string | null>(null);
+  // Track which photo the fullscreen viewer is currently showing — by
+  // clientKey, which is stable across the upload lifecycle (unlike `id`,
+  // which is undefined until the DB insert lands). If the photos array
+  // reorders or shrinks while the viewer is open, we can recompute the
+  // right index without holding a stale number.
+  const [photoViewerPhotoKey, setPhotoViewerPhotoKey] = useState<string | null>(null);
+
+  // Photos whose signed URL has actually resolved (uri starts with http).
+  // Local file:// uris (still uploading or failed) are filtered out so the
+  // viewer doesn't try to render an unuploaded thumbnail. Memoized so the
+  // array identity is stable across renders — keeps <ImageView> from doing
+  // unnecessary work.
+  const viewablePhotos = useMemo(
+    () => (entry?.photos ?? []).filter((p) => !!p.uri && p.uri.startsWith('http')),
+    [entry?.photos],
+  );
+  const photoViewerIndex = photoViewerPhotoKey
+    ? viewablePhotos.findIndex((p) => p.clientKey === photoViewerPhotoKey)
+    : -1;
   const [tagInput, setTagInput] = useState('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showSavedConfirmation, setShowSavedConfirmation] = useState(false);
@@ -1983,6 +2009,7 @@ export default function EntryDetailScreen() {
                     isUploading={photo.isUploading}
                     uploadError={photo.uploadError}
                     onRetryUpload={() => retryPhotoUpload(photo.clientKey)}
+                    onPress={hasUri ? () => setPhotoViewerPhotoKey(photo.clientKey) : undefined}
                     onLongPress={
                       canLongPress
                         ? () => setPendingDeletePhotoKey(photo.clientKey)
@@ -2178,6 +2205,22 @@ export default function EntryDetailScreen() {
           setPendingDeletePhotoKey(null);
         }}
         onCancel={() => setPendingDeletePhotoKey(null)}
+      />
+
+      {/* Fullscreen photo viewer — tap a thumb to open. Library gives us
+          pinch-to-zoom, double-tap zoom, and swipe-down-to-dismiss for free.
+          `onRequestClose` handles the Android hardware back button so it
+          closes the viewer instead of popping the screen.
+          `overFullScreen` hides the status bar on Android too (per docs).
+          `visible` is gated on the photo still existing in viewablePhotos
+          so the viewer self-closes if the tapped photo is removed mid-view. */}
+      <ImageView
+        images={viewablePhotos}
+        imageIndex={Math.max(0, photoViewerIndex)}
+        visible={photoViewerIndex >= 0}
+        onRequestClose={() => setPhotoViewerPhotoKey(null)}
+        presentationStyle="overFullScreen"
+        animationType="fade"
       />
 
       {/* Audio overflow menu — re-record + append, hidden behind a dot menu
