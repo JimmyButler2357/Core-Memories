@@ -180,28 +180,47 @@ Deno.serve(async (req) => {
 
         // ── Dedup + backoff (one DB call covers both) ──
         //
-        // Pull the user's last 5 SUCCESSFUL notifications and use them for:
+        // Pull the user's SUCCESSFUL notifications from the last
+        // BACKOFF_LOOKBACK_DAYS days and use them for:
         //   1. Dedup: did we already send something in the last 22 hours?
         //      One push per user per day. 22h (not 24h) gives a small
-        //      cushion for users who shift their notification time slightly
-        //      without falsely blocking a legit send.
-        //   2. Backoff: were the last 5 notifications ALL ignored (no tap)?
-        //      If so, pause sending until the user re-engages. This breaks
-        //      the "ignored → another → ignored" doom loop that drives
-        //      uninstalls. Any tap in the last 5 = sending resumes.
+        //      cushion for users who shift their notification time
+        //      slightly without falsely blocking a legit send.
+        //   2. Backoff: did the user receive BACKOFF_MIN_UNTAPPED or more
+        //      notifications in the lookback window and tap NONE of them?
+        //      If so, pause sending until the user re-engages.
+        //
+        // Why a time window instead of "last N rows":
+        // The old rule was "last 5 sent untapped" — but that's a catch-22.
+        // If delivery breaks for any reason (auth outage, push token
+        // issues, an Expo blip), the user can't tap notifications they
+        // never received, so the backoff state becomes permanent. The
+        // May 5-11 2026 auth outage left users one untapped notification
+        // short of the trigger; the May 11 recovery send completed the
+        // count and the system silently locked everyone out for 9+ days.
+        //
+        // A time-bounded window is self-healing: if sending stops, the
+        // old "ignored" rows age out and the system tries again. The
+        // 14-day / 10-untapped threshold also tolerates the lower
+        // engagement we see in closed testing.
         //
         // We filter delivery_status='sent' so failed pushes don't poison
         // the dedup window (review fix #5). 'pending' rows are excluded
-        // too — they're either still in flight (we'll catch the duplicate
-        // via row-level uniqueness on the next iteration) or were
-        // abandoned by a previous crash.
+        // too — they're either still in flight or were abandoned by a
+        // previous crash.
+        const BACKOFF_LOOKBACK_DAYS = 14;
+        const BACKOFF_MIN_UNTAPPED = 10;
+        const backoffCutoffIso = new Date(
+          Date.now() - BACKOFF_LOOKBACK_DAYS * 24 * 60 * 60 * 1000,
+        ).toISOString();
+
         const { data: recentLog, error: recentLogErr } = await supabase
           .from('notification_log')
           .select('sent_at, tapped')
           .eq('profile_id', profile.id)
           .eq('delivery_status', 'sent')
-          .order('sent_at', { ascending: false })
-          .limit(5);
+          .gte('sent_at', backoffCutoffIso)
+          .order('sent_at', { ascending: false });
 
         if (recentLogErr) {
           console.warn(`[USER ${profile.id}] WARN — could not check notification history; sending anyway:`, recentLogErr.message);
@@ -213,10 +232,13 @@ Deno.serve(async (req) => {
             console.log(`[USER ${profile.id}] SKIPPED — dedup: last send was ${recentSend.sent_at} (inside 22h window)`);
             continue;
           }
-          // Backoff: only fires once the user has 5+ history entries.
-          // every(!tapped) means none of the last 5 were tapped.
-          if (recentLog && recentLog.length >= 5 && recentLog.every((r) => !r.tapped)) {
-            console.log(`[USER ${profile.id}] SKIPPED — backoff: last 5 notifications all ignored`);
+          // Backoff: 10+ sends in last 14d, none tapped.
+          if (
+            recentLog &&
+            recentLog.length >= BACKOFF_MIN_UNTAPPED &&
+            recentLog.every((r) => !r.tapped)
+          ) {
+            console.log(`[USER ${profile.id}] SKIPPED — backoff: ${recentLog.length} notifications in last ${BACKOFF_LOOKBACK_DAYS}d, none tapped`);
             continue;
           }
         }
